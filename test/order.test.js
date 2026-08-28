@@ -146,8 +146,8 @@ test('정산: 추가 청구가 잔액으로 잡히고 입금 후 0이 된다', (
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-1', amountKrw: 78500 })
   // 허용오차(신뢰도 high = 12,500원)를 넘는 차이여야 정산이 발생합니다.
+  // 실측 등록만으로 정산 적용까지 자동으로 이어집니다.
   o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 2500, costs: { FREIGHT: 24000 } })
-  o = applySettlement(o.id, 'admin')
 
   assert.equal(o.state, 'SETTLEMENT_DUE')
   const due = summarize(o.ledger, o.fx.effectiveRate).balanceKrw
@@ -162,8 +162,8 @@ test('정산: 차액이 없으면 SETTLEMENT_DUE 를 건너뛴다', () => {
   let o = confirmPayment(newOrder().id, { confirmedBy: 'admin' })
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-2', amountKrw: 78500 })
+  // 차액이 허용오차 이내면 실측 한 번으로 SETTLED 까지 자동 진행됩니다.
   o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG })
-  o = applySettlement(o.id, 'admin')
   assert.equal(o.state, 'SETTLED')
 })
 
@@ -189,7 +189,6 @@ test('전체 흐름: 주문 → 배송 완료까지 진행되고 잔액이 0이�
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-9', amountKrw: 78500 })
   o = recordWeighing(o.id, { actualWeightG: 1680, costs: { FREIGHT: 24000, DUTY: 9800, VAT: 10700 } })
-  o = applySettlement(o.id, 'admin')
   if (o.state === 'SETTLEMENT_DUE') o = closeSettlement(o.id, { by: 'admin' })
   o = markShipped(o.id, { trackingNo: 'VN123' })
   o = markDelivered(o.id, 'admin')
@@ -256,10 +255,13 @@ test('결제 수단: 미설정 수단은 명확한 오류를 던진다', () => {
 test('매출 확정: 실측 직후에는 아직 확정이 아니다', () => {
   // 실측 시점에는 정산을 적용하기 전이라 잔액이 0으로 보이지만,
   // 정산을 적용하면 금액이 바뀝니다. 이때 confirmed 가 true 면 회계 판단을 그르칩니다.
+  // autoSettle: false — 실비를 나중에 입력하는 예외 경로(수동 정산)를 검증합니다.
   let o = confirmPayment(newOrder().id, { confirmedBy: 'admin' })
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-C', amountKrw: 78500 })
-  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 2500, costs: { FREIGHT: 24000 } })
+  o = recordWeighing(o.id, {
+    actualWeightG: o.quote.weight.chargeableG + 2500, costs: { FREIGHT: 24000 }, autoSettle: false,
+  })
 
   const beforeSettlement = orderView(o)
   assert.equal(beforeSettlement.ledgerSummary.balanceKrw, 0, '정산 전에는 잔액이 0으로 보입니다')

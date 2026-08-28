@@ -88,7 +88,8 @@ test('재점검을 확인하면 실측이 등록되고 추가 비용이 원장�
     recheck: { confirmed: true, productMatches: true, extraCostKrw: 12000 },
   })
   const v = orderView(o)
-  assert.equal(v.state, 'IN_WAREHOUSE')
+  // 실측이 정산까지 자동 연쇄되므로 IN_WAREHOUSE 에 머물지 않습니다.
+  assert.ok(['SETTLED', 'SETTLEMENT_DUE'].includes(v.state), `정산까지 자동 진행돼야 합니다 (현재 ${v.state})`)
   assert.equal(v.recheck.extraCostKrw, 12000)
   assert.ok(v.ledgerSummary.disbursedByType.OTHER === 12000, '추가 비용이 매입 원장에 잡혀야 합니다')
 })
@@ -100,7 +101,7 @@ test('국내 상품 주문은 재점검 없이도 실측이 등록된다', () =>
   })
   advanceToWarehouse(o)
   recordWeighing(o.id, { actualWeightG: 140, by: 'admin' })
-  assert.equal(orderView(o).state, 'IN_WAREHOUSE')
+  assert.ok(['SETTLED', 'SETTLEMENT_DUE'].includes(orderView(o).state), '재점검 없이 실측·정산이 진행돼야 합니다')
 })
 
 test('고객 뷰에는 재점검 사실만 보이고 내부 금액은 안 보인다', () => {
