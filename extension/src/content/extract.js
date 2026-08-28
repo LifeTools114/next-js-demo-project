@@ -34,6 +34,10 @@ const KBExtract = (() => {
     /** 고시정보 표 — 내용물의 용량 또는 중량이 여기 있습니다 */
     noticeTable: ['.prod-description table', '.product-details table', 'table.prod-delivery-return-policy-table'],
     rocket: ['.badge.rocket', '[class*="rocket"] img', '.prod-shipping-fee-message'],
+    /** 배지 — 로켓직구·해외직구 판별에 씁니다 */
+    badges: ['.badge', '.prod-badge', '[class*="Badge"]', '.delivery-badge'],
+    /** 배송 안내 문구 — '해외배송', '통관번호 필요' 등이 여기 있습니다 */
+    shippingInfo: ['.prod-shipping', '.prod-shipping-fee', '.delivery-info', '[class*="shippingInfo"]'],
     soldOut: ['.prod-out-of-stock', '.oos-label', '[class*="soldOut"]'],
   }
 
@@ -156,6 +160,37 @@ const KBExtract = (() => {
     return null
   }
 
+  /** 페이지의 배지 텍스트를 모두 모읍니다 (로켓직구·해외직구 판별용) */
+  function extractBadges() {
+    const out = new Set()
+    for (const sel of selectors.badges ?? []) {
+      try {
+        for (const el of document.querySelectorAll(sel)) {
+          const t = text(el) || el.getAttribute('alt') || ''
+          if (t && t.length <= 20) out.add(t)
+        }
+      } catch {
+        /* 잘못된 셀렉터는 건너뜁니다 */
+      }
+    }
+    return [...out]
+  }
+
+  /** 배송 안내 문구 */
+  function extractShippingText() {
+    return (selectors.shippingInfo ?? [])
+      .map((sel) => {
+        try {
+          return text(document.querySelector(sel))
+        } catch {
+          return ''
+        }
+      })
+      .filter(Boolean)
+      .join(' ')
+      .slice(0, 300)
+  }
+
   function extractBreadcrumb() {
     const el = first(selectors.breadcrumb)
     if (!el) return ''
@@ -206,6 +241,8 @@ const KBExtract = (() => {
       categoryPath: extractBreadcrumb(),
       url: canonicalUrl(),
       isRocket: Boolean(first(selectors.rocket)),
+      badges: extractBadges(),
+      shippingText: extractShippingText(),
       soldOut: Boolean(first(selectors.soldOut)),
       source: base.source,
     }
@@ -247,7 +284,7 @@ const KBExtract = (() => {
     return items
   }
 
-  return { extractProduct, extractListItems, extractNoticeSpec, setSelectors, canonicalUrl, DEFAULT_SELECTORS }
+  return { extractProduct, extractListItems, extractNoticeSpec, extractBadges, setSelectors, canonicalUrl, DEFAULT_SELECTORS }
 })()
 
 globalThis.KBExtract = KBExtract

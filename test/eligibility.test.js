@@ -199,3 +199,43 @@ test('관세 배분: 운임을 가액 비례로 나누고 품목별 세율을 �
   assert.equal(r.surcharged.length, 1)
   assert.equal(r.extraVsDefaultKrw, 22000) // 신발이 기본세율보다 20%p 더
 })
+
+// ─────────── 무게 상한 ───────────
+
+test('단일 상품 30kg 초과는 무게만으로 차단된다', () => {
+  // 키워드로 못 잡는 대형 상품을 추정 무게로 거릅니다.
+  const r = checkEligibility(p('코스트코 생수 2L 24병', { chargeableG: 51_200 }))
+  assert.equal(r.verdict, VERDICT.BLOCKED)
+  assert.equal(r.ruleId, 'overweight')
+  assert.match(r.matchedKeyword, /kg$/)
+})
+
+test('30kg 이하는 차단하지 않는다', () => {
+  const r = checkEligibility(p('쌀 25kg', { chargeableG: 25_000, price: 50000, quantity: 1 }))
+  assert.notEqual(r.verdict, VERDICT.BLOCKED)
+})
+
+test('15~30kg 구간은 견적 문의로 보낸다', () => {
+  const r = checkEligibility(p('이천쌀 20kg', { chargeableG: 21_000, price: 65000, quantity: 1 }))
+  assert.equal(r.verdict, VERDICT.MANUAL_QUOTE)
+  assert.equal(r.ruleId, 'heavy')
+})
+
+test('냉장고·세탁기는 무게 추정과 무관하게 키워드로도 차단된다', () => {
+  // 무게 추정이 실패해도(폴백 100g) 키워드가 잡아야 합니다.
+  for (const name of ['삼성 비스포크 냉장고 800L', 'LG 트롬 세탁기', '피아노 디지털']) {
+    const r = checkEligibility(p(name, { chargeableG: 100 }))
+    assert.equal(r.verdict, VERDICT.BLOCKED, `${name} 이 통과되었습니다`)
+  }
+})
+
+test('장바구니 판정에 무게를 넘기면 상한이 적용된다', () => {
+  const items = [p('생수 2L 24병'), p('토리든 세럼 50ml')]
+  const lines = [{ chargeableG: 51_200 }, { chargeableG: 140 }]
+  const r = checkCartEligibility(items, lines)
+  assert.equal(r.shippable, false)
+  assert.equal(r.blocked[0].ruleId, 'overweight')
+
+  // 무게를 안 넘기면 무게 규칙이 동작하지 않습니다 (호출부 실수 방지용 문서화)
+  assert.equal(checkCartEligibility(items).shippable, true)
+})

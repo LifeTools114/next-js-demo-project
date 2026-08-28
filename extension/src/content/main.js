@@ -90,11 +90,17 @@
     product = extracted
 
     // 배송 불가면 계산 자체를 하지 않습니다. 견적을 보여줄 이유가 없습니다.
+    // 무게를 먼저 추정해야 30kg 상한·중량물 판정이 동작합니다.
+    const preWeight = K.estimateItemWeight(
+      { productName: extracted.productName, specOverride: extracted.specOverride },
+      1,
+    )
     const eligibility = K.checkEligibility({
       productName: extracted.productName,
       categoryPath: extracted.categoryPath,
       price: extracted.price,
       quantity: 1,
+      chargeableG: preWeight.chargeableG,
     })
     if (!eligibility.shippable) {
       KBPanel.setState({
@@ -106,6 +112,18 @@
       return
     }
 
+    // 배송은 가능하나 자동 견적을 내지 않는 품목 — 물류사 견적이 필요합니다.
+    if (eligibility.autoQuote === false) {
+      KBPanel.setState({
+        view: 'manual-quote',
+        productName: extracted.productName,
+        label: eligibility.label,
+        reason: eligibility.reason,
+        notice: eligibility.notice,
+      })
+      return
+    }
+
     // 고시정보(용량·중량)는 specOverride 로 넘겨 무게 엔진이 우선 사용하게 합니다.
     const item = {
       productId: extracted.productId,
@@ -113,6 +131,9 @@
       specOverride: extracted.specOverride,
       productPrice: extracted.price,
       categoryPath: extracted.categoryPath,
+      // 해외직구 판별 신호 — 한국 창고 도착 일정이 크게 달라집니다.
+      badges: extracted.badges,
+      shippingText: extracted.shippingText,
       quantity: 1,
     }
     const q = K.quote([item], { track, zone })
@@ -125,6 +146,7 @@
       // 점검 예고·복구 안내는 견적을 막지 않고 배너로만 알립니다.
       maintenanceNotice: mstatus.notice,
       affiliateWarn: affGate.warn ? '점검 중' : null,
+      sourcing: q.sourcing,
       productName: extracted.productName,
       track,
       quote: q,

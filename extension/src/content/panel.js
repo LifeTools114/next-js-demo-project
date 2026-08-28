@@ -87,6 +87,7 @@ const KBPanel = (() => {
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
   function fabState() {
+    if (state.view === 'manual-quote') return 'manual'
     if (state.view === 'maintenance') return 'maintenance'
     if (state.view === 'blocked') return 'blocked'
     if (state.view === 'error') return 'error'
@@ -95,6 +96,21 @@ const KBPanel = (() => {
 
   function renderBody() {
     if (state.view === 'loading') return '<div class="body"><div class="err">계산 중…</div></div>'
+
+    if (state.view === 'manual-quote') {
+      return `<div class="body">
+        <p class="name">${esc(state.productName)}</p>
+        <div class="mq">
+          <span class="tagline">${esc(state.label)}</span>
+          <h4 style="margin-top:8px">견적 문의가 필요한 상품입니다</h4>
+          <p>${esc(state.reason)}</p>
+          ${state.notice ? `<p style="color:#8a5a10">⚠️ ${esc(state.notice)}</p>` : ''}
+        </div>
+        <div class="note">이런 상품은 무게·파손 취급·보험 조건이 상품마다 달라
+        자동 견적이 정확하지 않습니다. 물류사 견적을 받아 안내해 드립니다.</div>
+      </div>
+      <div class="btns"><button class="btn" data-act="add">견적 문의 담기</button></div>`
+    }
 
     if (state.view === 'maintenance') {
       const m = state.maintenance
@@ -148,6 +164,18 @@ const KBPanel = (() => {
         ? `<div class="note">상품가 ${esc(state.fmt.krw(q.goods))}는 고객님이 쿠팡에 직접 결제하십니다. (관세 과세표준에는 포함)</div>`
         : ''
 
+    const sched = q.sourcing?.schedule ?? {
+      totalDays: q.shipping.leadTimeDays,
+      toWarehouseDays: { min: 0, max: 0 },
+      toHanoiDays: q.shipping.leadTimeDays,
+    }
+
+    // 해외직구 상품은 도착이 늦고 비용을 다시 확인해야 합니다.
+    const overseasBlock = q.sourcing?.hasOverseas
+      ? `<div class="note warn"><b>🌏 ${esc(q.sourcing.notice.title)}</b><br>
+          ${esc(q.sourcing.notice.body)}<br><br>${esc(q.sourcing.notice.costNote)}</div>`
+      : ''
+
     const banner = state.maintenanceNotice
       ? `<div class="banner">⏰ ${esc(state.maintenanceNotice)}</div>`
       : ''
@@ -167,7 +195,10 @@ const KBPanel = (() => {
       <div class="row total"><span class="l">하노이 도착 총액</span><span class="v">${esc(state.fmt.krw(q.total))}</span></div>
       <div class="vnd">${esc(state.fmt.vnd(q.totalVnd))}</div>
       ${goodsNote}${surcharged}${warn}
-      <div class="note">📦 하노이 도착 예상 ${esc(q.shipping.leadTimeDays.min)}~${esc(q.shipping.leadTimeDays.max)}영업일</div>
+      ${overseasBlock}
+      <div class="note">📦 하노이 도착 예상 <b>${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}영업일</b><br>
+        <small>쿠팡→한국창고 ${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}일 +
+        한국창고→하노이 ${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}일</small></div>
       <div class="note">표시 금액은 상품명 기반 추정 무게로 계산한 예상 견적입니다.
       한국 창고 입고 후 실측하여 차액을 정산합니다.</div>
     </div>`
@@ -189,7 +220,11 @@ const KBPanel = (() => {
     ensureHost()
     const wrap = root.querySelector('.wrap')
     if (!open) {
-      const icon = state.view === 'blocked' ? '🚫' : state.view === 'maintenance' ? '🌙' : '🇻🇳'
+      const icon =
+        state.view === 'blocked' ? '🚫'
+        : state.view === 'maintenance' ? '🌙'
+        : state.view === 'manual-quote' ? '📋'
+        : '🇻🇳'
       wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="하노이 배송 견적">${icon}</button>`
       wrap.querySelector('.fab').addEventListener('click', () => {
         open = true

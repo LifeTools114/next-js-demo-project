@@ -40,9 +40,29 @@ export default function CostBreakdown({ quote }) {
           </p>
         )}
 
-        {quote.shipping?.leadTimeDays && (
+        {quote.sourcing?.hasOverseas && (
+          <p className="note note--warn" style={{ marginTop: 10 }}>
+            🌏 <strong>{quote.sourcing.notice.title}</strong>
+            <br />
+            {quote.sourcing.notice.body}
+            <br />
+            <br />
+            {quote.sourcing.notice.costNote}
+          </p>
+        )}
+
+        {quote.sourcing?.schedule && (
           <p className="note" style={{ marginTop: 10 }}>
-            📦 하노이 도착 예상 {quote.shipping.leadTimeDays.min}~{quote.shipping.leadTimeDays.max}영업일
+            📦 하노이 도착 예상{' '}
+            <strong>
+              {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
+            </strong>
+            <br />
+            <small>
+              쿠팡→한국창고 {quote.sourcing.schedule.toWarehouseDays.min}~
+              {quote.sourcing.schedule.toWarehouseDays.max}일 + 한국창고→하노이{' '}
+              {quote.sourcing.schedule.toHanoiDays.min}~{quote.sourcing.schedule.toHanoiDays.max}일
+            </small>
           </p>
         )}
 

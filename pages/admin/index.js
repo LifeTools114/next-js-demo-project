@@ -243,6 +243,27 @@ export default function AdminConsole() {
 
               {actions.some((a) => a.form === 'weighing') && (
                 <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+                  {o.quote?.sourcing?.hasOverseas && (
+                    <div className="note note--warn" style={{ fontSize: 11.5 }}>
+                      🌏 해외직구 상품이 포함되어 있습니다. 입고된 실제 상품이 주문과 같은지,
+                      쿠팡에서 관·부가세가 별도로 부과되었는지 확인한 뒤 등록하세요.
+                      <br />
+                      <label style={{ display: 'block', marginTop: 8 }}>
+                        <input type="checkbox" checked={f.recheckConfirmed ?? false}
+                          onChange={(e) => setField(o.orderNo, 'recheckConfirmed', e.target.checked)} />
+                        {' '}상품 정보·비용을 확인했습니다
+                      </label>
+                      <label style={{ display: 'block', marginTop: 4 }}>
+                        <input type="checkbox" checked={f.productMismatch ?? false}
+                          onChange={(e) => setField(o.orderNo, 'productMismatch', e.target.checked)} />
+                        {' '}입고 상품이 주문과 다릅니다
+                      </label>
+                      <input className="input" type="number" style={{ marginTop: 8 }}
+                        placeholder="쿠팡 관·부가세 등 추가 비용 (원)"
+                        value={f.recheckExtraKrw ?? ''}
+                        onChange={(e) => setField(o.orderNo, 'recheckExtraKrw', e.target.value)} />
+                    </div>
+                  )}
                   <input className="input" type="number" placeholder="실측 무게 (g)"
                     value={f.actualWeightG ?? ''}
                     onChange={(e) => setField(o.orderNo, 'actualWeightG', e.target.value)} />
