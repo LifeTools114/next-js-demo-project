@@ -36,6 +36,18 @@ const ACTIONS_BY_STATE = {
   SHIPPED: [{ action: 'markDelivered', label: '배송 완료', primary: true }],
 }
 
+/** 입금 대조 실패 사유 → 사람이 읽는 설명 */
+const DEPOSIT_REASON_LABELS = {
+  'no-order-no': '이체 메모에 주문번호 없음',
+  'order-not-found': '주문번호 불일치',
+  'not-payable': '결제 대기 상태 아님 (중복 입금?)',
+  underpaid: '부족 입금',
+  overpaid: '초과 입금 (확인은 완료)',
+  'confirm-failed': '자동 확인 실패 (경합)',
+  'invalid-amount': '금액 형식 오류',
+  'unsupported-currency': '지원하지 않는 통화',
+}
+
 export default function AdminConsole() {
   const [token, setToken] = useState('')
   const [orders, setOrders] = useState([])
@@ -46,6 +58,8 @@ export default function AdminConsole() {
   const [shipSel, setShipSel] = useState({})
   const [masterAwb, setMasterAwb] = useState('')
   const [shipMsg, setShipMsg] = useState(null)
+  // 자동화가 남긴 검토 건 (대조 실패 입금, 캡처 보류)
+  const [review, setReview] = useState(null)
   // 점검 상태는 시간이 지나면 바뀌므로 주기적으로 갱신합니다.
   const [maint, setMaint] = useState(null)
   // 토큰 로드 전후로 요청이 두 번 나가며, 먼저 보낸 실패 응답이
@@ -69,6 +83,11 @@ export default function AdminConsole() {
       if (seq !== reqRef.current) return
       if (!res.ok) throw new Error(data.error)
       setOrders(data.orders)
+      // 검토 큐는 부가 정보라 실패해도 주문 목록을 막지 않습니다.
+      fetch('/api/admin/review', { headers: { 'x-admin-token': token } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (seq === reqRef.current && d) setReview(d) })
+        .catch(() => {})
     } catch (e) {
       if (seq !== reqRef.current) return
       setError(e.message)
@@ -159,6 +178,46 @@ export default function AdminConsole() {
       )}
 
       {error && <div className="section" style={{ paddingTop: 0 }}><p className="note note--danger">{error}</p></div>}
+
+      {/* 검토 필요 — 자동화가 처리하지 못하고 남긴 건들 */}
+      {(review?.paymentReview?.length > 0 || review?.captureReview?.length > 0) && (
+        <section className="panel">
+          <div className="panel__head">
+            <span>검토 필요</span>
+            <span className="tag tag--warn">{(review.paymentReview?.length ?? 0) + (review.captureReview?.length ?? 0)}건</span>
+          </div>
+          <div className="panel__body">
+            {review.paymentReview?.map((r, i) => (
+              <div className="row" key={`p${i}`}>
+                <span className="row__label">
+                  💰 {DEPOSIT_REASON_LABELS[r.reason] ?? r.reason ?? r.event}
+                  {r.orderNo && ` · ${r.orderNo}`}
+                  {r.memo && <small> — 메모 &quot;{String(r.memo).slice(0, 40)}&quot;</small>}
+                </span>
+                <span className="row__value">
+                  {r.amount ? `${Number(r.amount).toLocaleString('ko-KR')} ${r.currency ?? ''}` : ''}
+                  {r.surplus ? `+${Number(r.surplus).toLocaleString('ko-KR')} ${r.currency ?? ''}` : ''}
+                  <small> {r.at ? formatDateTime(r.at) : ''}</small>
+                </span>
+              </div>
+            ))}
+            {review.captureReview?.map((r, i) => (
+              <div className="row" key={`c${i}`}>
+                <span className="row__label">
+                  🧾 쿠팡 캡처 보류 — {r.reason === 'ambiguous' ? `매입 중 ${r.candidates?.length ?? 0}건이라 미기록` : '매입 중 주문 없음'}
+                  <small> 쿠팡 {r.coupangOrderNo}</small>
+                </span>
+                <span className="row__value">
+                  {Number(r.amountKrw ?? 0).toLocaleString('ko-KR')}원 <small>{r.at ? formatDateTime(r.at) : ''}</small>
+                </span>
+              </div>
+            ))}
+            <p className="note" style={{ marginTop: 8 }}>
+              입금 건은 은행 내역과 대조 후 해당 주문에서 [입금 확인]을, 캡처 건은 발주 목록에서 [매입 완료 기록]을 눌러 처리하세요.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* 발송 묶음 — SETTLED 주문 선택 → 매니페스트 CSV → 마스터 AWB 로 일괄 발송 */}
       {orders.some((o) => o.state === 'SETTLED') && (
