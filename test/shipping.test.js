@@ -25,6 +25,25 @@ test('청구무게: 2kg 초과는 0.5kg 단위로 올림한다', () => {
   assert.equal(toBillableKg(10100), 10.5)
 })
 
+test('여유 무게: 청구 경계까지 남은 g 을 알려준다', () => {
+  // 400g 담았어도 최소 1kg 청구 → 600g 은 공짜로 더 담을 수 있음
+  assert.equal(calculateShipping(400).headroomG, 600)
+  // 2.3kg → 2.5kg 청구 → 200g 여유
+  assert.equal(calculateShipping(2300).headroomG, 200)
+  // 정확히 경계면 여유 없음
+  assert.equal(calculateShipping(2500).headroomG, 0)
+  // 경계 직후는 다음 단계 하나가 통째로 여유
+  assert.equal(calculateShipping(2501).headroomG, 499)
+  // 여유만큼 더 담아도 배송비가 정말 같은지 (경계 전 구간 전수 확인)
+  for (const g of [400, 1500, 2300, 4700]) {
+    const s = calculateShipping(g)
+    assert.equal(calculateShipping(g + s.headroomG).freightUsd, s.freightUsd, `${g}g + 여유`)
+    if (s.headroomG > 0) {
+      assert.notEqual(calculateShipping(g + s.headroomG + 1).freightUsd, s.freightUsd, `${g}g 여유 초과`)
+    }
+  }
+})
+
 test('청구무게: 올림 단위가 구간 경계에서 바뀐다', () => {
   assert.equal(roundingStepFor(1.5), 1)
   assert.equal(roundingStepFor(2), 1, '2kg 은 아직 1kg 단위')

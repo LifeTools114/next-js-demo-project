@@ -42,6 +42,7 @@ const KBPanel = (() => {
 .blocked p { margin: 0; font-size: 12.5px; color: #742a2a; line-height: 1.5; }
 .note { background: #faf7fb; border-radius: 8px; padding: 9px 10px; font-size: 11.5px; color: #766b80; line-height: 1.5; margin-top: 10px; }
 .note.warn { background: #fff8ef; color: #8a5a10; }
+.note.tip { background: #f0faf4; color: #1d6b40; }
 .btns { padding: 0 14px 14px; display: grid; gap: 8px; }
 .btn { min-height: 42px; border: 0; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
   background: #ef4a76; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -85,6 +86,19 @@ const KBPanel = (() => {
 
   const esc = (s) =>
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+  /**
+   * "○○g 더 담아도 배송비 동일" 여유 무게 안내.
+   * 추정오차로 과약속하지 않도록 10g 단위로 내림하고, 50g 미만이면 숨깁니다.
+   */
+  function headroomNote(q) {
+    const raw = q?.shipping?.headroomG ?? 0
+    const shown = Math.floor(raw / 10) * 10
+    if (shown < 50) return ''
+    const fmtW = state.fmt?.weight ?? ((g) => `${g}g`)
+    return `<div class="note tip">💡 약 <b>${esc(fmtW(shown))}</b> 더 담아도 배송비가 같습니다
+      <small>(청구무게 ${esc(String(q.shipping.billableKg))}kg 까지)</small></div>`
+  }
 
   function fabState() {
     if (state.view === 'manual-quote') return 'manual'
@@ -191,6 +205,7 @@ const KBPanel = (() => {
         <span class="tag info">청구무게 ${q.shipping.billableKg}kg</span>
         <span class="tag ${state.confidenceClass}">${esc(state.confidenceLabel)}</span>
       </div>
+      ${headroomNote(q)}
       <div style="margin-top:8px">${rows}</div>
       <div class="row total"><span class="l">하노이 도착 총액</span><span class="v">${esc(state.fmt.krw(q.total))}</span></div>
       <div class="vnd">${esc(state.fmt.vnd(q.totalVnd))}</div>

@@ -153,7 +153,7 @@
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
       disclosureShort: policy.affiliateDisclosureShort,
-      fmt: { krw: K.krw, vnd: K.vnd },
+      fmt: { krw: K.krw, vnd: K.vnd, weight: K.weight },
     })
   }
 
