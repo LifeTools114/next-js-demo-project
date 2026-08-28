@@ -6,6 +6,7 @@ import {
   cancelOrder, orderView, customerView, _reset,
 } from '../lib/order/store.js'
 import { canTransition, InvalidTransitionError } from '../lib/order/states.js'
+import { SETTLEMENT_RULES } from '../config/payment.js'
 import { emptyLedger, customerEntry, procurementEntry, summarize, recognizeRevenue } from '../lib/order/ledger.js'
 import { computeSettlement } from '../lib/order/settlement.js'
 import { availableMethods, getMethod, NotConfiguredError } from '../lib/payment/methods.js'
@@ -109,9 +110,14 @@ test('매출 인식: 매입 기록 전에는 확정되지 않는다', () => {
 // ─────────────── 정산 ───────────────
 
 test('정산: 실측이 무거우면 추가 청구, 가벼우면 환불', () => {
-  const o = newOrder()
-  // 올림 단위(1kg)보다 큰 차이여야 청구무게가 실제로 바뀝니다.
-  const CROSS = 1500
+  // 무게가 충분히 커야 양방향 정산을 모두 확인할 수 있습니다.
+  // (2kg 주문은 최소 청구무게가 1kg 이라 환불 폭이 허용오차를 못 넘습니다)
+  const o = createOrder({
+    items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
+    zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
+  })
+  // 신뢰도 high 는 12,500원까지 흡수하므로 그보다 큰 차이를 줍니다.
+  const CROSS = 1000
   const heavier = computeSettlement(o, o.quote.weight.chargeableG + CROSS)
   const lighter = computeSettlement(o, Math.max(100, o.quote.weight.chargeableG - CROSS))
   assert.equal(heavier.action, 'additional')
@@ -139,7 +145,8 @@ test('정산: 추가 청구가 잔액으로 잡히고 입금 후 0이 된다', (
   let o = confirmPayment(newOrder().id, { confirmedBy: 'admin' })
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-1', amountKrw: 78500 })
-  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 1500, costs: { FREIGHT: 24000 } })
+  // 허용오차(신뢰도 high = 12,500원)를 넘는 차이여야 정산이 발생합니다.
+  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 2500, costs: { FREIGHT: 24000 } })
   o = applySettlement(o.id, 'admin')
 
   assert.equal(o.state, 'SETTLEMENT_DUE')
@@ -252,7 +259,7 @@ test('매출 확정: 실측 직후에는 아직 확정이 아니다', () => {
   let o = confirmPayment(newOrder().id, { confirmedBy: 'admin' })
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-C', amountKrw: 78500 })
-  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 1500, costs: { FREIGHT: 24000 } })
+  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 2500, costs: { FREIGHT: 24000 } })
 
   const beforeSettlement = orderView(o)
   assert.equal(beforeSettlement.ledgerSummary.balanceKrw, 0, '정산 전에는 잔액이 0으로 보입니다')
@@ -300,4 +307,62 @@ test('환율 동결: 정산은 주문 시점 환율로 재계산한다', async (
   } finally {
     FX.usdToKrw = live
   }
+})
+
+// ─────────── 허용오차 (정산 빈도 억제) ───────────
+
+test('허용오차: 신뢰도가 높으면 작은 차액을 흡수한다', () => {
+  // 고정 3,000원만 쓰면 한 칸 차이(0.5kg × $9 = 6,210원)가 매번 정산으로 이어져
+  // 주문 7건 중 1건을 손으로 처리하게 됩니다.
+  const o = createOrder({
+    items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
+    zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
+  })
+  assert.equal(o.quote.weight.confidence.level, 'high')
+  assert.equal(SETTLEMENT_RULES.toleranceByConfidence.high, 12_500)
+
+  const base = o.quote.weight.chargeableG
+  const small = computeSettlement(o, base + 400)
+  assert.equal(small.action, 'none', '허용오차 이내는 흡수합니다')
+  assert.equal(small.tolerance.absorbed, true)
+  assert.ok(small.absKrw < small.tolerance.toleranceKrw)
+
+  const large = computeSettlement(o, base + 1500)
+  assert.equal(large.action, 'additional')
+  assert.ok(large.absKrw >= large.tolerance.toleranceKrw)
+})
+
+test('허용오차: 신뢰도가 낮으면 흡수하지 않는다', () => {
+  // 세트·기획 상품처럼 근거가 약한 건은 오차가 커서 흡수하면 손실이 큽니다.
+  const o = createOrder({
+    items: [{ productName: '알 수 없는 기획세트', productPrice: 50000, quantity: 3 }],
+    zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
+  })
+  assert.equal(o.quote.weight.confidence.level, 'low')
+  const s = computeSettlement(o, o.quote.weight.chargeableG + 1200)
+  assert.equal(s.tolerance.toleranceKrw, 3_000, '신뢰도 낮음은 흡수 폭이 좁습니다')
+  assert.equal(s.action, 'additional')
+})
+
+test('허용오차: 소액 차액은 신뢰도와 무관하게 정산하지 않는다', () => {
+  // 송금 수수료가 차액보다 크면 정산 자체가 손해입니다.
+  const o = createOrder({
+    items: [{ productName: '알 수 없는 기획세트', productPrice: 50000, quantity: 1 }],
+    zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
+  })
+  const same = computeSettlement(o, o.quote.weight.chargeableG)
+  assert.equal(same.action, 'none')
+  assert.equal(same.diffKrw, 0)
+})
+
+test('허용오차: 흡수해도 고객 청구액은 최초 견적 그대로다', () => {
+  const o = createOrder({
+    items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
+    zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
+  })
+  const s = computeSettlement(o, o.quote.weight.chargeableG + 400)
+  assert.equal(s.action, 'none')
+  // 흡수분은 우리 손익으로 들어가고 고객에게는 청구하지 않습니다.
+  assert.notEqual(s.absorbedKrw, undefined)
+  assert.equal(s.quotedTotalKrw, o.quote.total)
 })

@@ -23,16 +23,13 @@ export const FEES = {
 }
 
 /**
- * 견적 정확도 정책 (구매대행 모델의 핵심)
+ * 견적 정확도 안내 문구 (UI 표시 전용)
  *
  * 무게는 상품명 기반 "추정치"이므로 결제 시점 금액은 확정이 아닙니다.
- * 한국 물류창고 입고 후 실측하여 차액을 정산합니다.
+ * 실제 정산 규칙은 config/payment.js 의 SETTLEMENT_RULES 를 보세요.
  */
 export const SETTLEMENT = {
-  /** 실측 무게가 추정치보다 이 비율 이상 크면 추가 청구 */
-  toleranceRate: 0.10,
-  /** 이 금액 미만의 차액은 정산하지 않음 (원) */
-  minAdjustmentKrw: 3000,
+  /** 실측 정산 규칙은 config/payment.js 의 SETTLEMENT_RULES 에 있습니다. */
   notice:
     '표시 금액은 상품명 기반 추정 무게로 계산한 예상 견적입니다. 한국 창고 입고 후 실측하여 차액이 발생하면 추가 청구 또는 환불로 정산합니다.',
 }
