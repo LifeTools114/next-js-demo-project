@@ -110,8 +110,10 @@ test('매출 인식: 매입 기록 전에는 확정되지 않는다', () => {
 
 test('정산: 실측이 무거우면 추가 청구, 가벼우면 환불', () => {
   const o = newOrder()
-  const heavier = computeSettlement(o, o.quote.weight.chargeableG + 600)
-  const lighter = computeSettlement(o, Math.max(100, o.quote.weight.chargeableG - 600))
+  // 올림 단위(1kg)보다 큰 차이여야 청구무게가 실제로 바뀝니다.
+  const CROSS = 1500
+  const heavier = computeSettlement(o, o.quote.weight.chargeableG + CROSS)
+  const lighter = computeSettlement(o, Math.max(100, o.quote.weight.chargeableG - CROSS))
   assert.equal(heavier.action, 'additional')
   assert.ok(heavier.diffKrw > 0)
   assert.equal(lighter.action, 'refund')
@@ -120,7 +122,7 @@ test('정산: 실측이 무거우면 추가 청구, 가벼우면 환불', () => 
 
 test('정산: 허용오차 이내면 정산하지 않는다', () => {
   const o = newOrder()
-  // 0.5kg 올림 단위가 작은 차이를 흡수합니다.
+  // 1kg 올림 단위가 작은 차이를 흡수합니다.
   const s = computeSettlement(o, o.quote.weight.chargeableG + 10)
   assert.equal(s.action, 'none')
   assert.equal(s.diffKrw, 0)
@@ -137,7 +139,7 @@ test('정산: 추가 청구가 잔액으로 잡히고 입금 후 0이 된다', (
   let o = confirmPayment(newOrder().id, { confirmedBy: 'admin' })
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-1', amountKrw: 78500 })
-  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 600, costs: { FREIGHT: 24000 } })
+  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 1500, costs: { FREIGHT: 24000 } })
   o = applySettlement(o.id, 'admin')
 
   assert.equal(o.state, 'SETTLEMENT_DUE')
@@ -250,7 +252,7 @@ test('매출 확정: 실측 직후에는 아직 확정이 아니다', () => {
   let o = confirmPayment(newOrder().id, { confirmedBy: 'admin' })
   o = startPurchase(o.id, 'admin')
   o = recordPurchase(o.id, { coupangOrderNo: 'CP-C', amountKrw: 78500 })
-  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 600, costs: { FREIGHT: 24000 } })
+  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG + 1500, costs: { FREIGHT: 24000 } })
 
   const beforeSettlement = orderView(o)
   assert.equal(beforeSettlement.ledgerSummary.balanceKrw, 0, '정산 전에는 잔액이 0으로 보입니다')

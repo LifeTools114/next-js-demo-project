@@ -18,11 +18,20 @@ export const SHIPPING = {
   // 원가는 config/costs.server.js 에 있습니다.
   // 이 파일은 확장프로그램 번들에 포함되므로 원가를 두면 그대로 노출됩니다.
 
-  /** 최소 청구무게 — 이보다 가벼워도 이 무게로 청구합니다. */
-  minBillableKg: 0.5,
+  /**
+   * 최소 청구무게 — 이보다 가벼워도 이 무게로 청구합니다.
+   * 1kg 이하는 모두 1kg 으로 청구합니다.
+   */
+  minBillableKg: 1,
 
-  /** 청구무게 올림 단위 */
-  roundingStepKg: 0.5,
+  /**
+   * 청구무게 올림 단위 — 1kg 단위로 올림합니다.
+   *   ~1kg   → 1kg 청구
+   *   1~2kg  → 2kg 청구
+   *   2~3kg  → 3kg 청구
+   * 항공특송 업계 표준 방식이며, 경쟁사(최소 2kg)보다 최소 단위가 작습니다.
+   */
+  roundingStepKg: 1,
 
   /** 항공 부피무게 환산 계수: (가로×세로×높이 cm) / 6000 = kg */
   volumetricDivisor: 6000,

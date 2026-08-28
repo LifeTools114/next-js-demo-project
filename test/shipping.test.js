@@ -6,28 +6,38 @@ import { compareConsolidation } from '../lib/consolidation.js'
 import { SHIPPING } from '../config/shipping.js'
 import { FEES } from '../config/fees.js'
 
-test('청구무게: 0.5kg 단위로 올림한다', () => {
-  assert.equal(toBillableKg(100), 0.5) // 최소 청구무게
-  assert.equal(toBillableKg(500), 0.5)
-  assert.equal(toBillableKg(501), 1.0)
-  assert.equal(toBillableKg(1000), 1.0)
-  assert.equal(toBillableKg(1001), 1.5)
-  assert.equal(toBillableKg(2600), 3.0)
+test('청구무게: 1kg 단위로 올림하고 최소 1kg 이다', () => {
+  // ~1kg 은 1kg, 1~2kg 은 2kg 청구
+  assert.equal(toBillableKg(100), 1) // 최소 청구무게
+  assert.equal(toBillableKg(500), 1)
+  assert.equal(toBillableKg(999), 1)
+  assert.equal(toBillableKg(1000), 1, '정확히 1kg 은 1kg 청구')
+  assert.equal(toBillableKg(1001), 2, '1kg 을 넘으면 2kg')
+  assert.equal(toBillableKg(2000), 2)
+  assert.equal(toBillableKg(2001), 3)
 })
 
 test('청구무게: 부동소수 오차로 한 단계가 더 올라가지 않는다', () => {
-  assert.equal(toBillableKg(1500), 1.5)
-  assert.equal(toBillableKg(2500), 2.5)
-  assert.equal(toBillableKg(3000), 3.0)
+  // 정확히 경계값인 무게가 다음 구간으로 넘어가면 매번 1kg 을 더 청구하게 됩니다.
+  for (const kg of [1, 2, 3, 5, 10, 20]) {
+    assert.equal(toBillableKg(kg * 1000), kg, `${kg}kg 이 그대로여야 합니다`)
+  }
+})
+
+test('청구무게: 경쟁사보다 최소 단위가 작다', () => {
+  // 경쟁사(Giaonhan247)는 최소 2kg 을 청구합니다.
+  // 소액·경량 주문에서 우리가 우위를 갖는 근거입니다.
+  assert.ok(SHIPPING.minBillableKg < 2)
+  assert.equal(toBillableKg(300), 1)
 })
 
 test('배송비: kg당 $9 정액 × 청구무게', () => {
-  const r = calculateShipping(1200) // 1.5kg 로 올림
-  assert.equal(r.billableKg, 1.5)
+  const r = calculateShipping(1200) // 2kg 로 올림
+  assert.equal(r.billableKg, 2)
   assert.equal(r.ratePerKgUsd, 9)
-  assert.equal(r.freightUsd, 13.5)
-  assert.equal(r.totalUsd, 13.5)
-  assert.equal(r.totalKrw, usdToKrw(13.5))
+  assert.equal(r.freightUsd, 18)
+  assert.equal(r.totalUsd, 18)
+  assert.equal(r.totalKrw, usdToKrw(18))
 })
 
 test('배송비: 구간 없이 무게에 정비례한다', () => {
@@ -205,4 +215,11 @@ test('상품 할증: 관세 과세표준(CIF)에 포함된다', () => {
     100000 + withSurcharge.shipping.totalKrw + withSurcharge.itemSurcharges.totalKrw,
     'CIF = 상품가 + 운임 + 상품할증',
   )
+})
+
+test('정산 허용오차: 1kg 단위 올림이 작은 오차를 흡수한다', () => {
+  // 실측이 조금 달라도 같은 kg 구간이면 배송비가 변하지 않습니다.
+  // 이 성질 덕분에 대부분의 주문은 차액 정산 없이 끝납니다.
+  assert.equal(toBillableKg(1200), toBillableKg(1800), '1.2kg 과 1.8kg 은 같은 2kg 구간')
+  assert.notEqual(toBillableKg(1800), toBillableKg(2200), '2kg 을 넘으면 구간이 바뀜')
 })
