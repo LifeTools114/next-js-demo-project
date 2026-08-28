@@ -1,19 +1,24 @@
 {
-  "name": "kbeauty-hanoi",
+  "name": "coupang-hanoi-helper",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "하노이 거주자를 위한 한국 여성 화장품 직구(구매대행) 플랫폼",
+  "description": "쿠팡 하노이 직구 도우미 — 크롬 확장 + 견적·주문 백엔드",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run build:ext && next build",
+    "build:ext": "esbuild lib/extension-entry.js --bundle --format=iife --global-name=KBCalc --outfile=extension/vendor/calc.js --minify --target=chrome110",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js",
+    "pack:ext": "npm run build:ext && cd extension && zip -qr ../coupang-hanoi-extension.zip . -x \"*.DS_Store\" && echo \"생성: coupang-hanoi-extension.zip\""
   },
   "dependencies": {
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

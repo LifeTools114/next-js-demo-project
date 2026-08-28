@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>하노이 직구 도우미</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <b>🇻🇳 하노이 직구 도우미</b>
+    <span id="src-badge" class="badge"></span>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="cart" aria-pressed="true">견적함</button>
+    <button data-tab="settings" aria-pressed="false">설정</button>
+  </nav>
+
+  <section id="tab-cart">
+    <div id="cart-empty" class="empty" hidden>
+      <div class="empty-icon">🧾</div>
+      담은 상품이 없습니다.<br>
+      <small>쿠팡 상품 페이지에서 견적함에 담아보세요.</small>
+    </div>
+    <div id="cart-list"></div>
+    <div id="cart-quote"></div>
+    <div id="cart-actions" class="actions" hidden>
+      <button id="btn-order" class="btn">주문 요청하기</button>
+      <button id="btn-clear" class="btn ghost">견적함 비우기</button>
+    </div>
+  </section>
+
+  <section id="tab-settings" hidden>
+    <label class="field">
+      <span>배송 지역</span>
+      <select id="zone"></select>
+    </label>
+    <label class="field">
+      <span>기본 이용 방식</span>
+      <select id="track">
+        <option value="forwarding">배송대행 — 직접 결제하고 배송만 맡김</option>
+        <option value="agent">구매대행 — 결제까지 대신 맡김</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>백엔드 주소</span>
+      <input id="backend" type="url" placeholder="http://localhost:3000">
+    </label>
+    <div id="policy" class="policy"></div>
+    <p class="disc" id="disclosure"></p>
+  </section>
+
+  <script src="../../vendor/calc.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,97 +1,107 @@
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import CategoryChips from '../components/CategoryChips'
-import ProductCard from '../components/ProductCard'
-import { fetchCatalog, sourceStatus } from '../lib/coupang/source'
-import { getRateTable } from '../lib/pricing/shipping'
-import { SHIPPING } from '../config/shipping'
-import { krw, formatDateTime } from '../lib/format'
+import { SHIPPING, CONSOLIDATION } from '../config/shipping'
+import { FEES } from '../config/fees'
+import { TAXES } from '../config/taxes'
+import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
+import { krw, usd } from '../lib/format'
+import { usdToKrw } from '../lib/pricing/shipping'
 
-export default function Home({ products, status, fetchedAt, rateTable }) {
+export default function Home({ ratePerKgUsd, agencyRate, blockedCategories }) {
   return (
-    <Layout sourceStatus={status}>
+    <Layout badge="베트남 하노이">
       <div className="hero">
-        <h1 className="hero__title">하노이에서 받는 한국 화장품 🇰🇷 → 🇻🇳</h1>
+        <h1 className="hero__title">쿠팡에서 바로, 하노이 도착 가격 🇰🇷 → 🇻🇳</h1>
         <p className="hero__desc">
-          쿠팡 가격을 그대로 확인하고, 무게와 배송비까지 담는 즉시 계산합니다.
-          <br />
-          국제배송비는 <strong>1kg당 {krw(rateTable[0].ratePerKg)}</strong>부터 · 하노이 도착{' '}
-          {SHIPPING.leadTimeDays.min}~{SHIPPING.leadTimeDays.max}영업일
+          크롬 확장프로그램을 설치하면 <strong>쿠팡 상품 페이지에서 바로</strong> 무게·국제배송비·
+          관세·VAT를 합친 도착 가격이 뜹니다. 통관이 막히는 상품은 주문 전에 알려드립니다.
         </p>
-      </div>
-
-      <CategoryChips />
-
-      <div className="section" style={{ paddingBottom: 8 }}>
-        <h2 className="section__title">
-          인기 상품
-          {fetchedAt && (
-            <small style={{ fontSize: 11, fontWeight: 500, color: 'var(--ink-500)' }}>
-              {formatDateTime(fetchedAt)} 기준
-            </small>
-          )}
-        </h2>
-        <p className="section__sub">
-          {status.live
-            ? '쿠팡 판매가를 주기적으로 동기화합니다.'
-            : '쿠팡 API 키가 없어 예시 데이터를 표시하고 있습니다.'}
-        </p>
-      </div>
-
-      <div className="grid">
-        {products.map((p) => (
-          <ProductCard key={p.productId} product={p} />
-        ))}
-      </div>
-
-      <div className="section">
-        <Link href="/products" className="btn btn--ghost">
-          전체 상품 보기 →
-        </Link>
       </div>
 
       <section className="panel">
-        <div className="panel__head">국제배송 요금 (1kg당)</div>
+        <div className="panel__head">이용 방식 두 가지</div>
         <div className="panel__body">
-          <table className="rate-table">
-            <thead>
-              <tr>
-                <th>구간</th>
-                <th>1kg당 요율</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rateTable.map((r) => (
-                <tr key={r.label}>
-                  <td>{r.label}</td>
-                  <td>{krw(r.ratePerKg)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="note" style={{ marginTop: 12 }}>
-            청구무게는 실무게와 부피무게 중 큰 값을 {SHIPPING.roundingStepKg}kg 단위로 올림합니다.
-            최소 청구무게는 {SHIPPING.minBillableKg}kg 입니다.
-          </p>
-          <div style={{ marginTop: 12 }}>
-            <Link href="/rates" className="btn btn--ghost">
-              배송비 계산기 열기
-            </Link>
+          <div className="row">
+            <span className="row__label">
+              <strong>배송대행</strong>
+              <br />
+              <small style={{ color: 'var(--ink-500)' }}>쿠팡에서 직접 결제하고 배송만 맡기기</small>
+            </span>
+            <span className="row__value">${ratePerKgUsd}/kg</span>
           </div>
+          <div className="row">
+            <span className="row__label">
+              <strong>구매대행</strong>
+              <br />
+              <small style={{ color: 'var(--ink-500)' }}>한국 카드가 없어도 결제까지 대신</small>
+            </span>
+            <span className="row__value">
+              ${ratePerKgUsd}/kg + {Math.round(agencyRate * 100)}%
+            </span>
+          </div>
+          <p className="note" style={{ marginTop: 12 }}>
+            국제배송비는 실무게와 부피무게 중 큰 값을 {SHIPPING.roundingStepKg}kg 단위로 올려
+            1kg당 ${ratePerKgUsd}({krw(usdToKrw(ratePerKgUsd))})를 적용합니다. 최소 청구무게는{' '}
+            {SHIPPING.minBillableKg}kg 입니다.
+          </p>
         </div>
       </section>
+
+      <section className="panel">
+        <div className="panel__head">확장프로그램이 해주는 일</div>
+        <div className="panel__body">
+          <div className="row">
+            <span className="row__label">⚖️ 무게 자동 산정</span>
+            <span className="row__value">상품명·고시정보 분석</span>
+          </div>
+          <div className="row">
+            <span className="row__label">🧾 도착 가격 계산</span>
+            <span className="row__value">배송비 + 관세 + VAT</span>
+          </div>
+          <div className="row">
+            <span className="row__label">🚫 통관 불가 사전 경고</span>
+            <span className="row__value">{blockedCategories}개 유형</span>
+          </div>
+          <div className="row">
+            <span className="row__label">📦 합배송 절감 안내</span>
+            <span className="row__value">무료 보관 {CONSOLIDATION.freeStorageDays}일</span>
+          </div>
+          <p className="note" style={{ marginTop: 12 }}>
+            결제한 뒤 창고에서 반송되면 왕복 배송비가 발생합니다. 향수·주류·의약품·축산물처럼
+            {DESTINATION.label} 통관이 막히는 품목은 <strong>주문 전에</strong> 차단해 드립니다.
+          </p>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">세금 안내</div>
+        <div className="panel__body">
+          <p className="note note--warn">
+            ⚠️ {DESTINATION.label}은 2025년 2월 18일부터 소액 면세가 폐지되어{' '}
+            <strong>금액과 관계없이 모든 수입 건에 관세와 VAT가 부과</strong>됩니다. 관세는 품목군마다
+            다르며(신발 30%, 가방 25%, 의류·화장품 20% 등), VAT는 {Math.round(TAXES.vatRate * 100)}%입니다.
+          </p>
+        </div>
+      </section>
+
+      <div className="section" style={{ display: 'grid', gap: 10 }}>
+        <Link href="/rates" className="btn">
+          배송비 계산기 열기
+        </Link>
+        <Link href="/orders" className="btn btn--ghost">
+          주문 조회
+        </Link>
+      </div>
     </Layout>
   )
 }
 
-export async function getServerSideProps() {
-  const { products, fetchedAt } = await fetchCatalog({ limit: 12 })
+export async function getStaticProps() {
   return {
     props: {
-      products,
-      fetchedAt: fetchedAt ?? null,
-      status: sourceStatus(),
-      rateTable: getRateTable().map(({ label, ratePerKg }) => ({ label, ratePerKg })),
+      ratePerKgUsd: SHIPPING.ratePerKgUsd,
+      agencyRate: FEES.agencyRate,
+      blockedCategories: BLOCK_RULES.length,
     },
   }
 }

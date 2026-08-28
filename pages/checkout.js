@@ -3,19 +3,21 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import CostBreakdown from '../components/CostBreakdown'
-import { useCart } from '../components/CartProvider'
 import { SHIPPING } from '../config/shipping'
 import { PAYMENT } from '../config/payment'
 import { krw, vnd } from '../lib/format'
 
 /**
- * 주문서 — 여기서 [거래 A]의 청구서가 발행됩니다.
- * 주문이 생성되는 순간 견적이 동결되고 환율이 고정됩니다.
+ * 주문서 — 확장프로그램의 견적함에서 넘어옵니다.
+ *
+ * 확장이 `?cart=<encoded JSON>` 으로 상품 목록을 전달하면,
+ * 여기서 수령인 정보를 받아 [거래 A]의 청구서를 발행합니다.
+ * 가격은 클라이언트를 믿지 않고 서버에서 다시 계산합니다.
  */
 export default function Checkout() {
   const router = useRouter()
-  const { items, clear, ready } = useCart()
-
+  const [items, setItems] = useState([])
+  const [track, setTrack] = useState('agent')
   const [zone, setZone] = useState(SHIPPING.defaultZone)
   const [form, setForm] = useState({ name: '', phone: '', address: '' })
   const [methods, setMethods] = useState([])
@@ -23,6 +25,21 @@ export default function Checkout() {
   const [quote, setQuote] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+
+  // 확장에서 넘어온 견적함 복원
+  useEffect(() => {
+    if (!router.isReady) return
+    const raw = router.query.cart
+    if (typeof raw !== 'string') return
+    try {
+      const parsed = JSON.parse(decodeURIComponent(raw))
+      if (Array.isArray(parsed.items)) setItems(parsed.items)
+      if (parsed.zone) setZone(parsed.zone)
+      if (parsed.items?.[0]?.track) setTrack(parsed.items[0].track)
+    } catch {
+      setError('견적함 정보를 읽지 못했습니다. 확장프로그램에서 다시 시도해 주세요.')
+    }
+  }, [router.isReady, router.query.cart])
 
   useEffect(() => {
     fetch('/api/payment-methods')
@@ -39,15 +56,16 @@ export default function Checkout() {
     const res = await fetch('/api/quote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, zone }),
+      body: JSON.stringify({ items, zone, track }),
     })
     const data = await res.json()
     if (res.ok) setQuote(data.quote)
-  }, [items, zone])
+    else setError(data.error)
+  }, [items, zone, track])
 
   useEffect(() => {
-    if (ready) refresh()
-  }, [ready, refresh])
+    refresh()
+  }, [refresh])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -57,11 +75,10 @@ export default function Checkout() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, zone, customer: form, paymentMethod }),
+        body: JSON.stringify({ items, zone, track, customer: form, paymentMethod }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '주문 생성에 실패했습니다.')
-      clear()
       router.push(`/orders/${data.order.orderNo}`)
     } catch (err) {
       setError(err.message)
@@ -69,14 +86,17 @@ export default function Checkout() {
     }
   }
 
-  if (ready && items.length === 0) {
+  if (items.length === 0) {
     return (
       <Layout title="주문서">
         <div className="empty">
           <div className="empty__icon">🧾</div>
           주문할 상품이 없습니다.
+          <br />
+          <small>확장프로그램의 견적함에서 &quot;주문 요청하기&quot;를 눌러주세요.</small>
+          {error && <p className="note note--danger" style={{ marginTop: 16 }}>{error}</p>}
           <div style={{ marginTop: 20 }}>
-            <Link href="/products" className="btn">상품 보러 가기</Link>
+            <Link href="/" className="btn">홈으로</Link>
           </div>
         </div>
       </Layout>
@@ -84,44 +104,62 @@ export default function Checkout() {
   }
 
   const valid = form.name.trim() && form.phone.trim() && form.address.trim()
+  const blocked = quote && !quote.eligibility.shippable
 
   return (
     <Layout title="주문서">
       <div className="section" style={{ paddingBottom: 6 }}>
         <h1 className="section__title">주문서</h1>
         <p className="section__sub">
-          주문하시면 당사가 고객님을 대신해 쿠팡에서 구매한 뒤 하노이로 배송해 드립니다.
+          {track === 'agent'
+            ? '당사가 고객님을 대신해 쿠팡에서 구매한 뒤 하노이로 배송합니다.'
+            : '고객님이 쿠팡에서 직접 결제하신 상품을 하노이로 배송해 드립니다.'}
         </p>
       </div>
+
+      {blocked && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <p className="note note--danger">
+            🚫 배송할 수 없는 상품이 포함되어 있습니다.
+            <br />
+            {quote.eligibility.blocked.map((b) => `${b.productName} — ${b.label}`).join(' / ')}
+          </p>
+        </div>
+      )}
+
+      <section className="panel">
+        <div className="panel__head">주문 상품 ({items.length}종)</div>
+        <div className="panel__body">
+          {items.map((it, i) => (
+            <div className="row" key={i}>
+              <span className="row__label">{it.productName} × {it.quantity}</span>
+              <span className="row__value">{krw(it.productPrice * it.quantity)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <form onSubmit={submit}>
         <section className="panel">
           <div className="panel__head">수령인 정보</div>
           <div className="panel__body">
-            <div className="field">
-              <label className="field__label" htmlFor="name">이름 *</label>
-              <input id="name" className="input" required value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Nguyễn Thị Mai" />
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="phone">연락처 *</label>
-              <input id="phone" className="input" required type="tel" inputMode="tel"
-                value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="09xx xxx xxx" />
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="addr">하노이 배송 주소 *</label>
-              <input id="addr" className="input" required value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Số nhà, đường, phường, quận" />
-            </div>
+            {[
+              ['name', '이름 *', 'Nguyễn Thị Mai', 'text'],
+              ['phone', '연락처 *', '09xx xxx xxx', 'tel'],
+              ['address', '하노이 배송 주소 *', 'Số nhà, đường, phường, quận', 'text'],
+            ].map(([key, label, ph, type]) => (
+              <div className="field" key={key}>
+                <label className="field__label" htmlFor={key}>{label}</label>
+                <input id={key} className="input" required type={type} placeholder={ph}
+                  value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+              </div>
+            ))}
             <div className="field" style={{ marginBottom: 0 }}>
               <label className="field__label" htmlFor="zone">배송 지역</label>
               <select id="zone" className="select" value={zone} onChange={(e) => setZone(e.target.value)}>
                 {Object.entries(SHIPPING.zones).map(([k, z]) => (
                   <option key={k} value={k}>
-                    {z.label.split(' (')[0]}{z.surcharge > 0 ? ` (+${krw(z.surcharge)})` : ''}
+                    {z.label.split(' (')[0]}{z.surchargeUsd > 0 ? ` (+$${z.surchargeUsd})` : ''}
                   </option>
                 ))}
               </select>
@@ -135,25 +173,18 @@ export default function Checkout() {
             {methods.length === 0 ? (
               <p className="note note--warn">사용 가능한 결제 수단이 없습니다. 운영자에게 문의해 주세요.</p>
             ) : (
-              <div className="field" style={{ marginBottom: 0 }}>
-                <select className="select" value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)} aria-label="결제 수단">
-                  {methods.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label} · {m.labelVi}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select className="select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="결제 수단">
+                {methods.map((m) => <option key={m.id} value={m.id}>{m.label} · {m.labelVi}</option>)}
+              </select>
             )}
             <p className="note" style={{ marginTop: 12 }}>
-              선결제 방식입니다. 입금이 확인되면 한국에서 상품을 구매합니다.
-              청구서는 발행 후 {PAYMENT.invoiceValidHours}시간 동안 유효하며, 그동안 환율이 고정됩니다.
+              선결제 방식입니다. 입금이 확인되면 진행합니다. 청구서는 발행 후 {PAYMENT.invoiceValidHours}시간
+              동안 유효하며, 그동안 환율이 고정됩니다.
             </p>
           </div>
         </section>
 
-        {quote && <CostBreakdown quote={quote} />}
+        {quote && !blocked && <CostBreakdown quote={quote} />}
 
         {error && (
           <div className="section" style={{ paddingTop: 0 }}>
@@ -162,10 +193,10 @@ export default function Checkout() {
         )}
 
         <div className="section" style={{ paddingTop: 0 }}>
-          <button className="btn" type="submit" disabled={!valid || !quote || submitting || methods.length === 0}>
-            {submitting ? '주문 생성 중…' : quote ? `${krw(quote.total)} 주문하기` : '견적 계산 중…'}
+          <button className="btn" type="submit" disabled={!valid || !quote || blocked || submitting || methods.length === 0}>
+            {submitting ? '주문 생성 중…' : blocked ? '배송 불가 상품 포함' : quote ? `${krw(quote.total)} 주문하기` : '견적 계산 중…'}
           </button>
-          {quote && (
+          {quote && !blocked && (
             <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-500)', marginTop: 8 }}>
               ≈ {vnd(quote.totalVnd)}
             </p>

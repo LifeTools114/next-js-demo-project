@@ -62,16 +62,6 @@ export default function WeightBreakdown({ estimate, title = '무게 산정 내�
           </p>
         )}
 
-        {estimate.restriction?.status === 'limited' && (
-          <p className="note note--warn" style={{ marginTop: 10 }}>
-            ⚠️ {estimate.restriction.message}
-          </p>
-        )}
-        {estimate.restriction?.status === 'prohibited' && (
-          <p className="note note--danger" style={{ marginTop: 10 }}>
-            🚫 {estimate.restriction.message}
-          </p>
-        )}
       </div>
     </section>
   )

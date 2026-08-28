@@ -6,8 +6,8 @@
  */
 
 export const FEES = {
-  /** 상품가 기준 대행 수수료율 */
-  agencyRate: 0.08,
+  /** 상품가 기준 대행 수수료율 (구매대행 트랙) */
+  agencyRate: 0.10,
 
   /** 최소 대행 수수료 (원) */
   agencyMinKrw: 5000,

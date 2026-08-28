@@ -74,13 +74,6 @@ test('무게 추정: 신뢰도가 정보량에 따라 낮아진다', () => {
   assert.equal(estimateItemWeight({ productName: '알수없는 상품' }).confidence.level, 'low')
 })
 
-test('항공 제한: 향수는 수량 제한, 네일리무버는 운송 불가', () => {
-  assert.equal(estimateItemWeight({ productName: '조말론 코롱 100ml' }).restriction.status, 'limited')
-  assert.equal(estimateItemWeight({ productName: '딥디크 오드퍼퓸 EDP 75ml' }).restriction.status, 'limited')
-  assert.equal(estimateItemWeight({ productName: '네일리무버 100ml' }).restriction.status, 'prohibited')
-  assert.equal(estimateItemWeight({ productName: '토리든 세럼 50ml' }).restriction.status, 'ok')
-})
-
 test('배송 단위 합산: 박스 무게는 건당 1회만 가산된다', () => {
   const one = estimateShipmentWeight([{ productName: '토리든 세럼 50ml', quantity: 1 }])
   const two = estimateShipmentWeight([
@@ -99,8 +92,33 @@ test('배송 단위 합산: 신뢰도는 가장 낮은 상품을 따른다', () 
   assert.equal(mixed.confidence.level, 'low')
 })
 
-test('배송 단위 합산: 향수 수량 초과를 감지한다', () => {
-  const r = estimateShipmentWeight([{ productName: '조말론 코롱 100ml', quantity: 3 }])
-  assert.equal(r.restrictions.exceedsLimitedQty, true)
-  assert.ok(r.restrictions.surchargeKrw > 0)
+
+test('고시정보: 상품명보다 우선 적용된다', () => {
+  // 상품명에 용량이 없어도 상세페이지 고시정보로 정확히 계산됩니다.
+  const withNotice = estimateItemWeight({ productName: '토리든 다이브인 세럼', specOverride: '50ml' })
+  const nameOnly = estimateItemWeight({ productName: '토리든 다이브인 세럼 50ml' })
+  assert.ok(Math.abs(withNotice.actualG - nameOnly.actualG) < 1)
+  assert.equal(withNotice.confidence.level, 'high')
+})
+
+test('고시정보: 총량 표기를 구성 수량과 이중으로 곱하지 않는다', () => {
+  // "600g (120g x 5)" 의 600g 은 이미 5개분 총량입니다.
+  // 상품명의 "5개입"을 다시 곱하면 5배로 부풀려집니다.
+  const r = estimateItemWeight({
+    productName: '농심 신라면 봉지라면 120g 5개입',
+    specOverride: '600g (120g x 5)',
+  })
+  assert.ok(r.actualG > 550 && r.actualG < 750, `총량 이중 곱셈이 발생했습니다: ${r.actualG}g`)
+})
+
+test('고시정보: 단위 용량이면 구성 수량을 곱한다', () => {
+  // "50ml" 는 1개분이므로 "2개"를 곱해야 합니다.
+  const one = estimateItemWeight({ productName: '토리든 세럼', specOverride: '50ml' })
+  const two = estimateItemWeight({ productName: '토리든 세럼 2개', specOverride: '50ml' })
+  assert.ok(two.actualG > one.actualG * 1.8, '단위 용량에는 구성 수량이 곱해져야 합니다')
+})
+
+test('고시정보: 매수 표기로 시트마스크를 정확히 계산한다', () => {
+  const r = estimateItemWeight({ productName: '메디힐 마스크팩', specOverride: '23ml x 10매' })
+  assert.ok(r.actualG > 230 && r.actualG < 300, `${r.actualG}g`)
 })

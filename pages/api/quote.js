@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'POST 요청만 지원합니다.' })
   }
 
-  const { items, zone } = req.body ?? {}
+  const { items, zone, track } = req.body ?? {}
 
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: 'items 는 배열이어야 합니다.' })
@@ -37,7 +37,8 @@ export default async function handler(req, res) {
   const zoneKey = Object.hasOwn(SHIPPING.zones, zone) ? zone : SHIPPING.defaultZone
 
   try {
-    return res.status(200).json({ quote: quote(sanitized, { zone: zoneKey }), zone: zoneKey })
+    const trackKey = track === 'agent' ? 'agent' : 'forwarding'
+    return res.status(200).json({ quote: quote(sanitized, { zone: zoneKey, track: trackKey }), zone: zoneKey, track: trackKey })
   } catch (error) {
     return res.status(500).json({ error: error.message || '견적 계산에 실패했습니다.' })
   }

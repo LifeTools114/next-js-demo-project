@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'GET 또는 POST 요청만 지원합니다.' })
   }
 
-  const { items, zone, customer, paymentMethod } = req.body ?? {}
+  const { items, zone, customer, paymentMethod, track } = req.body ?? {}
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: '주문할 상품이 없습니다.' })
@@ -51,6 +51,7 @@ export default async function handler(req, res) {
     const order = createOrder({
       items: sanitized,
       zone: zoneKey,
+      track: track === 'forwarding' ? 'forwarding' : 'agent',
       customer: {
         name: String(customer.name).slice(0, 100),
         phone: String(customer.phone).slice(0, 40),
