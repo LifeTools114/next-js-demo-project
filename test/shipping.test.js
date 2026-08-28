@@ -1,34 +1,56 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toBillableKg, calculateShipping, getRateTable, usdToKrw } from '../lib/pricing/shipping.js'
+import { toBillableKg, calculateShipping, getRateTable, usdToKrw, roundingStepFor, roundingRuleText } from '../lib/pricing/shipping.js'
 import { quote, calculateAgencyFee, calculateTaxes, krwToVnd, TRACK } from '../lib/pricing/landed.js'
 import { compareConsolidation } from '../lib/consolidation.js'
 import { SHIPPING } from '../config/shipping.js'
 import { FEES } from '../config/fees.js'
 
-test('청구무게: 1kg 단위로 올림하고 최소 1kg 이다', () => {
-  // ~1kg 은 1kg, 1~2kg 은 2kg 청구
-  assert.equal(toBillableKg(100), 1) // 최소 청구무게
-  assert.equal(toBillableKg(500), 1)
+test('청구무게: 2kg 이하는 1kg 단위로 올림한다', () => {
+  assert.equal(toBillableKg(100), 1, '최소 청구무게')
   assert.equal(toBillableKg(999), 1)
-  assert.equal(toBillableKg(1000), 1, '정확히 1kg 은 1kg 청구')
+  assert.equal(toBillableKg(1000), 1, '정확히 1kg 은 1kg')
   assert.equal(toBillableKg(1001), 2, '1kg 을 넘으면 2kg')
-  assert.equal(toBillableKg(2000), 2)
-  assert.equal(toBillableKg(2001), 3)
+  assert.equal(toBillableKg(1500), 2)
+  assert.equal(toBillableKg(2000), 2, '정확히 2kg 은 2kg')
+})
+
+test('청구무게: 2kg 초과는 0.5kg 단위로 올림한다', () => {
+  // 1kg 단위만 쓰면 2.1kg 에 3kg 을 청구하게 되어 경쟁사 대비 불리합니다.
+  assert.equal(toBillableKg(2001), 2.5)
+  assert.equal(toBillableKg(2300), 2.5)
+  assert.equal(toBillableKg(2500), 2.5, '정확히 2.5kg 은 2.5kg')
+  assert.equal(toBillableKg(2501), 3)
+  assert.equal(toBillableKg(3400), 3.5)
+  assert.equal(toBillableKg(10100), 10.5)
+})
+
+test('청구무게: 올림 단위가 구간 경계에서 바뀐다', () => {
+  assert.equal(roundingStepFor(1.5), 1)
+  assert.equal(roundingStepFor(2), 1, '2kg 은 아직 1kg 단위')
+  assert.equal(roundingStepFor(2.01), 0.5)
+  assert.equal(roundingStepFor(50), 0.5)
 })
 
 test('청구무게: 부동소수 오차로 한 단계가 더 올라가지 않는다', () => {
-  // 정확히 경계값인 무게가 다음 구간으로 넘어가면 매번 1kg 을 더 청구하게 됩니다.
-  for (const kg of [1, 2, 3, 5, 10, 20]) {
+  // 경계값이 다음 구간으로 넘어가면 매 건 최대 $4.5 를 과다 청구하게 됩니다.
+  for (const kg of [1, 2, 2.5, 3, 3.5, 5, 10, 20]) {
     assert.equal(toBillableKg(kg * 1000), kg, `${kg}kg 이 그대로여야 합니다`)
   }
 })
 
 test('청구무게: 경쟁사보다 최소 단위가 작다', () => {
   // 경쟁사(Giaonhan247)는 최소 2kg 을 청구합니다.
-  // 소액·경량 주문에서 우리가 우위를 갖는 근거입니다.
+  // 경량 주문에서 우리가 우위를 갖는 근거입니다.
   assert.ok(SHIPPING.minBillableKg < 2)
   assert.equal(toBillableKg(300), 1)
+})
+
+test('올림 규칙 문장이 구간을 모두 설명한다', () => {
+  const text = roundingRuleText()
+  assert.match(text, /2kg/)
+  assert.match(text, /1kg 단위/)
+  assert.match(text, /0\.5kg 단위/)
 })
 
 test('배송비: kg당 $9 정액 × 청구무게', () => {
@@ -217,9 +239,65 @@ test('상품 할증: 관세 과세표준(CIF)에 포함된다', () => {
   )
 })
 
-test('정산 허용오차: 1kg 단위 올림이 작은 오차를 흡수한다', () => {
-  // 실측이 조금 달라도 같은 kg 구간이면 배송비가 변하지 않습니다.
-  // 이 성질 덕분에 대부분의 주문은 차액 정산 없이 끝납니다.
+test('정산 허용오차: 올림 단위가 작은 오차를 흡수한다', () => {
+  // 실측이 조금 달라도 같은 구간이면 배송비가 변하지 않아 정산이 발생하지 않습니다.
   assert.equal(toBillableKg(1200), toBillableKg(1800), '1.2kg 과 1.8kg 은 같은 2kg 구간')
   assert.notEqual(toBillableKg(1800), toBillableKg(2200), '2kg 을 넘으면 구간이 바뀜')
+  // 2kg 초과 구간은 0.5kg 단위라 흡수 폭이 좁습니다 — 정산이 더 자주 발생합니다.
+  assert.equal(toBillableKg(2600), toBillableKg(2900), '2.6kg 과 2.9kg 은 같은 3kg 구간')
+  assert.notEqual(toBillableKg(2900), toBillableKg(3100))
+})
+
+// ─────────── 확장 → 서버 필드 보존 ───────────
+
+test('입력 정규화: 확장이 보낸 판별 근거를 버리지 않는다', async () => {
+  const { normalizeOrderItem } = await import('../lib/order/normalize-items.js')
+  const n = normalizeOrderItem({
+    productId: '123',
+    productName: '농심 신라면 120g 5개입',
+    productPrice: 4480,
+    quantity: 2,
+    specOverride: '600g (120g x 5)',
+    categoryPath: '식품 > 라면',
+    badges: ['로켓배송'],
+    shippingText: '내일 도착',
+  })
+  // 이 필드들이 사라지면 서버 견적이 확장 패널과 달라집니다.
+  assert.equal(n.specOverride, '600g (120g x 5)')
+  assert.equal(n.categoryPath, '식품 > 라면')
+  assert.deepEqual(n.badges, ['로켓배송'])
+  assert.equal(n.shippingText, '내일 도착')
+})
+
+test('입력 정규화: 금액·수량은 그대로 믿지 않고 범위를 강제한다', async () => {
+  const { normalizeOrderItem } = await import('../lib/order/normalize-items.js')
+  assert.equal(normalizeOrderItem({ productPrice: -5000 }).productPrice, 0)
+  assert.equal(normalizeOrderItem({ productPrice: 9e12 }).productPrice, 100_000_000)
+  assert.equal(normalizeOrderItem({ quantity: 0 }).quantity, 1)
+  assert.equal(normalizeOrderItem({ quantity: 99999 }).quantity, 999)
+  // 길이 폭탄 방어
+  assert.equal(normalizeOrderItem({ productName: 'x'.repeat(9999) }).productName.length, 300)
+  assert.equal(normalizeOrderItem({ badges: Array(99).fill('b') }).badges.length, 12)
+})
+
+test('견적: 고시정보를 넘기면 서버 계산이 달라진다', () => {
+  // 정규화가 specOverride 를 버리면 두 견적이 같아집니다.
+  const withSpec = quote(
+    [{ productName: '테스트 상품', specOverride: '2500g', productPrice: 50000, quantity: 1 }],
+    { track: TRACK.FORWARDING },
+  )
+  const without = quote(
+    [{ productName: '테스트 상품', productPrice: 50000, quantity: 1 }],
+    { track: TRACK.FORWARDING },
+  )
+  assert.ok(withSpec.shipping.billableKg > without.shipping.billableKg, '고시정보가 무게에 반영되어야 합니다')
+})
+
+test('견적: 배지를 넘기면 해외직구가 판별된다', () => {
+  const overseas = quote(
+    [{ productName: '비타민 D3', productPrice: 45000, quantity: 1, badges: ['해외직구'] }],
+    { track: TRACK.FORWARDING },
+  )
+  assert.equal(overseas.sourcing.hasOverseas, true)
+  assert.equal(overseas.sourcing.schedule.toWarehouseDays.max, 21)
 })

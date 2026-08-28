@@ -61,7 +61,8 @@ setInterval(renderMaintenance, 60_000) {
   $('track').value = prefs.track
 
   $('policy').innerHTML = `
-    국제배송 <b>$${policy.ratePerKgUsd}/kg</b> · 최소 ${policy.minBillableKg}kg · ${policy.roundingStepKg}kg 단위 올림<br>
+    국제배송 <b>$${policy.ratePerKgUsd}/kg</b> · 최소 ${policy.minBillableKg}kg<br>
+    <span style="opacity:.75">청구무게 올림: ${esc(policy.roundingRuleText)}</span><br>
     구매대행 수수료 <b>${Math.round(policy.agencyRate * 100)}%</b> · VAT ${Math.round(policy.vatRate * 100)}% · 관세 품목별<br>
     환율 $1 = ${policy.usdToKrw.toLocaleString('ko-KR')}원 = ${Math.round(policy.usdToKrw * policy.krwToVnd).toLocaleString('en-US')}₫<br>
     합배송 무료 보관 ${policy.consolidation.freeStorageDays}일`

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import Layout from '../components/Layout'
 import WeightBreakdown from '../components/WeightBreakdown'
 import { estimateItemWeight, estimateShipmentWeight } from '../lib/weight/estimate'
-import { calculateShipping, getRateTable, usdToKrw } from '../lib/pricing/shipping'
+import { calculateShipping, getRateTable, usdToKrw, roundingRuleText, toBillableKg } from '../lib/pricing/shipping'
 import { checkEligibility } from '../lib/eligibility'
 import { classifyDuty } from '../lib/pricing/duty'
 import { compareConsolidation } from '../lib/consolidation'
@@ -23,6 +23,7 @@ export default function RatesPage() {
   const [zone, setZone] = useState(SHIPPING.defaultZone)
 
   const rateTable = useMemo(() => getRateTable(), [])
+  const roundingRule = useMemo(() => roundingRuleText(), [])
   const maint = useMemo(() => maintenanceStatus(new Date(), DESTINATION.country), [])
 
   const result = useMemo(() => {
@@ -57,7 +58,7 @@ export default function RatesPage() {
         <h1 className="hero__title">국제배송 요금 · 무게 계산기</h1>
         <p className="hero__desc">
           배송비는 <strong>1kg당 ${SHIPPING.ratePerKgUsd}</strong> × 청구무게입니다. 청구무게는 실무게와
-          부피무게 중 큰 값을 {SHIPPING.roundingStepKg}kg 단위로 올립니다.
+          부피무게 중 큰 값을 올려서 계산합니다 ({roundingRule}).
         </p>
       </div>
 
@@ -229,7 +230,7 @@ export default function RatesPage() {
                 <span className="row__value">{weight(result.shipment.chargeableG)}</span>
               </div>
               <div className="row">
-                <span className="row__label">청구무게 ({SHIPPING.roundingStepKg}kg 올림)</span>
+                <span className="row__label">청구무게 ({roundingRule})</span>
                 <span className="row__value">{kg(result.shipping.billableKg)}</span>
               </div>
               <div className="row">
@@ -282,7 +283,7 @@ export default function RatesPage() {
           </div>
           <p className="note" style={{ marginTop: 12 }}>
             한국 창고에서 {CONSOLIDATION.freeStorageDays}일간 무료 보관하며, 도착한 주문들을 묶어 한 박스로
-            보냅니다. 박스 무게와 {SHIPPING.roundingStepKg}kg 올림이 건별이 아니라 1회만 적용되어 절감됩니다.
+            보냅니다. 박스 무게와 올림 손실이 건별이 아니라 1회만 적용되어 절감됩니다.
           </p>
         </div>
       </section>

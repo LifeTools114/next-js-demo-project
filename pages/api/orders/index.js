@@ -6,6 +6,7 @@
 import { createOrder, listOrders, orderView } from '../../../lib/order/store'
 import { requireAdmin, UnauthorizedError } from '../../../lib/auth'
 import { SHIPPING } from '../../../config/shipping'
+import { normalizeOrderItems } from '../../../lib/order/normalize-items'
 import { DEFAULT_METHOD } from '../../../lib/payment/methods'
 
 const MAX_ITEMS = 100
@@ -37,13 +38,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '수령인 이름과 연락처를 입력해 주세요.' })
   }
 
-  // 클라이언트가 보낸 가격을 그대로 믿지 않고 필요한 필드만 정규화합니다.
-  const sanitized = items.map((i) => ({
-    productId: String(i?.productId ?? ''),
-    productName: String(i?.productName ?? '').slice(0, 300),
-    productPrice: Math.max(0, Math.min(Number(i?.productPrice) || 0, 100_000_000)),
-    quantity: Math.max(1, Math.min(Number.parseInt(i?.quantity, 10) || 1, 999)),
-  }))
+  // 확장이 보낸 고시정보·배지·카테고리를 보존해야 서버 견적이 패널과 일치합니다.
+  const sanitized = normalizeOrderItems(items)
 
   const zoneKey = Object.hasOwn(SHIPPING.zones, zone) ? zone : SHIPPING.defaultZone
 

@@ -8,6 +8,7 @@
 
 import { quote } from '../../lib/pricing/landed'
 import { SHIPPING } from '../../config/shipping'
+import { normalizeOrderItems } from '../../lib/order/normalize-items'
 import { DESTINATION } from '../../config/eligibility'
 import { maintenanceStatus } from '../../lib/maintenance'
 
@@ -28,13 +29,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `한 번에 최대 ${MAX_ITEMS}개까지 견적할 수 있습니다.` })
   }
 
-  // 클라이언트 입력을 신뢰하지 않고 필요한 필드만 정규화합니다.
-  const sanitized = items.map((i) => ({
-    productId: String(i?.productId ?? ''),
-    productName: String(i?.productName ?? '').slice(0, 300),
-    productPrice: Math.max(0, Math.min(Number(i?.productPrice) || 0, 100_000_000)),
-    quantity: Math.max(1, Math.min(Number.parseInt(i?.quantity, 10) || 1, 999)),
-  }))
+  // 확장이 보낸 고시정보·배지·카테고리를 보존해야 서버 견적이 패널과 일치합니다.
+  const sanitized = normalizeOrderItems(items)
 
   const zoneKey = Object.hasOwn(SHIPPING.zones, zone) ? zone : SHIPPING.defaultZone
 

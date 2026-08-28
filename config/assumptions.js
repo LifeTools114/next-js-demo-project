@@ -33,11 +33,11 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'billing-increment',
-    label: '청구무게 0.5kg 올림 · 최소 0.5kg',
-    where: 'config/shipping.js · roundingStepKg / minBillableKg',
+    label: '청구무게 구간별 올림 (~2kg 1kg 단위 · 2kg~ 0.5kg 단위) · 최소 1kg',
+    where: 'config/shipping.js · roundingTiers / minBillableKg',
     status: 'assumed',
     source: '업계 일반',
-    risk: '0.1kg 단위 업체면 견적이 계속 과대 산정됩니다.',
+    risk: '업체 올림 단위가 우리와 다르면 원가와 청구가 어긋납니다. 경쟁사는 최소 2kg 을 청구합니다.',
     askBroker: '청구무게 올림 단위와 최소 청구무게',
   },
   {

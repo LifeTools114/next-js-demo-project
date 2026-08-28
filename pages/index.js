@@ -5,9 +5,9 @@ import { FEES } from '../config/fees'
 import { TAXES } from '../config/taxes'
 import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
 import { krw, usd } from '../lib/format'
-import { usdToKrw } from '../lib/pricing/shipping'
+import { usdToKrw, roundingRuleText } from '../lib/pricing/shipping'
 
-export default function Home({ ratePerKgUsd, agencyRate, blockedCategories }) {
+export default function Home({ ratePerKgUsd, agencyRate, blockedCategories, roundingRule }) {
   return (
     <Layout badge="베트남 하노이">
       <div className="hero">
@@ -40,9 +40,9 @@ export default function Home({ ratePerKgUsd, agencyRate, blockedCategories }) {
             </span>
           </div>
           <p className="note" style={{ marginTop: 12 }}>
-            국제배송비는 실무게와 부피무게 중 큰 값을 {SHIPPING.roundingStepKg}kg 단위로 올려
-            1kg당 ${ratePerKgUsd}({krw(usdToKrw(ratePerKgUsd))})를 적용합니다. 최소 청구무게는{' '}
-            {SHIPPING.minBillableKg}kg 입니다.
+            국제배송비는 실무게와 부피무게 중 큰 값에 1kg당 ${ratePerKgUsd}
+            ({krw(usdToKrw(ratePerKgUsd))})를 적용합니다. 청구무게는 {roundingRule} 로 올리며,
+            최소 청구무게는 {SHIPPING.minBillableKg}kg 입니다.
           </p>
         </div>
       </section>
@@ -102,6 +102,7 @@ export async function getStaticProps() {
       ratePerKgUsd: SHIPPING.ratePerKgUsd,
       agencyRate: FEES.agencyRate,
       blockedCategories: BLOCK_RULES.length,
+      roundingRule: roundingRuleText(),
     },
   }
 }

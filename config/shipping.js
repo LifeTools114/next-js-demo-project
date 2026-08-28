@@ -25,13 +25,19 @@ export const SHIPPING = {
   minBillableKg: 1,
 
   /**
-   * 청구무게 올림 단위 — 1kg 단위로 올림합니다.
-   *   ~1kg   → 1kg 청구
-   *   1~2kg  → 2kg 청구
-   *   2~3kg  → 3kg 청구
-   * 항공특송 업계 표준 방식이며, 경쟁사(최소 2kg)보다 최소 단위가 작습니다.
+   * 청구무게 올림 규칙 — 구간마다 올림 단위가 다릅니다.
+   *
+   *   ~2kg  : 1kg 단위   (1kg, 2kg)
+   *   2kg~  : 0.5kg 단위 (2.5kg, 3kg, 3.5kg …)
+   *
+   * 경량 주문은 1kg 단위로 최소 매출을 지키고,
+   * 2kg 이상에서는 0.5kg 단위로 잘게 쪼개 과다 청구를 줄입니다.
+   * (1kg 단위만 쓰면 2.1kg 주문에 3kg 을 청구하게 되어 경쟁사 대비 불리합니다)
    */
-  roundingStepKg: 1,
+  roundingTiers: [
+    { upToKg: 2, stepKg: 1 },
+    { upToKg: Infinity, stepKg: 0.5 },
+  ],
 
   /** 항공 부피무게 환산 계수: (가로×세로×높이 cm) / 6000 = kg */
   volumetricDivisor: 6000,
