@@ -1,16 +1,19 @@
 {
-    "name": "next-js-demo",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-          "dev": "next dev",
-          "build": "next build",
-          "start": "next start",
-          "lint": "next lint"
-    },
-    "dependencies": {
-          "next": "latest",
-          "react": "latest",
-          "react-dom": "latest"
-    }
+  "name": "kbeauty-hanoi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "하노이 거주자를 위한 한국 여성 화장품 직구(구매대행) 플랫폼",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
 }
