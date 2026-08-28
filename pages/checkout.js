@@ -19,7 +19,7 @@ export default function Checkout() {
   const [items, setItems] = useState([])
   const [track, setTrack] = useState('agent')
   const [zone, setZone] = useState(SHIPPING.defaultZone)
-  const [form, setForm] = useState({ name: '', phone: '', address: '' })
+  const [form, setForm] = useState({ name: '', phone: '', address: '', email: '' })
   const [methods, setMethods] = useState([])
   const [paymentMethod, setPaymentMethod] = useState('manual-bank')
   const [quote, setQuote] = useState(null)
@@ -147,10 +147,11 @@ export default function Checkout() {
               ['name', '이름 *', 'Nguyễn Thị Mai', 'text'],
               ['phone', '연락처 *', '09xx xxx xxx', 'tel'],
               ['address', '하노이 배송 주소 *', 'Số nhà, đường, phường, quận', 'text'],
+              ['email', '이메일 (선택 — 진행 알림 수신)', 'you@example.com', 'email'],
             ].map(([key, label, ph, type]) => (
               <div className="field" key={key}>
                 <label className="field__label" htmlFor={key}>{label}</label>
-                <input id={key} className="input" required type={type} placeholder={ph}
+                <input id={key} className="input" required={label.includes('*')} type={type} placeholder={ph}
                   value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
               </div>
             ))}

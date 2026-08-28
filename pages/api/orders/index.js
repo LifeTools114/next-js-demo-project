@@ -63,6 +63,8 @@ export default async function handler(req, res) {
         name: String(customer.name).slice(0, 100),
         phone: String(customer.phone).slice(0, 40),
         address: String(customer.address ?? '').slice(0, 300),
+        // 선택 — 알림 채널(이메일)이 열리면 바로 쓸 수 있게 미리 받습니다.
+        email: String(customer.email ?? '').slice(0, 120),
       },
       paymentMethod: paymentMethod || DEFAULT_METHOD,
     })
