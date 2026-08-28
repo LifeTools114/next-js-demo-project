@@ -41,6 +41,10 @@ export default function AdminConsole() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [forms, setForms] = useState({})
+  // 발송 묶음 — 선택한 주문들을 마스터 AWB 하나로 일괄 발송합니다.
+  const [shipSel, setShipSel] = useState({})
+  const [masterAwb, setMasterAwb] = useState('')
+  const [shipMsg, setShipMsg] = useState(null)
   // 점검 상태는 시간이 지나면 바뀌므로 주기적으로 갱신합니다.
   const [maint, setMaint] = useState(null)
   // 토큰 로드 전후로 요청이 두 번 나가며, 먼저 보낸 실패 응답이
@@ -151,6 +155,69 @@ export default function AdminConsole() {
       )}
 
       {error && <div className="section" style={{ paddingTop: 0 }}><p className="note note--danger">{error}</p></div>}
+
+      {/* 발송 묶음 — SETTLED 주문 선택 → 매니페스트 CSV → 마스터 AWB 로 일괄 발송 */}
+      {orders.some((o) => o.state === 'SETTLED') && (
+        <section className="panel">
+          <div className="panel__head">
+            <span>발송 준비 ({orders.filter((o) => o.state === 'SETTLED').length}건)</span>
+            <span className="tag tag--ok">SETTLED</span>
+          </div>
+          <div className="panel__body">
+            {orders.filter((o) => o.state === 'SETTLED').map((o) => (
+              <label key={o.orderNo} className="row" style={{ cursor: 'pointer' }}>
+                <span className="row__label">
+                  <input type="checkbox" checked={Boolean(shipSel[o.id])}
+                    onChange={(e) => setShipSel({ ...shipSel, [o.id]: e.target.checked })} />
+                  {' '}{o.orderNo} · {o.customer.name}
+                </span>
+                <span className="row__value">
+                  {o.procurement?.actualWeightG ? `${(o.procurement.actualWeightG / 1000).toFixed(2)}kg` : '-'}
+                </span>
+              </label>
+            ))}
+            <div className="field" style={{ marginTop: 10 }}>
+              <label className="field__label" htmlFor="awb">마스터 AWB (물류사 운송장)</label>
+              <input id="awb" className="input" value={masterAwb} placeholder="예: HAN-260901-01"
+                onChange={(e) => setMasterAwb(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn btn--ghost" onClick={async () => {
+                const ids = Object.keys(shipSel).filter((id) => shipSel[id])
+                const qs = ids.length > 0 ? `?ids=${ids.join(',')}` : ''
+                const res = await fetch(`/api/admin/manifest${qs}`, { headers: { 'x-admin-token': token } })
+                if (!res.ok) return setShipMsg((await res.json()).error)
+                const blob = await res.blob()
+                const a = document.createElement('a')
+                a.href = URL.createObjectURL(blob)
+                a.download = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] ?? 'manifest.csv'
+                a.click()
+                URL.revokeObjectURL(a.href)
+              }}>매니페스트 CSV</button>
+              <button className="btn" disabled={!masterAwb.trim() || !Object.values(shipSel).some(Boolean)}
+                onClick={async () => {
+                  const ids = Object.keys(shipSel).filter((id) => shipSel[id])
+                  const res = await fetch('/api/admin/manifest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+                    body: JSON.stringify({ ids, masterAwb }),
+                  })
+                  const d = await res.json()
+                  setShipMsg(res.ok
+                    ? `발송 처리 ${d.shipped.length}건${d.failed.length ? ` · 실패 ${d.failed.length}건` : ''}`
+                    : d.error)
+                  setShipSel({})
+                  setMasterAwb('')
+                  load()
+                }}>일괄 발송</button>
+            </div>
+            {shipMsg && <p className="note" style={{ marginTop: 8 }}>{shipMsg}</p>}
+            <p className="note" style={{ marginTop: 8 }}>
+              선택 없이 CSV 를 누르면 발송 준비 전체가 담깁니다. 물류사 양식은 config/manifest.js 에서 바꿉니다.
+            </p>
+          </div>
+        </section>
+      )}
 
       {orders.length === 0 && !error && !loading && (
         <div className="empty"><div className="empty__icon">📋</div>주문이 없습니다.</div>
