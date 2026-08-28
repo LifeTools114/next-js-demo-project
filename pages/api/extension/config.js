@@ -10,7 +10,7 @@
 
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../../../config/shipping'
 import { TAXES } from '../../../config/taxes'
-import { FEES } from '../../../config/fees'
+import { FEES, ORDER_MIN } from '../../../config/fees'
 import { FX } from '../../../config/fx'
 import { AFFILIATE } from '../../../config/affiliate'
 import { DESTINATION } from '../../../config/eligibility'
@@ -70,6 +70,7 @@ export default function handler(req, res) {
       minBillableKg: SHIPPING.minBillableKg,
       roundingTiers: SHIPPING.roundingTiers,
       agencyRate: FEES.agencyRate,
+      minOrderGoodsKrw: ORDER_MIN.goodsKrw,
       vatRate: TAXES.vatRate,
       defaultDutyRate: TAXES.defaultDutyRate,
       usdToKrw: FX.usdToKrw,

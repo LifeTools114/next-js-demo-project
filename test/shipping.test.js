@@ -4,7 +4,7 @@ import { toBillableKg, calculateShipping, getRateTable, usdToKrw, roundingStepFo
 import { quote, calculateAgencyFee, calculateTaxes, krwToVnd, TRACK } from '../lib/pricing/landed.js'
 import { compareConsolidation } from '../lib/consolidation.js'
 import { SHIPPING } from '../config/shipping.js'
-import { FEES } from '../config/fees.js'
+import { FEES, ORDER_MIN } from '../config/fees.js'
 
 test('청구무게: 2kg 이하는 1kg 단위로 올림한다', () => {
   assert.equal(toBillableKg(100), 1, '최소 청구무게')
@@ -129,6 +129,17 @@ test('대행 수수료: 구매대행에만 붙고 10%다', () => {
   assert.equal(calculateAgencyFee(499000, TRACK.AGENT).fee, 49900)
   assert.equal(calculateAgencyFee(500000, TRACK.AGENT).fee, 50000)
   assert.equal(calculateAgencyFee(900000, TRACK.AGENT).fee, 90000)
+})
+
+test('최소 주문 금액: 견적에 미달 여부와 부족액이 담긴다', () => {
+  const below = quote([{ productName: '립밤 4g', productPrice: 8000, quantity: 1 }], { track: TRACK.FORWARDING })
+  assert.equal(below.minOrder.goodsKrw, ORDER_MIN.goodsKrw)
+  assert.equal(below.minOrder.met, false)
+  assert.equal(below.minOrder.shortfallKrw, ORDER_MIN.goodsKrw - 8000)
+
+  const above = quote([{ productName: '수분크림 50ml', productPrice: 25000, quantity: 1 }], { track: TRACK.FORWARDING })
+  assert.equal(above.minOrder.met, true)
+  assert.equal(above.minOrder.shortfallKrw, 0)
 })
 
 test('세금: 품목군별 관세율이 적용된다', () => {

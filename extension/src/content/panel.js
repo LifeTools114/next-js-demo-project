@@ -100,6 +100,14 @@ const KBPanel = (() => {
       <small>(청구무게 ${esc(String(q.shipping.billableKg))}kg 까지)</small></div>`
   }
 
+  /** 최소 주문 금액 미달 안내 — 담기는 막지 않습니다 (견적함에 모아 채울 수 있으므로). */
+  function minOrderNote(q) {
+    const mo = q?.minOrder
+    if (!mo || mo.met) return ''
+    return `<div class="note warn">🧺 최소 주문 금액은 상품가 합계 <b>${esc(state.fmt.krw(mo.goodsKrw))}</b> 입니다.
+      다른 상품과 함께 <b>${esc(state.fmt.krw(mo.shortfallKrw))}</b> 이상 더 담으면 주문할 수 있습니다.</div>`
+  }
+
   function fabState() {
     if (state.view === 'manual-quote') return 'manual'
     if (state.view === 'maintenance') return 'maintenance'
@@ -205,7 +213,7 @@ const KBPanel = (() => {
         <span class="tag info">청구무게 ${q.shipping.billableKg}kg</span>
         <span class="tag ${state.confidenceClass}">${esc(state.confidenceLabel)}</span>
       </div>
-      ${headroomNote(q)}
+      ${headroomNote(q)}${minOrderNote(q)}
       <div style="margin-top:8px">${rows}</div>
       <div class="row total"><span class="l">하노이 도착 총액</span><span class="v">${esc(state.fmt.krw(q.total))}</span></div>
       <div class="vnd">${esc(state.fmt.vnd(q.totalVnd))}</div>

@@ -6,6 +6,7 @@
 import { createOrder, listOrders, orderView } from '../../../lib/order/store'
 import { requireAdmin, UnauthorizedError } from '../../../lib/auth'
 import { SHIPPING } from '../../../config/shipping'
+import { ORDER_MIN } from '../../../config/fees'
 import { normalizeOrderItems } from '../../../lib/order/normalize-items'
 import { DEFAULT_METHOD } from '../../../lib/payment/methods'
 
@@ -40,6 +41,16 @@ export default async function handler(req, res) {
 
   // 확장이 보낸 고시정보·배지·카테고리를 보존해야 서버 견적이 패널과 일치합니다.
   const sanitized = normalizeOrderItems(items)
+
+  // 최소 주문 금액 — 확장 팝업도 막지만, 최종 판정은 서버가 합니다.
+  const goodsKrw = sanitized.reduce((sum, i) => sum + i.productPrice * i.quantity, 0)
+  if (ORDER_MIN.goodsKrw > 0 && goodsKrw < ORDER_MIN.goodsKrw) {
+    const fmt = (n) => `${n.toLocaleString('ko-KR')}원`
+    return res.status(400).json({
+      error: `최소 주문 금액은 상품가 합계 ${fmt(ORDER_MIN.goodsKrw)}입니다. ${fmt(ORDER_MIN.goodsKrw - goodsKrw)} 더 담아주세요.`,
+      minOrder: { goodsKrw: ORDER_MIN.goodsKrw, shortfallKrw: ORDER_MIN.goodsKrw - goodsKrw },
+    })
+  }
 
   const zoneKey = Object.hasOwn(SHIPPING.zones, zone) ? zone : SHIPPING.defaultZone
 

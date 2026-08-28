@@ -115,6 +115,14 @@ export const ASSUMPTIONS = [
     risk: '항공사별로 취급 조건이 달라 자동 견적이 불가합니다.',
     askBroker: '휴대폰·노트북 취급 가능 여부, 수량 제한, 별도 요율',
   },
+  {
+    id: 'min-order',
+    label: '최소 주문 금액 — 상품가 합계 2만원',
+    where: 'config/fees.js · ORDER_MIN.goodsKrw',
+    status: 'assumed',
+    source: '제안 기본값 (운영자 확정 필요)',
+    risk: '너무 낮으면 소액 주문의 검수·통관 수고가 배송 마진($2/kg)을 넘어 역마진이 나고, 너무 높으면 첫 주문 진입장벽이 됩니다.',
+  },
 ]
 
 export const assumptionsByStatus = () => ({
