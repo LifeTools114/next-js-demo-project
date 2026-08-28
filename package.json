@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run build:ext && next build",
-    "build:ext": "esbuild lib/extension-entry.js --bundle --format=iife --global-name=KBCalc --outfile=extension/vendor/calc.js --minify --target=chrome110 && node scripts/check-leak.mjs",
+    "build:ext": "esbuild lib/extension-entry.js --bundle --format=iife --global-name=KBCalc --outfile=extension/vendor/calc.js --minify --target=chrome110 && node scripts/check-leak.mjs && node scripts/check-ext-syntax.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "node --test test/*.test.js",

@@ -36,8 +36,7 @@ let prefs = { zone: 'hanoi', track: 'forwarding' }
 let backend = 'http://localhost:3000'
 let country = 'VN'
 
-async function init()
-setInterval(renderMaintenance, 60_000) {
+async function init() {
   const cfg = await send('getConfig')
   if (cfg?.config?.policy) K.applyConfig(cfg.config.policy)
   if (cfg?.config?.preferences) prefs = { ...prefs, ...cfg.config.preferences }
@@ -152,8 +151,17 @@ function render() {
     }
   }
 
+  // 최소 주문 금액 — 트랙이 섞여도 판정은 장바구니 상품가 합계 기준입니다 (서버와 동일).
+  const goodsKrw = cart.reduce((s, i) => s + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1), 0)
+  const minOrderKrw = K.currentPolicy().minOrderGoodsKrw
+  const belowMin = minOrderKrw > 0 && goodsKrw > 0 && goodsKrw < minOrderKrw
+  if (belowMin) {
+    parts.push(`<div class="note warn">🧺 최소 주문 금액은 상품가 합계 <b>${esc(K.krw(minOrderKrw))}</b> 입니다.
+      <b>${esc(K.krw(minOrderKrw - goodsKrw))}</b> 더 담아주세요.</div>`)
+  }
+
   $('cart-quote').innerHTML = parts.join('')
-  $('btn-order').disabled = total === 0
+  $('btn-order').disabled = total === 0 || belowMin
 }
 
 document.querySelectorAll('.tabs button').forEach((b) =>
