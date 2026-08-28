@@ -188,6 +188,18 @@ export default function Checkout() {
                 {methods.map((m) => <option key={m.id} value={m.id}>{m.label} · {m.labelVi}</option>)}
               </select>
             )}
+            {quote && (() => {
+              const chosen = methods.find((m) => m.id === paymentMethod)
+              if (!chosen?.currency) return null
+              return (
+                <p className="note" style={{ marginTop: 12 }}>
+                  입금하실 금액: <b>{chosen.currency === 'KRW' ? krw(quote.total) : vnd(quote.totalVnd)}</b>
+                  {' '}<small>({chosen.currency === 'KRW' ? `≈ ${vnd(quote.totalVnd)}` : `≈ ${krw(quote.total)}`})</small>
+                  <br />
+                  <small>이체 메모(입금자명)에 주문번호를 꼭 넣어주세요 — 입금이 자동으로 확인됩니다.</small>
+                </p>
+              )
+            })()}
             <p className="note" style={{ marginTop: 12 }}>
               선결제 방식입니다. 입금이 확인되면 진행합니다. 청구서는 발행 후 {PAYMENT.invoiceValidHours}시간
               동안 유효하며, 그동안 환율이 고정됩니다.
