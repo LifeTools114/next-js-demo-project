@@ -213,9 +213,15 @@ export default function CartPage() {
           </div>
 
           <div className="section" style={{ display: 'grid', gap: 10, paddingTop: 0 }}>
-            <button className="btn" disabled={quote.weight.restrictions.prohibited.length > 0}>
-              주문 요청하기
-            </button>
+            {quote.weight.restrictions.prohibited.length > 0 ? (
+              <button className="btn" disabled>
+                항공 운송 불가 상품이 있어 주문할 수 없습니다
+              </button>
+            ) : (
+              <Link href="/checkout" className="btn">
+                주문서 작성하기
+              </Link>
+            )}
             <button className="btn btn--ghost" onClick={clear}>
               견적함 비우기
             </button>
