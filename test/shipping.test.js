@@ -106,6 +106,10 @@ test('대행 수수료: 구매대행에만 붙고 10%다', () => {
   assert.equal(calculateAgencyFee(100000, TRACK.FORWARDING).applicable, false)
   // 최소 수수료
   assert.equal(calculateAgencyFee(10000, TRACK.AGENT).fee, FEES.agencyMinKrw)
+  // 금액별 면제·상한 없음 — 50만원 경계에서도 10% 그대로 (역전 방지)
+  assert.equal(calculateAgencyFee(499000, TRACK.AGENT).fee, 49900)
+  assert.equal(calculateAgencyFee(500000, TRACK.AGENT).fee, 50000)
+  assert.equal(calculateAgencyFee(900000, TRACK.AGENT).fee, 90000)
 })
 
 test('세금: 품목군별 관세율이 적용된다', () => {
