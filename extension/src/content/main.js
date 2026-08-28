@@ -66,7 +66,7 @@
   })
 
   // ── 2~4. 추출 → 판정 → 계산 ──
-  function compute() {
+  async function compute() {
     /**
      * 점검 시간 가드 — 쿠팡 페이지를 읽기 전에 먼저 확인합니다.
      *
@@ -135,14 +135,22 @@
       badges: extracted.badges,
       shippingText: extracted.shippingText,
       quantity: 1,
+      // 운영자 발주 시 "상품 탭 열기"가 정확히 이 페이지(옵션 포함)를 열도록
+      productUrl: location.origin + location.pathname,
     }
     const q = K.quote([item], { track, zone })
     const conf = K.CONFIDENCE_TAG[q.weight.confidence.level] ?? K.CONFIDENCE_TAG.low
     const mstatus = K.maintenanceStatus(new Date(), country)
     const affGate = K.checkMaintenanceAction('affiliateLink', { country })
 
+    // 운영자 모드: 이 상품이 발주 목록에 있으면 담을 수량을 띄웁니다.
+    // (일반 고객은 hints 가 null 이라 아무것도 보이지 않습니다)
+    const hintRes = await send('operatorHints')
+    const operatorHint = hintRes?.hints?.[extracted.productId] ?? null
+
     KBPanel.setState({
       view: 'quote',
+      operatorHint,
       // 점검 예고·복구 안내는 견적을 막지 않고 배너로만 알립니다.
       maintenanceNotice: mstatus.notice,
       affiliateWarn: affGate.warn ? '점검 중' : null,

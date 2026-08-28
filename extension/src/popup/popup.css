@@ -31,6 +31,13 @@ section { padding: 12px 14px; max-height: 460px; overflow-y: auto; }
 .note { background: #faf7fb; border-radius: 8px; padding: 9px 10px; font-size: 11.5px; color: #766b80; line-height: 1.5; margin-top: 8px; }
 .note.good { background: #e6f6f0; color: #17916b; }
 .note.warn { background: #fff8ef; color: #8a5a10; }
+.ops-card { border: 1px solid #eee3ee; border-radius: 10px; padding: 10px; margin: 8px 0; }
+.ops-head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; margin-bottom: 6px; }
+.ops-head span { font-size: 11px; color: #9a8fa5; }
+.ops-item { font-size: 12px; color: #574d61; line-height: 1.6; }
+.ops-actions { display: grid; gap: 6px; margin-top: 8px; }
+.ops-capture { display: grid; gap: 6px; }
+.ops-capture input { border: 1px solid #e5dbe6; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
 .actions { display: grid; gap: 7px; padding: 10px 14px 14px; }
 .btn { min-height: 40px; border: 0; border-radius: 9px; background: #ef4a76; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
 .btn.ghost { background: #fff; color: #453b4d; border: 1px solid #ece7ef; }

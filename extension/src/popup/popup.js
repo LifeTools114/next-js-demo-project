@@ -167,10 +167,102 @@ function render() {
 document.querySelectorAll('.tabs button').forEach((b) =>
   b.addEventListener('click', () => {
     document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
-    $('tab-cart').hidden = b.dataset.tab !== 'cart'
-    $('tab-settings').hidden = b.dataset.tab !== 'settings'
+    for (const tab of ['cart', 'ops', 'settings']) $(`tab-${tab}`).hidden = b.dataset.tab !== tab
+    if (b.dataset.tab === 'ops') renderOps()
   }),
 )
+
+/**
+ * ─────────────── 운영자 모드 ───────────────
+ * 발주 대기(PAID)·매입 중(PURCHASING)인 구매대행 주문을 보여주고,
+ * 상품 탭 일괄 열기 → 쿠팡 결제 → 주문번호 자동/수동 기록까지 잇습니다.
+ * 토큰과 요청은 전부 백그라운드가 처리하고, 팝업은 화면만 그립니다.
+ */
+
+const OPS_STATE_LABEL = { PAID: '발주 대기', PURCHASING: '매입 중 — 결제 후 자동 기록됩니다' }
+
+async function renderOps() {
+  const st = await send('getAdminState')
+  $('ops-token-state').textContent = st.hasToken ? '· 저장됨' : ''
+  const list = $('ops-list')
+  if (!st.hasToken) {
+    $('ops-empty').hidden = false
+    list.innerHTML = ''
+    return
+  }
+  $('ops-empty').hidden = true
+  list.innerHTML = '<p class="note">불러오는 중…</p>'
+
+  const res = await send('adminFetch', { path: '/api/orders' })
+  if (!res.ok) {
+    list.innerHTML = `<div class="blocked">${esc(res.data?.error || res.error || '주문을 불러오지 못했습니다.')}</div>`
+    return
+  }
+  const orders = (res.data?.orders ?? []).filter(
+    (o) => o.track === 'agent' && ['PAID', 'PURCHASING'].includes(o.state),
+  )
+  if (orders.length === 0) {
+    list.innerHTML = '<p class="note">발주할 구매대행 주문이 없습니다.</p>'
+    return
+  }
+
+  list.innerHTML = orders
+    .map((o, i) => {
+      const items = (o.items ?? [])
+        .map((it) => `<div class="ops-item">· ${esc(it.productName)} <b>× ${it.quantity}</b></div>`)
+        .join('')
+      const capture =
+        o.state === 'PURCHASING'
+          ? `<div class="ops-capture">
+              <input data-cap="no" data-i="${i}" placeholder="쿠팡 주문번호" inputmode="numeric">
+              <input data-cap="amt" data-i="${i}" placeholder="실결제액(원)" inputmode="numeric">
+              <button class="btn ghost" data-act="record" data-i="${i}">매입 기록</button>
+            </div>`
+          : `<button class="btn ghost" data-act="start" data-i="${i}">발주 착수</button>`
+      return `<div class="ops-card" data-order="${esc(o.id)}">
+        <div class="ops-head"><b>${esc(o.orderNo)}</b><span>${OPS_STATE_LABEL[o.state]}</span></div>
+        ${items}
+        <div class="ops-actions">
+          <button class="btn ghost" data-act="tabs" data-i="${i}">상품 탭 열기</button>
+          ${capture}
+        </div>
+      </div>`
+    })
+    .join('')
+
+  const action = async (o, action, payload = {}) => {
+    const r = await send('adminFetch', {
+      path: `/api/orders/${o.id}/action`, method: 'POST', body: { action, payload },
+    })
+    if (!r.ok) alert(r.data?.error || r.error || '요청이 실패했습니다.')
+    renderOps()
+  }
+
+  list.querySelectorAll('button[data-act]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const o = orders[Number(b.dataset.i)]
+      if (b.dataset.act === 'start') return action(o, 'startPurchase')
+      if (b.dataset.act === 'tabs') {
+        const urls = (o.items ?? [])
+          .map((it) => it.productUrl || (it.productId ? `https://www.coupang.com/vp/products/${it.productId}` : null))
+          .filter(Boolean)
+        return send('openTabs', { urls })
+      }
+      if (b.dataset.act === 'record') {
+        const no = list.querySelector(`input[data-cap="no"][data-i="${b.dataset.i}"]`)?.value.trim()
+        const amt = Number(list.querySelector(`input[data-cap="amt"][data-i="${b.dataset.i}"]`)?.value.replace(/,/g, ''))
+        if (!no || !Number.isFinite(amt) || amt <= 0) return alert('쿠팡 주문번호와 실결제액을 입력하세요.')
+        return action(o, 'recordPurchase', { coupangOrderNo: no, amountKrw: amt })
+      }
+    }),
+  )
+}
+
+$('ops-token-save').addEventListener('click', async () => {
+  await send('setAdminToken', { token: $('ops-token').value })
+  $('ops-token').value = ''
+  renderOps()
+})
 
 $('btn-clear').addEventListener('click', async () => {
   cart = []

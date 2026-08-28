@@ -202,8 +202,14 @@ const KBPanel = (() => {
       ? `<div class="banner">⏰ ${esc(state.maintenanceNotice)}</div>`
       : ''
 
+    // 운영자 발주 힌트 — 일반 고객에게는 절대 뜨지 않습니다 (토큰 필요)
+    const opHint = state.operatorHint
+      ? `<div class="note tip">📋 발주 작업 <b>${esc(state.operatorHint.orderNo)}</b> —
+          이 상품 <b>${esc(String(state.operatorHint.quantity))}개</b>를 담으세요.</div>`
+      : ''
+
     return `<div class="body">
-      ${banner}
+      ${banner}${opHint}
       <p class="name">${esc(state.productName)}</p>
       <div class="track">
         <button data-track="forwarding" aria-pressed="${state.track === 'forwarding'}">배송대행</button>

@@ -15,6 +15,7 @@
 
   <nav class="tabs">
     <button data-tab="cart" aria-pressed="true">견적함</button>
+    <button data-tab="ops" aria-pressed="false">운영</button>
     <button data-tab="settings" aria-pressed="false">설정</button>
   </nav>
 
@@ -30,6 +31,19 @@
       <button id="btn-order" class="btn">주문 요청하기</button>
       <button id="btn-clear" class="btn ghost">견적함 비우기</button>
     </div>
+  </section>
+
+  <section id="tab-ops" hidden>
+    <label class="field">
+      <span>운영자 토큰 <small id="ops-token-state"></small></span>
+      <input id="ops-token" type="password" placeholder="ADMIN_TOKEN">
+    </label>
+    <button id="ops-token-save" class="btn ghost">토큰 저장</button>
+    <p id="ops-empty" class="empty" hidden>
+      토큰을 저장하면 발주 대기 주문이 여기 나타납니다.<br>
+      <small>쿠팡에서 결제하면 주문번호·금액이 자동 수집됩니다.</small>
+    </p>
+    <div id="ops-list"></div>
   </section>
 
   <section id="tab-settings" hidden>

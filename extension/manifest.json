@@ -8,6 +8,7 @@
   "host_permissions": [
     "https://www.coupang.com/*",
     "https://m.coupang.com/*",
+    "https://mc.coupang.com/*",
     "http://localhost:3000/*"
   ],
   "background": {
@@ -22,6 +23,11 @@
         "src/content/panel.js",
         "src/content/main.js"
       ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://mc.coupang.com/*", "https://m.coupang.com/*", "https://www.coupang.com/*"],
+      "js": ["src/content/order-capture.js"],
       "run_at": "document_idle"
     }
   ],

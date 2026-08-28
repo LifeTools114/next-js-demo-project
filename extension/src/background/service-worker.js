@@ -92,6 +92,62 @@ async function openAffiliate({ url, track }) {
   }
 }
 
+/**
+ * ─────────────── 운영자 모드 ───────────────
+ * 토큰은 백그라운드(storage)만 갖고, 콘텐츠 스크립트에는 절대 주지 않습니다.
+ * 페이지 세계와 격리돼 있긴 하지만, 원칙적으로 페이지에 가까운 곳에
+ * 자격증명을 두지 않습니다. 요청은 전부 여기서 대신 보냅니다.
+ */
+
+/** 운영자 API 로 열어줄 경로 접두사 — 그 외는 거부합니다 */
+const ADMIN_PATHS = ['/api/orders', '/api/admin/']
+
+async function adminFetch({ path, method = 'GET', body }) {
+  const { adminToken } = await storage.get('adminToken')
+  if (!adminToken) return { ok: false, error: '운영자 토큰이 설정되지 않았습니다.' }
+  if (!ADMIN_PATHS.some((p) => String(path ?? '').startsWith(p))) {
+    return { ok: false, error: `허용되지 않은 경로입니다: ${path}` }
+  }
+  try {
+    const res = await fetch(`${await backendUrl()}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': adminToken,
+        'X-Admin-User': 'extension',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    const data = await res.json().catch(() => null)
+    return { ok: res.ok, status: res.status, data }
+  } catch (error) {
+    return { ok: false, error: error.message }
+  }
+}
+
+/**
+ * 발주 작업 힌트 — 매입 대기·진행 중인 구매대행 주문의 상품 목록.
+ * 운영자가 쿠팡 상품 페이지를 열면 "이 상품 N개 담으세요"를 띄우는 데 씁니다.
+ */
+let hintsCache = { at: 0, hints: null }
+async function operatorHints() {
+  const { adminToken } = await storage.get('adminToken')
+  if (!adminToken) return { ok: true, hints: null }
+  if (Date.now() - hintsCache.at < 60_000) return { ok: true, hints: hintsCache.hints }
+  const res = await adminFetch({ path: '/api/orders' })
+  if (!res.ok || !Array.isArray(res.data?.orders)) return { ok: true, hints: hintsCache.hints }
+  const hints = {}
+  for (const o of res.data.orders) {
+    if (o.track !== 'agent' || !['PAID', 'PURCHASING'].includes(o.state)) continue
+    for (const item of o.items ?? []) {
+      if (!item.productId) continue
+      hints[item.productId] = { orderNo: o.orderNo, quantity: item.quantity, state: o.state }
+    }
+  }
+  hintsCache = { at: Date.now(), hints }
+  return { ok: true, hints }
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const run = async () => {
     switch (msg?.type) {
@@ -115,6 +171,29 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
       case 'openAffiliate':
         return openAffiliate(msg.payload ?? {})
+      case 'setAdminToken': {
+        const token = String(msg.payload?.token ?? '').trim()
+        await storage.set({ adminToken: token })
+        hintsCache = { at: 0, hints: null }
+        return { ok: true, hasToken: Boolean(token) }
+      }
+      case 'getAdminState': {
+        const { adminToken } = await storage.get('adminToken')
+        return { ok: true, hasToken: Boolean(adminToken) }
+      }
+      case 'adminFetch':
+        return adminFetch(msg.payload ?? {})
+      case 'operatorHints':
+        return operatorHints()
+      case 'captureCoupangOrder':
+        return adminFetch({ path: '/api/admin/coupang-capture', method: 'POST', body: msg.payload ?? {} })
+      case 'openTabs': {
+        const urls = (msg.payload?.urls ?? []).slice(0, 20)
+        for (const url of urls) {
+          if (/^https:\/\/(www|m)\.coupang\.com\//.test(url)) await chrome.tabs.create({ url, active: false })
+        }
+        return { ok: true, opened: urls.length }
+      }
       default:
         return { ok: false, error: `알 수 없는 메시지: ${msg?.type}` }
     }

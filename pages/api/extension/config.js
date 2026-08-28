@@ -28,6 +28,9 @@ const SELECTORS = {
   noticeTable: [],
   rocket: [],
   soldOut: [],
+  /** 운영자 모드 — 쿠팡 주문완료 화면의 주문번호·결제액 (마크업 변경 대응용) */
+  orderNo: [],
+  orderTotal: [],
 }
 
 export default function handler(req, res) {
