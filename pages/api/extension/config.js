@@ -16,6 +16,7 @@ import { AFFILIATE } from '../../../config/affiliate'
 import { DESTINATION } from '../../../config/eligibility'
 import { MAINTENANCE } from '../../../config/maintenance'
 import { maintenanceStatus } from '../../../lib/maintenance'
+import { ensureFreshFx } from '../../../lib/fx/refresh'
 
 /**
  * 쿠팡 마크업이 바뀌었을 때 확장 재배포 없이 대응하기 위한 셀렉터 설정.
@@ -38,6 +39,9 @@ export default function handler(req, res) {
     res.setHeader('Allow', 'GET')
     return res.status(405).json({ error: 'GET 요청만 지원합니다.' })
   }
+
+  // 환율이 오래됐으면 백그라운드로 갱신 — 이 응답은 기존 값으로 즉시 나갑니다.
+  ensureFreshFx()
 
   // 확장은 어느 오리진에서든 호출하므로 CORS 를 열어둡니다. (읽기 전용 공개 설정)
   res.setHeader('Access-Control-Allow-Origin', '*')

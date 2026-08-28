@@ -11,10 +11,13 @@ import { SHIPPING } from '../../config/shipping'
 import { normalizeOrderItems } from '../../lib/order/normalize-items'
 import { DESTINATION } from '../../config/eligibility'
 import { maintenanceStatus } from '../../lib/maintenance'
+import { ensureFreshFx } from '../../lib/fx/refresh'
 
 const MAX_ITEMS = 100
 
 export default async function handler(req, res) {
+  // 환율이 오래됐으면 백그라운드로 갱신 — 이 견적은 기존 값으로 즉시 계산합니다.
+  ensureFreshFx()
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
     return res.status(405).json({ error: 'POST 요청만 지원합니다.' })
