@@ -39,3 +39,10 @@ section { padding: 12px 14px; max-height: 460px; overflow-y: auto; }
 select, input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #ece7ef; border-radius: 8px; font-size: 12.5px; background: #fff; }
 .policy { background: #faf7fb; border-radius: 8px; padding: 10px; font-size: 11.5px; color: #453b4d; line-height: 1.7; }
 .disc { font-size: 10.5px; color: #766b80; line-height: 1.5; margin-top: 10px; }
+
+#maint-banner { padding: 10px 14px; font-size: 12px; line-height: 1.55; border-bottom: 1px solid #ece7ef; }
+#maint-banner.active { background: #f2f0f7; color: #3b3350; }
+#maint-banner.soon { background: #fff8ef; color: #8a5a10; }
+#maint-banner.recovering { background: #e6f6f0; color: #17916b; }
+#maint-banner b { display: block; margin-bottom: 2px; }
+#maint-banner small { display: block; margin-top: 4px; opacity: .8; }

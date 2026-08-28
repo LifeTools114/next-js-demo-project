@@ -53,6 +53,14 @@ const KBPanel = (() => {
   font-size: 12px; font-weight: 700; color: #766b80; cursor: pointer; }
 .track button[aria-pressed="true"] { background: #ef4a76; border-color: #ef4a76; color: #fff; }
 .err { font-size: 12.5px; color: #b7791f; background: #fff8ef; border-radius: 8px; padding: 10px; line-height: 1.5; }
+.maint { background: #f2f0f7; border: 1px solid #ddd8e6; border-radius: 10px; padding: 14px; text-align: center; }
+.maint .icon { font-size: 28px; display: block; margin-bottom: 8px; }
+.maint h4 { margin: 0 0 6px; font-size: 14px; color: #3b3350; }
+.maint p { margin: 0 0 10px; font-size: 12.5px; color: #5b5470; line-height: 1.55; }
+.maint .when { font-size: 12px; font-weight: 700; color: #453b4d; background: #fff; border-radius: 8px; padding: 8px 10px; }
+.maint .countdown { font-size: 20px; font-weight: 800; color: #ef4a76; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+.banner { background: #fff8ef; border: 1px solid #ffe8cc; border-radius: 9px; padding: 9px 11px;
+  font-size: 11.5px; color: #8a5a10; line-height: 1.5; margin-bottom: 10px; }
 `
 
   let host = null
@@ -79,6 +87,7 @@ const KBPanel = (() => {
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
   function fabState() {
+    if (state.view === 'maintenance') return 'maintenance'
     if (state.view === 'blocked') return 'blocked'
     if (state.view === 'error') return 'error'
     return 'ok'
@@ -86,6 +95,20 @@ const KBPanel = (() => {
 
   function renderBody() {
     if (state.view === 'loading') return '<div class="body"><div class="err">계산 중…</div></div>'
+
+    if (state.view === 'maintenance') {
+      const m = state.maintenance
+      return `<div class="body"><div class="maint">
+        <span class="icon">🌙</span>
+        <h4>${esc(m.label)}</h4>
+        <p>${esc(m.reason)}</p>
+        <div class="countdown">${esc(m.minutesUntilEnd)}분 뒤 재개</div>
+        <div class="when">${esc(m.timezoneHint)}</div>
+      </div>
+      <div class="note">점검 중에는 쿠팡 가격이 정확하지 않을 수 있어 견적을 멈춥니다.
+      잘못된 금액을 보여드리는 것보다 잠시 기다리시는 편이 낫기 때문입니다.</div>
+      </div>`
+    }
 
     if (state.view === 'error') {
       return `<div class="body"><div class="err">⚠️ ${esc(state.message)}</div>
@@ -125,7 +148,12 @@ const KBPanel = (() => {
         ? `<div class="note">상품가 ${esc(state.fmt.krw(q.goods))}는 고객님이 쿠팡에 직접 결제하십니다. (관세 과세표준에는 포함)</div>`
         : ''
 
+    const banner = state.maintenanceNotice
+      ? `<div class="banner">⏰ ${esc(state.maintenanceNotice)}</div>`
+      : ''
+
     return `<div class="body">
+      ${banner}
       <p class="name">${esc(state.productName)}</p>
       <div class="track">
         <button data-track="forwarding" aria-pressed="${state.track === 'forwarding'}">배송대행</button>
@@ -150,7 +178,7 @@ const KBPanel = (() => {
       return `<div class="btns">
         <button class="btn" data-act="add">견적함에 담기</button>
         <button class="btn ghost" data-act="affiliate">쿠팡에서 주문하기 ↗</button>
-        <div class="disc">${esc(state.disclosureShort)}</div>
+        <div class="disc">${esc(state.affiliateWarn ? state.affiliateWarn + ' · ' + state.disclosureShort : state.disclosureShort)}</div>
       </div>`
     }
     return `<div class="btns"><button class="btn" data-act="add">구매대행 견적함에 담기</button></div>`
@@ -160,9 +188,8 @@ const KBPanel = (() => {
     ensureHost()
     const wrap = root.querySelector('.wrap')
     if (!open) {
-      wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="하노이 배송 견적">${
-        state.view === 'blocked' ? '🚫' : '🇻🇳'
-      }</button>`
+      const icon = state.view === 'blocked' ? '🚫' : state.view === 'maintenance' ? '🌙' : '🇻🇳'
+      wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="하노이 배송 견적">${icon}</button>`
       wrap.querySelector('.fab').addEventListener('click', () => {
         open = true
         render()

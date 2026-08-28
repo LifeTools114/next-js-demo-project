@@ -18,6 +18,7 @@
   const K = globalThis.KBCalc
   let track = 'forwarding'
   let zone = 'hanoi-inner'
+  let country = 'VN'
   let product = null
 
   const send = (type, payload) =>
@@ -39,6 +40,9 @@
     globalThis.KBExtract.setSelectors(cfg.config.selectors)
     if (cfg.config.preferences?.zone) zone = cfg.config.preferences.zone
     if (cfg.config.preferences?.track) track = cfg.config.preferences.track
+    if (cfg.config.destination?.country) country = cfg.config.destination.country
+    // 점검 창 설정도 함께 적용 — 확장이 자체 판정에 씁니다.
+    if (cfg.config.maintenance) K.applyConfig({ maintenance: cfg.config.maintenance })
   }
 
   const policy = K.currentPolicy()
@@ -63,6 +67,19 @@
 
   // ── 2~4. 추출 → 판정 → 계산 ──
   function compute() {
+    /**
+     * 점검 시간 가드 — 쿠팡 페이지를 읽기 전에 먼저 확인합니다.
+     *
+     * 점검 중에는 쿠팡이 점검 안내 페이지를 띄워 가격을 0원으로 읽거나
+     * 아예 못 읽을 수 있습니다. 그 값으로 견적을 만들면 완전히 틀린 금액이 나옵니다.
+     * 확장이 설정값으로 스스로 판정하므로 서버가 죽어도 정확합니다.
+     */
+    const gate = K.checkMaintenanceAction('readProductPage', { country })
+    if (!gate.allowed) {
+      KBPanel.setState({ view: 'maintenance', maintenance: K.maintenanceStatus(new Date(), country) })
+      return
+    }
+
     const extracted = globalThis.KBExtract.extractProduct()
 
     if (!extracted.ok) {
@@ -100,9 +117,14 @@
     }
     const q = K.quote([item], { track, zone })
     const conf = K.CONFIDENCE_TAG[q.weight.confidence.level] ?? K.CONFIDENCE_TAG.low
+    const mstatus = K.maintenanceStatus(new Date(), country)
+    const affGate = K.checkMaintenanceAction('affiliateLink', { country })
 
     KBPanel.setState({
       view: 'quote',
+      // 점검 예고·복구 안내는 견적을 막지 않고 배너로만 알립니다.
+      maintenanceNotice: mstatus.notice,
+      affiliateWarn: affGate.warn ? '점검 중' : null,
       productName: extracted.productName,
       track,
       quote: q,
@@ -124,4 +146,17 @@
     }
   })()
   new MutationObserver(debounced).observe(document.body, { subtree: true, childList: true })
+
+  /**
+   * 점검이 끝나면 자동으로 다시 계산합니다.
+   * 사용자가 탭을 열어둔 채 점검 창을 넘어가는 경우, 새로고침을 요구하지 않습니다.
+   */
+  let wasBlocked = !K.checkMaintenanceAction('readProductPage', { country }).allowed
+  setInterval(() => {
+    const blocked = !K.checkMaintenanceAction('readProductPage', { country }).allowed
+    if (blocked !== wasBlocked) {
+      wasBlocked = blocked
+      compute()
+    }
+  }, 30_000)
 })()

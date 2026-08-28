@@ -8,6 +8,8 @@
 
 import { quote } from '../../lib/pricing/landed'
 import { SHIPPING } from '../../config/shipping'
+import { DESTINATION } from '../../config/eligibility'
+import { maintenanceStatus } from '../../lib/maintenance'
 
 const MAX_ITEMS = 100
 
@@ -38,7 +40,14 @@ export default async function handler(req, res) {
 
   try {
     const trackKey = track === 'agent' ? 'agent' : 'forwarding'
-    return res.status(200).json({ quote: quote(sanitized, { zone: zoneKey, track: trackKey }), zone: zoneKey, track: trackKey })
+    // 점검 중에도 계산은 해줍니다 — 이미 전달받은 가격으로 하는 계산이라 쿠팡에 의존하지 않습니다.
+    // 다만 그 가격이 점검 페이지에서 잘못 읽혔을 수 있으므로 상태를 함께 내려보냅니다.
+    return res.status(200).json({
+      quote: quote(sanitized, { zone: zoneKey, track: trackKey }),
+      zone: zoneKey,
+      track: trackKey,
+      maintenance: maintenanceStatus(new Date(), DESTINATION.country),
+    })
   } catch (error) {
     return res.status(500).json({ error: error.message || '견적 계산에 실패했습니다.' })
   }

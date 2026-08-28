@@ -7,6 +7,9 @@ import { checkEligibility } from '../lib/eligibility'
 import { classifyDuty } from '../lib/pricing/duty'
 import { compareConsolidation } from '../lib/consolidation'
 import { SHIPPING, CONSOLIDATION } from '../config/shipping'
+import { MAINTENANCE } from '../config/maintenance'
+import { maintenanceStatus } from '../lib/maintenance'
+import { DESTINATION } from '../config/eligibility'
 import { TAXES } from '../config/taxes'
 import { krw, usd, weight, kg } from '../lib/format'
 
@@ -20,6 +23,7 @@ export default function RatesPage() {
   const [zone, setZone] = useState(SHIPPING.defaultZone)
 
   const rateTable = useMemo(() => getRateTable(), [])
+  const maint = useMemo(() => maintenanceStatus(new Date(), DESTINATION.country), [])
 
   const result = useMemo(() => {
     const trimmed = name.trim()
@@ -82,6 +86,34 @@ export default function RatesPage() {
             · 최소 청구무게 {SHIPPING.minBillableKg}kg · 박스당 최대 {SHIPPING.maxParcelKg}kg
             <br />· 부피무게 = 가로×세로×높이(cm) ÷ {SHIPPING.volumetricDivisor.toLocaleString('ko-KR')}
             <br />· 포장 박스 {SHIPPING.boxWeightG}g 이 배송 건당 1회 가산됩니다.
+          </p>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">
+          <span>점검 시간 (쉬는시간)</span>
+          <span className="tag">{maint.windowKst.start}~{maint.windowKst.end} 한국시간</span>
+        </div>
+        <div className="panel__body">
+          <div className="row">
+            <span className="row__label">한국시간 기준</span>
+            <span className="row__value">매일 {maint.windowKst.start} ~ {maint.windowKst.end}</span>
+          </div>
+          {maint.windowLocal && (
+            <div className="row">
+              <span className="row__label">{DESTINATION.label} 현지 기준</span>
+              <span className="row__value">매일 {maint.windowLocal.start} ~ {maint.windowLocal.end}</span>
+            </div>
+          )}
+          <p className="note" style={{ marginTop: 12 }}>
+            이 시간에는 쿠팡 가격 정보가 정확하지 않을 수 있어 견적과 매입을 잠시 멈춥니다.
+            주문 접수·입금 확인·발송처럼 쿠팡과 무관한 작업은 그대로 진행됩니다.
+            <br />
+            <small>
+              쿠팡이 공개 점검 시각을 명시하지 않아 운영 관찰에 따라 조정되는 설정값입니다.
+              변경 시 이 페이지에 반영됩니다.
+            </small>
           </p>
         </div>
       </section>

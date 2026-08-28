@@ -263,3 +263,39 @@ test('매출 확정: 실측 직후에는 아직 확정이 아니다', () => {
   assert.notEqual(after.revenue.netRevenueKrw, beforeSettlement.revenue.netRevenueKrw,
     '정산으로 마진이 실제로 바뀌므로, 확정 전 값을 믿으면 안 됩니다')
 })
+
+test('취소: 미입금 주문을 취소해도 유령 미수금이 남지 않는다', () => {
+  // CHARGE 상쇄가 입금 조건 안에 묶여 있으면, 입금 전 취소 시
+  // 잔액이 청구액 그대로 남아 "취소됐는데 미수금이 있는" 상태가 됩니다.
+  const o = cancelOrder(newOrder().id, { reason: '고객 변심' })
+  assert.equal(o.state, 'CANCELLED')
+  const s = summarize(o.ledger, o.fx.effectiveRate)
+  assert.equal(s.balanceKrw, 0, `유령 미수금: ${s.balanceKrw}원`)
+})
+
+test('환율 동결: 주문 생성 시 USD 환율이 주문에 저장된다', () => {
+  const o = newOrder()
+  assert.ok(Number.isFinite(o.fx.usdToKrw) && o.fx.usdToKrw > 0)
+})
+
+test('환율 동결: 정산은 주문 시점 환율로 재계산한다', async () => {
+  // 라이브 환율이 바뀌어도 정산 금액이 흔들리면
+  // 무게가 같은데 차액이 생기는, 고객이 이해할 수 없는 정산이 됩니다.
+  const { FX } = await import('../config/fx.js')
+  const { computeSettlement } = await import('../lib/order/settlement.js')
+
+  const o = newOrder()
+  const sameWeight = o.quote.weight.chargeableG
+
+  const before = computeSettlement(o, sameWeight)
+  const live = FX.usdToKrw
+  FX.usdToKrw = live * 1.2 // 환율 20% 급등 시뮬레이션
+  try {
+    const after = computeSettlement(o, sameWeight)
+    assert.equal(after.finalTotalKrw, before.finalTotalKrw, '환율 변동이 정산에 새어들었습니다')
+    assert.equal(after.action, 'none', '무게가 같으면 정산이 없어야 합니다')
+    assert.equal(FX.usdToKrw, live * 1.2, '전역 환율은 복원 전 상태여야 합니다')
+  } finally {
+    FX.usdToKrw = live
+  }
+})

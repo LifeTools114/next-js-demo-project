@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Layout from '../../components/Layout'
 import { ORDER_STATES, TRANSITIONS } from '../../lib/order/states'
 import { krw, vnd, weight, formatDateTime } from '../../lib/format'
+import { maintenanceStatus, checkAction } from '../../lib/maintenance'
+import { DESTINATION } from '../../config/eligibility'
 
 /**
  * 운영자 콘솔 — 두 거래를 각각 처리합니다.
@@ -39,6 +41,8 @@ export default function AdminConsole() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [forms, setForms] = useState({})
+  // 점검 상태는 시간이 지나면 바뀌므로 주기적으로 갱신합니다.
+  const [maint, setMaint] = useState(null)
   // 토큰 로드 전후로 요청이 두 번 나가며, 먼저 보낸 실패 응답이
   // 나중에 도착해 성공 결과를 덮어쓰는 경쟁 상태를 막습니다.
   const reqRef = useRef(0)
@@ -71,8 +75,25 @@ export default function AdminConsole() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    const tick = () => setMaint(maintenanceStatus(new Date(), DESTINATION.country))
+    tick()
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [])
+
   const run = async (orderNo, action, payload = {}) => {
     setError(null)
+    // 점검 중 매입은 서버가 503 으로 막습니다. 운영자가 확인하면 강제 실행할 수 있습니다.
+    if (['startPurchase', 'recordPurchase'].includes(action) && maint?.active && !payload.override) {
+      const ok = window.confirm(
+        `${maint.label}입니다 (${maint.timezoneHint}).\n\n` +
+          `${maint.minutesUntilEnd}분 뒤 자동으로 재개됩니다.\n` +
+          '쿠팡이 실제로는 정상이라면 지금 강제로 진행할 수 있습니다. 강제 진행할까요?',
+      )
+      if (!ok) return
+      payload = { ...payload, override: true }
+    }
     try {
       const res = await fetch(`/api/orders/${orderNo}/action`, {
         method: 'POST',
@@ -116,6 +137,18 @@ export default function AdminConsole() {
           {loading ? '불러오는 중…' : '새로고침'}
         </button>
       </div>
+
+      {maint?.notice && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <p className={`note ${maint.active ? 'note--warn' : ''}`}>
+            {maint.active ? '🌙' : maint.soon ? '⏰' : '✅'} <strong>{maint.active ? maint.label : maint.soon ? '곧 점검 시작' : '점검 종료'}</strong>
+            <br />
+            {maint.notice}
+            <br />
+            <small>{maint.timezoneHint} · 한국 현재 {maint.nowKst}</small>
+          </p>
+        </div>
+      )}
 
       {error && <div className="section" style={{ paddingTop: 0 }}><p className="note note--danger">{error}</p></div>}
 

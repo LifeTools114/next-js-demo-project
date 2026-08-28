@@ -13,6 +13,8 @@ import {
 } from '../../../../lib/order/store'
 import { requireAdmin, UnauthorizedError } from '../../../../lib/auth'
 import { InvalidTransitionError } from '../../../../lib/order/states'
+import { checkAction } from '../../../../lib/maintenance'
+import { DESTINATION } from '../../../../config/eligibility'
 
 const ACTIONS = {
   confirmPayment: (id, p, op) => confirmPayment(id, { ...p, confirmedBy: p.confirmedBy ?? op }),
@@ -48,8 +50,38 @@ export default function handler(req, res) {
     })
   }
 
-  if (!getOrder(req.query.id)) {
+  const order = getOrder(req.query.id)
+  if (!order) {
     return res.status(404).json({ error: '주문을 찾을 수 없습니다.' })
+  }
+
+  /**
+   * 점검 시간 가드 — 쿠팡에서 실제로 결제하는 액션만 막습니다.
+   *
+   * 예외:
+   *   override=true      운영자가 확인하고 강제 실행 (쿠팡이 실제로는 멀쩡할 수 있음)
+   *   이미 PURCHASING 상태 중단하면 쿠팡엔 결제됐는데 우리 기록은 없는 상태가 됨
+   */
+  const COUPANG_DEPENDENT = ['startPurchase', 'recordPurchase']
+  if (COUPANG_DEPENDENT.includes(action)) {
+    const gate = checkAction('purchase', {
+      country: DESTINATION.country,
+      override: payload.override === true,
+      inFlight: action === 'recordPurchase' && order.state === 'PURCHASING',
+      orderNo: order.orderNo,
+    })
+    if (!gate.allowed) {
+      return res.status(503).json({
+        error: gate.message,
+        maintenance: true,
+        retryAfterMinutes: gate.retryAfterMinutes,
+        retryAt: gate.retryAt,
+        hint: '운영자 확인 후 강제로 진행하려면 override: true 를 함께 보내세요.',
+      })
+    }
+    if (gate.exception) {
+      res.setHeader('X-Maintenance-Exception', gate.exception)
+    }
   }
 
   try {

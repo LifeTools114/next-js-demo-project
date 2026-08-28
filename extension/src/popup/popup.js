@@ -10,17 +10,40 @@ const send = (type, payload) =>
   new Promise((resolve) => chrome.runtime.sendMessage({ type, payload }, (r) => resolve(r ?? { ok: false })))
 
 const $ = (id) => document.getElementById(id)
+
+/**
+ * 점검 배너.
+ * 확장이 스스로 판정하므로 서버 연결 없이도 정확합니다.
+ */
+function renderMaintenance() {
+  const el = $('maint-banner')
+  const s = K.maintenanceStatus(new Date(), country)
+  if (!s.notice) {
+    el.hidden = true
+    return
+  }
+  const kind = s.active ? 'active' : s.soon ? 'soon' : 'recovering'
+  const icon = s.active ? '🌙' : s.soon ? '⏰' : '✅'
+  el.className = kind
+  el.innerHTML = `<b>${icon} ${esc(s.active ? s.label : s.soon ? '곧 점검 시작' : '점검 종료')}</b>${esc(s.notice)}<small>${esc(s.timezoneHint)}</small>`
+  el.hidden = false
+}
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
 let cart = []
 let prefs = { zone: 'hanoi-inner', track: 'forwarding' }
 let backend = 'http://localhost:3000'
+let country = 'VN'
 
-async function init() {
+async function init()
+setInterval(renderMaintenance, 60_000) {
   const cfg = await send('getConfig')
   if (cfg?.config?.policy) K.applyConfig(cfg.config.policy)
   if (cfg?.config?.preferences) prefs = { ...prefs, ...cfg.config.preferences }
+  if (cfg?.config?.destination?.country) country = cfg.config.destination.country
+  if (cfg?.config?.maintenance) K.applyConfig({ maintenance: cfg.config.maintenance })
+  renderMaintenance()
 
   $('src-badge').textContent = cfg?.offline ? '오프라인' : cfg?.stale ? '캐시' : '연결됨'
   $('src-badge').className = 'badge' + (cfg?.offline || cfg?.stale ? ' offline' : '')
@@ -166,3 +189,4 @@ $('backend').addEventListener('change', (e) => {
 })
 
 init()
+setInterval(renderMaintenance, 60_000)

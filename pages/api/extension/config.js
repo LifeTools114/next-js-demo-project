@@ -14,6 +14,8 @@ import { FEES } from '../../../config/fees'
 import { FX } from '../../../config/fx'
 import { AFFILIATE } from '../../../config/affiliate'
 import { DESTINATION } from '../../../config/eligibility'
+import { MAINTENANCE } from '../../../config/maintenance'
+import { maintenanceStatus } from '../../../lib/maintenance'
 
 /**
  * 쿠팡 마크업이 바뀌었을 때 확장 재배포 없이 대응하기 위한 셀렉터 설정.
@@ -36,12 +38,33 @@ export default function handler(req, res) {
 
   // 확장은 어느 오리진에서든 호출하므로 CORS 를 열어둡니다. (읽기 전용 공개 설정)
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=86400')
+  // serverStatus 가 시각 의존이라 짧게 캐시합니다. 확장은 시각 설정으로 자체 판정하므로 안전합니다.
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400')
 
   return res.status(200).json({
     version: 1,
     updatedAt: new Date().toISOString(),
     destination: DESTINATION,
+
+    /**
+     * 점검 창 — 확장은 이 값으로 **스스로 판정**합니다.
+     * 시각만 넘기면 네트워크가 끊겨도, 캐시가 오래돼도 정확히 동작합니다.
+     * (서버에 매번 "지금 점검이야?"를 묻는 구조였다면 오프라인에서 깨집니다)
+     */
+    maintenance: {
+      enabled: MAINTENANCE.enabled,
+      appliesTo: MAINTENANCE.appliesTo,
+      utcOffsetMinutes: MAINTENANCE.timezone.utcOffsetMinutes,
+      startMinuteOfDay: MAINTENANCE.startMinuteOfDay,
+      durationMinutes: MAINTENANCE.durationMinutes,
+      noticeLeadMinutes: MAINTENANCE.noticeLeadMinutes,
+      graceMinutes: MAINTENANCE.graceMinutes,
+      label: MAINTENANCE.label,
+      shortLabel: MAINTENANCE.shortLabel,
+      reason: MAINTENANCE.reason,
+      /** 서버 기준 현재 상태 — 확장 자체 판정과 대조해 시계 오차를 감지합니다 */
+      serverStatus: maintenanceStatus(new Date(), DESTINATION.country),
+    },
     policy: {
       ratePerKgUsd: SHIPPING.ratePerKgUsd,
       minBillableKg: SHIPPING.minBillableKg,
