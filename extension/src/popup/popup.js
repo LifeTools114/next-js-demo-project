@@ -32,7 +32,7 @@ const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
 let cart = []
-let prefs = { zone: 'hanoi-inner', track: 'forwarding' }
+let prefs = { zone: 'hanoi', track: 'forwarding' }
 let backend = 'http://localhost:3000'
 let country = 'VN'
 

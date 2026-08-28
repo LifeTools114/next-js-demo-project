@@ -15,7 +15,7 @@ const ITEMS = [
   { productId: '7201', productName: '메디힐 마스크팩 10매', productPrice: 12900, quantity: 3 },
 ]
 const newOrder = () =>
-  createOrder({ items: ITEMS, zone: 'hanoi-inner', customer: { name: 'Mai', phone: '0912', address: 'Hanoi' } })
+  createOrder({ items: ITEMS, zone: 'hanoi', customer: { name: 'Mai', phone: '0912', address: 'Hanoi' } })
 
 test.beforeEach(() => _reset())
 
@@ -56,12 +56,12 @@ test('주문 생성: 청구가 고객 원장에 기록된다', () => {
 })
 
 test('주문 생성: 상품이 없으면 거부한다', () => {
-  assert.throws(() => createOrder({ items: [], zone: 'hanoi-inner', customer: { name: 'A' } }), /상품이 없습니다/)
+  assert.throws(() => createOrder({ items: [], zone: 'hanoi', customer: { name: 'A' } }), /상품이 없습니다/)
 })
 
 test('주문 생성: 설정되지 않은 결제 수단은 거부한다', () => {
   assert.throws(
-    () => createOrder({ items: ITEMS, zone: 'hanoi-inner', customer: { name: 'A' }, paymentMethod: 'momo' }),
+    () => createOrder({ items: ITEMS, zone: 'hanoi', customer: { name: 'A' }, paymentMethod: 'momo' }),
     NotConfiguredError,
   )
 })

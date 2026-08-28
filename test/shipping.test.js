@@ -36,10 +36,25 @@ test('배송비: 구간 없이 무게에 정비례한다', () => {
   assert.equal(b, a * 2)
 })
 
-test('배송비: 지역 할증이 USD 로 더해진다', () => {
-  const inner = calculateShipping(1000, { zone: 'hanoi-inner' })
-  const outer = calculateShipping(1000, { zone: 'hanoi-outer' })
-  assert.equal(outer.totalUsd - inner.totalUsd, SHIPPING.zones['hanoi-outer'].surchargeUsd)
+test('서비스 지역: 현재 하노이 시내 단일이며 할증이 없다', () => {
+  // 물류사가 하노이만 연결되어 있는 파일럿 구성입니다.
+  assert.deepEqual(Object.keys(SHIPPING.zones), ['hanoi'])
+  assert.equal(SHIPPING.zones.hanoi.surchargeUsd, 0)
+  assert.equal(SHIPPING.defaultZone, 'hanoi')
+  assert.ok(SHIPPING.serviceAreaNotice.includes('하노이'))
+})
+
+test('배송비: 지역 할증 메커니즘은 유지된다 (지역 확대 대비)', () => {
+  // 커버리지가 넓어져 zones 에 지역을 추가하면 할증이 자동으로 붙어야 합니다.
+  SHIPPING.zones['test-outer'] = { label: '테스트 외곽', surchargeUsd: 3 }
+  try {
+    const base = calculateShipping(1000, { zone: SHIPPING.defaultZone })
+    const surcharged = calculateShipping(1000, { zone: 'test-outer' })
+    assert.equal(surcharged.totalUsd - base.totalUsd, 3)
+    assert.equal(surcharged.totalKrw - base.totalKrw, usdToKrw(3))
+  } finally {
+    delete SHIPPING.zones['test-outer']
+  }
 })
 
 test('배송비: 알 수 없는 지역은 기본 지역으로 처리한다', () => {
@@ -147,4 +162,47 @@ test('합배송: 여러 건을 묶으면 청구무게가 줄어든다', () => {
 test('합배송: 한 건만 있으면 취급비 때문에 이득이 아니다', () => {
   const c = compareConsolidation([{ orderNo: 'A', items: [{ productName: '토리든 세럼 50ml', quantity: 1 }] }])
   assert.equal(c.worthwhile, false, '단건 합배송은 취급비만 더 듭니다')
+})
+
+
+// ─────────── 상품 할증 ───────────
+
+test('상품 할증: 파손주의 품목에 수량 비례 취급비가 붙는다', () => {
+  const q = quote(
+    [{ productName: '광주요 도자기 그릇세트 4인용', productPrice: 89000, quantity: 2 }],
+    { track: TRACK.FORWARDING },
+  )
+  const row = q.breakdown.find((r) => r.key === 'surcharge-fragile')
+  assert.ok(row, '파손주의 할증 행이 있어야 합니다')
+  assert.equal(row.usd, 4, '개당 $2 × 2개')
+  assert.equal(q.breakdown.reduce((s, r) => s + r.krw, 0), q.total, '명세 합계는 총액과 일치해야 합니다')
+})
+
+test('상품 할증: 10kg 이상 품목에 대형 취급비가 붙는다', () => {
+  const q = quote([{ productName: '이천쌀 20kg', productPrice: 65000, quantity: 1 }], { track: TRACK.FORWARDING })
+  assert.ok(q.breakdown.some((r) => r.key === 'surcharge-bulky'))
+  assert.equal(q.itemSurcharges.rows.find((r) => r.id === 'bulky').usd, 5)
+})
+
+test('상품 할증: 일반 화장품 유리용기에는 붙지 않는다', () => {
+  // 크림 유리단지는 업계 표준 포장 — 가장 흔한 품목에 할증하면 견적만 부풀립니다.
+  const q = quote(
+    [{ productName: '아이소이 블레미쉬 케어 크림 50ml', productPrice: 32000, quantity: 3 }],
+    { track: TRACK.FORWARDING },
+  )
+  assert.ok(!q.breakdown.some((r) => r.key.startsWith('surcharge-')), '화장품에 할증이 붙으면 안 됩니다')
+  assert.equal(q.itemSurcharges.totalUsd, 0)
+})
+
+test('상품 할증: 관세 과세표준(CIF)에 포함된다', () => {
+  // 할증은 운임의 일부이므로 세관 과세표준에 들어갑니다.
+  const withSurcharge = quote(
+    [{ productName: '광주요 도자기 그릇세트', productPrice: 100000, quantity: 1 }],
+    { track: TRACK.FORWARDING },
+  )
+  assert.equal(
+    withSurcharge.taxes.cif,
+    100000 + withSurcharge.shipping.totalKrw + withSurcharge.itemSurcharges.totalKrw,
+    'CIF = 상품가 + 운임 + 상품할증',
+  )
 })

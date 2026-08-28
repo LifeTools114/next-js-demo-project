@@ -8,7 +8,7 @@
  *    여기서 내려보내는 것은 값(숫자·문자열·셀렉터)뿐이며, 코드는 확장에 번들되어 있습니다.
  */
 
-import { SHIPPING, CONSOLIDATION } from '../../../config/shipping'
+import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../../../config/shipping'
 import { TAXES } from '../../../config/taxes'
 import { FEES } from '../../../config/fees'
 import { FX } from '../../../config/fx'
@@ -77,6 +77,9 @@ export default function handler(req, res) {
       fxSpread: FX.spread,
     },
     zones: SHIPPING.zones,
+    serviceAreaNotice: SHIPPING.serviceAreaNotice,
+    leadTimeDays: SHIPPING.leadTimeDays,
+    itemSurcharges: ITEM_SURCHARGES,
     consolidation: {
       freeStorageDays: CONSOLIDATION.freeStorageDays,
       handlingFeeUsd: CONSOLIDATION.handlingFeeUsd,

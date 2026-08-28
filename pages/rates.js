@@ -6,10 +6,10 @@ import { calculateShipping, getRateTable, usdToKrw } from '../lib/pricing/shippi
 import { checkEligibility } from '../lib/eligibility'
 import { classifyDuty } from '../lib/pricing/duty'
 import { compareConsolidation } from '../lib/consolidation'
-import { SHIPPING, CONSOLIDATION } from '../config/shipping'
+import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
 import { MAINTENANCE } from '../config/maintenance'
 import { maintenanceStatus } from '../lib/maintenance'
-import { DESTINATION } from '../config/eligibility'
+import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
 import { TAXES } from '../config/taxes'
 import { krw, usd, weight, kg } from '../lib/format'
 
@@ -119,14 +119,58 @@ export default function RatesPage() {
       </section>
 
       <section className="panel">
-        <div className="panel__head">지역별 할증</div>
+        <div className="panel__head">배송 지역 · 도착 소요일</div>
         <div className="panel__body">
           {Object.entries(SHIPPING.zones).map(([key, z]) => (
             <div className="row" key={key}>
               <span className="row__label">{z.label}</span>
-              <span className="row__value">{z.surchargeUsd === 0 ? '없음' : `+${usd(z.surchargeUsd)}`}</span>
+              <span className="row__value">{z.surchargeUsd === 0 ? '할증 없음' : `+${usd(z.surchargeUsd)}`}</span>
             </div>
           ))}
+          <div className="row">
+            <span className="row__label">하노이 도착 소요</span>
+            <span className="row__value">{SHIPPING.leadTimeDays.min}~{SHIPPING.leadTimeDays.max}영업일</span>
+          </div>
+          <p className="note" style={{ marginTop: 12 }}>{SHIPPING.serviceAreaNotice}</p>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">상품 할증</div>
+        <div className="panel__body">
+          {Object.entries(ITEM_SURCHARGES).map(([key, sc]) => (
+            <div className="row" key={key}>
+              <span className="row__label">
+                {sc.label}
+                <br />
+                <small style={{ color: 'var(--ink-500)' }}>{sc.description}</small>
+              </span>
+              <span className="row__value">+{usd(sc.usd)}</span>
+            </div>
+          ))}
+          <p className="note" style={{ marginTop: 12 }}>
+            일반 화장품 유리용기(크림 단지 등)는 표준 완충 포장에 포함되어 할증하지 않습니다.
+          </p>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">배송 금지 품목</div>
+        <div className="panel__body">
+          {BLOCK_RULES.map((r) => (
+            <div className="row" key={r.id}>
+              <span className="row__label">
+                {r.label}
+                <br />
+                <small style={{ color: 'var(--ink-500)' }}>{r.reason}</small>
+              </span>
+              <span className="row__value">🚫</span>
+            </div>
+          ))}
+          <p className="note" style={{ marginTop: 12 }}>
+            확장프로그램이 쿠팡 상품 페이지에서 <strong>주문 전에</strong> 자동으로 알려드립니다.
+            결제 후 창고에서 반송되면 왕복 배송비가 발생하기 때문입니다.
+          </p>
         </div>
       </section>
 
@@ -147,14 +191,16 @@ export default function RatesPage() {
             <input id="qty" className="input" type="number" min="1" max="99" inputMode="numeric"
               value={quantity} onChange={(e) => setQuantity(Math.max(1, Number.parseInt(e.target.value, 10) || 1))} />
           </div>
-          <div className="field" style={{ flex: 2 }}>
-            <label className="field__label" htmlFor="zone2">배송 지역</label>
-            <select id="zone2" className="select" value={zone} onChange={(e) => setZone(e.target.value)}>
-              {Object.entries(SHIPPING.zones).map(([k, z]) => (
-                <option key={k} value={k}>{z.label.split(' (')[0]}</option>
-              ))}
-            </select>
-          </div>
+          {Object.keys(SHIPPING.zones).length > 1 && (
+            <div className="field" style={{ flex: 2 }}>
+              <label className="field__label" htmlFor="zone2">배송 지역</label>
+              <select id="zone2" className="select" value={zone} onChange={(e) => setZone(e.target.value)}>
+                {Object.entries(SHIPPING.zones).map(([k, z]) => (
+                  <option key={k} value={k}>{z.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

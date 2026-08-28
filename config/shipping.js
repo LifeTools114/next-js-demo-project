@@ -33,15 +33,54 @@ export const SHIPPING = {
   /** 상품 1개당 완충재 무게 (g) */
   packingPerItemG: 12,
 
-  /** 배송 지역별 할증 (USD) */
+  /**
+   * 배송 지역 (USD 할증).
+   *
+   * 현재 물류사가 하노이만 연결되어 있어 **하노이 시내 단일 지역, 할증 $0** 으로
+   * 운영합니다. 커버리지가 넓어지면 여기에 지역을 추가하기만 하면
+   * 주문서·요금 페이지·확장 팝업에 자동으로 나타납니다.
+   */
   zones: {
-    'hanoi-inner': { label: '하노이 시내 (Ba Đình·Hoàn Kiếm·Đống Đa·Hai Bà Trưng·Cầu Giấy·Thanh Xuân)', surchargeUsd: 0 },
-    'hanoi-outer': { label: '하노이 외곽 (Long Biên·Hà Đông·Nam Từ Liêm·Bắc Từ Liêm 등)', surchargeUsd: 3 },
-    'hanoi-rural': { label: '하노이 근교 군지역 (Sóc Sơn·Ba Vì·Mỹ Đức 등)', surchargeUsd: 7 },
+    hanoi: { label: '하노이 시내', surchargeUsd: 0 },
   },
-  defaultZone: 'hanoi-inner',
+  defaultZone: 'hanoi',
+
+  /** 서비스 지역 안내 */
+  serviceAreaNotice:
+    '현재 하노이 시내만 배송합니다. 다른 지역은 물류사 연결에 따라 순차적으로 확대됩니다.',
 
   leadTimeDays: { min: 5, max: 9 },
+}
+
+/**
+ * 상품 할증 — 품목 특성에 따른 취급 수수료 (USD)
+ *
+ * "배송 불가"까지는 아니지만 일반 포장으로는 보낼 수 없는 품목에 붙습니다.
+ * 물류사 요율표를 받으면 계약 조건으로 이 값을 교체하세요.
+ *
+ * ⚠️ 키워드는 eligibility 와 같은 substring 오탐 문제를 겪으므로
+ *    복합어 위주로 작성합니다. ('그릇' 대신 '국그릇'·'그릇세트')
+ *    일반 화장품 유리용기(크림 단지 등)는 업계 표준 포장이라 할증하지 않습니다.
+ */
+export const ITEM_SURCHARGES = {
+  fragile: {
+    label: '파손주의 취급',
+    usd: 2,
+    description: '도자기·유리 식기 등 완충 보강 포장이 필요한 품목 (개당)',
+    perUnit: true,
+    keywords: [
+      '도자기', '세라믹', '사기그릇', '국그릇', '밥그릇', '그릇세트', '식기세트', '접시세트',
+      '찻잔', '머그컵', '머그잔', '유리컵', '와인잔', '맥주잔', '소주잔', '위스키잔', '샴페인잔',
+      '유리병', '꽃병', '화병', '거울', '탁상거울', '손거울', '액자', '크리스탈', '어항', '유리용기', '티팟',
+    ],
+  },
+  bulky: {
+    label: '대형 화물 취급',
+    usd: 5,
+    description: '한 품목의 청구무게가 10kg 이상인 경우 (건당)',
+    perUnit: false,
+    thresholdKg: 10,
+  },
 }
 
 /**

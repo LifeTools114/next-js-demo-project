@@ -167,6 +167,7 @@ const KBPanel = (() => {
       <div class="row total"><span class="l">하노이 도착 총액</span><span class="v">${esc(state.fmt.krw(q.total))}</span></div>
       <div class="vnd">${esc(state.fmt.vnd(q.totalVnd))}</div>
       ${goodsNote}${surcharged}${warn}
+      <div class="note">📦 하노이 도착 예상 ${esc(q.shipping.leadTimeDays.min)}~${esc(q.shipping.leadTimeDays.max)}영업일</div>
       <div class="note">표시 금액은 상품명 기반 추정 무게로 계산한 예상 견적입니다.
       한국 창고 입고 후 실측하여 차액을 정산합니다.</div>
     </div>`

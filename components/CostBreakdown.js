@@ -40,6 +40,12 @@ export default function CostBreakdown({ quote }) {
           </p>
         )}
 
+        {quote.shipping?.leadTimeDays && (
+          <p className="note" style={{ marginTop: 10 }}>
+            📦 하노이 도착 예상 {quote.shipping.leadTimeDays.min}~{quote.shipping.leadTimeDays.max}영업일
+          </p>
+        )}
+
         <p className="note note--warn" style={{ marginTop: 10 }}>
           ℹ️ {SETTLEMENT.notice}
         </p>

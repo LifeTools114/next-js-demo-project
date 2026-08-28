@@ -17,7 +17,7 @@
 
   const K = globalThis.KBCalc
   let track = 'forwarding'
-  let zone = 'hanoi-inner'
+  let zone = 'hanoi'
   let country = 'VN'
   let product = null
 

@@ -154,16 +154,27 @@ export default function Checkout() {
                   value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
               </div>
             ))}
-            <div className="field" style={{ marginBottom: 0 }}>
-              <label className="field__label" htmlFor="zone">배송 지역</label>
-              <select id="zone" className="select" value={zone} onChange={(e) => setZone(e.target.value)}>
-                {Object.entries(SHIPPING.zones).map(([k, z]) => (
-                  <option key={k} value={k}>
-                    {z.label.split(' (')[0]}{z.surchargeUsd > 0 ? ` (+$${z.surchargeUsd})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {Object.keys(SHIPPING.zones).length > 1 ? (
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="field__label" htmlFor="zone">배송 지역</label>
+                <select id="zone" className="select" value={zone} onChange={(e) => setZone(e.target.value)}>
+                  {Object.entries(SHIPPING.zones).map(([k, z]) => (
+                    <option key={k} value={k}>
+                      {z.label}{z.surchargeUsd > 0 ? ` (+$${z.surchargeUsd})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="field" style={{ marginBottom: 0 }}>
+                <span className="field__label">배송 지역</span>
+                <p className="note">
+                  {SHIPPING.zones[SHIPPING.defaultZone].label} — 지역 할증 없음
+                  <br />
+                  <small>{SHIPPING.serviceAreaNotice}</small>
+                </p>
+              </div>
+            )}
           </div>
         </section>
 
