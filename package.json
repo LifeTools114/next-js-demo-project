@@ -7,11 +7,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run build:ext && next build",
-    "build:ext": "esbuild lib/extension-entry.js --bundle --format=iife --global-name=KBCalc --outfile=extension/vendor/calc.js --minify --target=chrome110",
+    "build:ext": "esbuild lib/extension-entry.js --bundle --format=iife --global-name=KBCalc --outfile=extension/vendor/calc.js --minify --target=chrome110 && node scripts/check-leak.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "node --test test/*.test.js",
-    "pack:ext": "npm run build:ext && cd extension && zip -qr ../coupang-hanoi-extension.zip . -x \"*.DS_Store\" && echo \"생성: coupang-hanoi-extension.zip\""
+    "pack:ext": "npm run build:ext && cd extension && zip -qr ../coupang-hanoi-extension.zip . -x \"*.DS_Store\" && echo \"생성: coupang-hanoi-extension.zip\"",
+    "check:leak": "node scripts/check-leak.mjs"
   },
   "dependencies": {
     "next": "16.3.3",

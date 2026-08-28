@@ -106,14 +106,60 @@ test('세이프리스트가 실제로 오탐을 막는다', () => {
   assert.ok(SAFE_TERMS.includes('하이라이터'), "'하이라이터'가 없으면 '라이터'에 걸립니다")
 })
 
-test('고액·다량 주문은 차단하지 않고 경고만 한다', () => {
+test('고액 주문은 차단하지 않고 견적 문의로 보낸다', () => {
+  // 100만원 이상은 보험 여부를 확인해야 해서 자동 견적을 내지 않습니다.
   const high = checkEligibility(p('다이슨 에어랩', { price: 599000, quantity: 3 }))
-  assert.equal(high.shippable, true)
-  assert.ok(high.warnings.some((w) => w.id === 'high-value'))
+  assert.equal(high.shippable, true, '배송은 가능해야 합니다')
+  assert.equal(high.verdict, VERDICT.MANUAL_QUOTE)
+  assert.equal(high.autoQuote, false)
+  assert.equal(high.ruleId, 'high-value')
+})
 
+test('다량 주문은 자동 견적을 유지하되 경고한다', () => {
   const many = checkEligibility(p('토리든 세럼 50ml', { price: 19900, quantity: 10 }))
   assert.equal(many.shippable, true)
+  assert.equal(many.verdict, VERDICT.OK)
   assert.ok(many.warnings.some((w) => w.id === 'commercial-quantity'))
+})
+
+test('전자기기 본체는 견적 문의, 액세서리는 자동 견적', () => {
+  // 리튬배터리 내장 본체는 항공사별 취급 조건이 달라 물류사 견적이 필요합니다.
+  for (const name of ['삼성 갤럭시 S25 울트라 자급제', 'LG 그램 17인치 노트북', '아이패드 프로 13']) {
+    const r = checkEligibility(p(name, { price: 500000, quantity: 1 }))
+    assert.equal(r.verdict, VERDICT.MANUAL_QUOTE, `${name} 은 견적 문의여야 합니다`)
+    assert.equal(r.ruleId, 'device')
+    assert.ok(r.notice, '고객 안내 문구가 있어야 합니다')
+  }
+  // 액세서리는 그대로 자동 견적
+  const buds = checkEligibility(p('에어팟 프로 3', { price: 359000, quantity: 1 }))
+  assert.equal(buds.verdict, VERDICT.OK)
+})
+
+test('중고 전자기기는 견적 문의가 아니라 차단이다', () => {
+  // 베트남은 2015-12 부터 중고 휴대폰·노트북 수입을 금지합니다.
+  // 차단이 견적 문의보다 우선해야 합니다.
+  for (const name of ['중고폰 아이폰 14 S급', '중고노트북 그램 리퍼브']) {
+    const r = checkEligibility(p(name, { price: 500000, quantity: 1 }))
+    assert.equal(r.verdict, VERDICT.BLOCKED, `${name} 은 차단이어야 합니다`)
+    assert.equal(r.shippable, false)
+  }
+})
+
+test('화장품 이름의 유제품 단어를 축산물로 오판하지 않는다', () => {
+  // 한국 화장품에는 유제품 이름이 흔합니다. 키워드 나열로는 막을 수 없어
+  // 화장품 문맥이면 검역 규칙을 적용하지 않습니다.
+  const cosmetics = [
+    '설화수 자음생크림 60ml', '미샤 타임레볼루션 재생크림', '정관장 진생크림',
+    '스킨푸드 요거트 마스크팩', '더페이스샵 우유크림 세안제', '메디힐 우유팩 마스크',
+    '토니모리 계란 클렌징폼', '네이처리퍼블릭 치즈볼 쿠션', '닥터자르트 시카페어 재생크림',
+  ]
+  for (const name of cosmetics) {
+    assert.notEqual(checkEligibility(p(name)).verdict, VERDICT.BLOCKED, `${name} 이 오차단되었습니다`)
+  }
+  // 실제 식품은 그대로 차단되어야 합니다.
+  for (const name of ['서울우유 1L 6팩', '매일 생크림 500ml', '풀무원 크림치즈 200g', '목우촌 계란 30구']) {
+    assert.equal(checkEligibility(p(name)).verdict, VERDICT.BLOCKED, `${name} 이 통과되었습니다`)
+  }
 })
 
 test('장바구니는 하나라도 불가면 전체가 불가다', () => {

@@ -12,8 +12,11 @@ export const SHIPPING = {
   origin: '대한민국 (인천)',
   destination: '베트남 하노이',
 
-  /** 1kg당 요율 (USD) — 구간 없는 정액 */
+  /** 고객 청구 요율 — 1kg당 USD, 구간 없는 정액 */
   ratePerKgUsd: 9,
+
+  // 원가는 config/costs.server.js 에 있습니다.
+  // 이 파일은 확장프로그램 번들에 포함되므로 원가를 두면 그대로 노출됩니다.
 
   /** 최소 청구무게 — 이보다 가벼워도 이 무게로 청구합니다. */
   minBillableKg: 0.5,
@@ -99,6 +102,6 @@ export const CONSOLIDATION = {
   storageFeePerDayUsd: 0.5,
   /** 한 번에 묶을 수 있는 최대 주문 수 */
   maxOrdersPerParcel: 20,
-  /** 합배송 취급 수수료 (USD) — 재포장 인건비 */
+  /** 합배송 취급 수수료 (USD) — 고객 청구 */
   handlingFeeUsd: 2,
 }

@@ -1,0 +1,29 @@
+/**
+ * ⚠️ 서버 전용 원가 설정 — 절대 확장프로그램 번들에 포함되면 안 됩니다.
+ *
+ * 파일명에 `.server` 를 붙인 이유:
+ *   lib/extension-entry.js(번들 진입점)가 이 파일을 import 하지 않으면
+ *   esbuild 가 번들에 넣지 않습니다. config/shipping.js 에 두었을 때는
+ *   그 파일 전체가 번들되면서 `costPerKgUsd:7` 이 확장 파일에 그대로 박혔습니다.
+ *   확장은 사용자가 파일을 열어볼 수 있으므로 실질적인 누출이었습니다.
+ *
+ * 원가가 드러나면 협상력을 잃고, 고객이 마진을 역산할 수 있습니다.
+ * npm run check:leak 이 번들 누출을 검사합니다.
+ */
+
+export const COSTS = {
+  /** 물류사 원가 — 1kg당 USD (판매가 $9, 마진 $2/kg) */
+  shippingPerKgUsd: 7,
+
+  /** 합배송 재포장 원가 (USD) — 아직 미확인 */
+  consolidationHandlingUsd: 0,
+
+  /** 상품 할증 원가 (USD) — 업체 확인 전까지 0 */
+  surcharge: { fragile: 0, bulky: 0 },
+
+  /** 지역 할증 원가 (USD) — 하노이 단일이라 현재 0 */
+  zoneUsd: { hanoi: 0 },
+
+  /** 결제대행(PG) 실비율 — 고객 청구율과 다를 수 있습니다 */
+  paymentRate: 0.029,
+}
