@@ -14,6 +14,31 @@ export default function OrderPage() {
   const { id } = router.query
   const [order, setOrder] = useState(null)
   const [error, setError] = useState(null)
+  const [linkForm, setLinkForm] = useState({ coupangOrderNo: '', trackingNo: '' })
+  const [linking, setLinking] = useState(false)
+  const [linkError, setLinkError] = useState(null)
+
+  const submitLink = async (e) => {
+    e.preventDefault()
+    if (!linkForm.coupangOrderNo.trim() && !linkForm.trackingNo.trim()) return
+    setLinking(true)
+    setLinkError(null)
+    try {
+      const res = await fetch(`/api/orders/${id}/link-coupang`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(linkForm),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setOrder(d.order)
+      setLinkForm({ coupangOrderNo: '', trackingNo: '' })
+    } catch (err) {
+      setLinkError(err.message)
+    } finally {
+      setLinking(false)
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -71,13 +96,18 @@ export default function OrderPage() {
             <span className="tag tag--warn">미납</span>
           </div>
           <div className="panel__body">
+            {/* 선택한 수단의 통화를 앞세워 보여줍니다 (KRW 계좌면 원화 먼저) */}
             <div className="row row--total" style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}>
               <span className="row__label">입금하실 금액</span>
-              <span className="row__value">{vnd(order.balance.vnd)}</span>
+              <span className="row__value">
+                {order.paymentRequest?.chargeCurrency === 'KRW' ? krw(balance) : vnd(order.balance.vnd)}
+              </span>
             </div>
             <div className="row row--muted">
-              <span className="row__label">원화 기준</span>
-              <span className="row__value">{krw(balance)}</span>
+              <span className="row__label">{order.paymentRequest?.chargeCurrency === 'KRW' ? '동화 기준' : '원화 기준'}</span>
+              <span className="row__value">
+                {order.paymentRequest?.chargeCurrency === 'KRW' ? vnd(order.balance.vnd) : krw(balance)}
+              </span>
             </div>
 
             {order.paymentRequest?.instructions && (
@@ -91,6 +121,66 @@ export default function OrderPage() {
               적용 환율 1원 = {order.fx.effectiveRate.toFixed(2)}₫ (주문 시점 고정)
               {order.invoice.expiresAt && ` · 유효기한 ${formatDateTime(order.invoice.expiresAt)}`}
             </p>
+          </div>
+        </section>
+      )}
+
+      {/* 배송대행: 쿠팡 주문 방법 + 주문 연결 (소포가 창고에 닿기 전까지) */}
+      {order.forwardingGuide && (
+        <section className="panel">
+          <div className="panel__head">
+            <span>쿠팡 주문 안내</span>
+            {order.forwardingGuide.linked && <span className="tag tag--ok">연결됨</span>}
+          </div>
+          <div className="panel__body">
+            <p className="note">
+              쿠팡 결제 시 배송지를 아래와 같이 입력해 주세요.
+              <br />
+              <b>받는 사람 칸의 코드가 그대로 있어야 입고가 자동 확인됩니다.</b>
+            </p>
+            <div className="note" style={{ marginTop: 10, userSelect: 'all' }}>
+              · 받는 사람: <b>{order.forwardingGuide.recipient}</b>
+              <br />
+              · 주소: {order.forwardingGuide.warehouse.address1} {order.forwardingGuide.warehouse.address2}
+              {order.forwardingGuide.warehouse.zip && ` (${order.forwardingGuide.warehouse.zip})`}
+              <br />
+              {order.forwardingGuide.warehouse.phone && <>· 연락처: {order.forwardingGuide.warehouse.phone}</>}
+            </div>
+            {!order.forwardingGuide.warehouse.configured && (
+              <p className="note note--warn" style={{ marginTop: 8 }}>
+                창고 주소는 물류 파트너 확정 후 안내됩니다.
+              </p>
+            )}
+
+            <form onSubmit={submitLink} style={{ marginTop: 14 }}>
+              <p className="note" style={{ marginBottom: 8 }}>
+                쿠팡 주문을 마치셨다면 주문번호를 등록해 주세요 — 입고·배송 추적이 빨라집니다.
+              </p>
+              <div className="field">
+                <label className="field__label" htmlFor="coupangOrderNo">쿠팡 주문번호</label>
+                <input id="coupangOrderNo" className="input" inputMode="numeric" placeholder="예: 29000123456789"
+                  value={linkForm.coupangOrderNo}
+                  onChange={(e) => setLinkForm({ ...linkForm, coupangOrderNo: e.target.value })} />
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="trackingNo">운송장 번호 (아는 경우만)</label>
+                <input id="trackingNo" className="input" placeholder="예: 6890 1234 5678"
+                  value={linkForm.trackingNo}
+                  onChange={(e) => setLinkForm({ ...linkForm, trackingNo: e.target.value })} />
+              </div>
+              {linkError && <p className="note note--danger">{linkError}</p>}
+              <button className="btn" type="submit"
+                disabled={linking || (!linkForm.coupangOrderNo.trim() && !linkForm.trackingNo.trim())}>
+                {linking ? '등록 중…' : '쿠팡 주문 연결'}
+              </button>
+            </form>
+
+            {order.inbound?.coupangOrderNo && (
+              <p className="note" style={{ marginTop: 10 }}>
+                연결된 쿠팡 주문: <b>{order.inbound.coupangOrderNo}</b>
+                {order.inbound.trackingNos.length > 0 && <> · 운송장 {order.inbound.trackingNos.join(', ')}</>}
+              </p>
+            )}
           </div>
         </section>
       )}

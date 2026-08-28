@@ -9,7 +9,7 @@
 import {
   confirmPayment, startPurchase, recordPurchase, recordWeighing,
   applySettlement, closeSettlement, markShipped, markDelivered, cancelOrder,
-  getOrder, orderView,
+  linkInbound, getOrder, orderView,
 } from '../../../../lib/order/store'
 import { requireAdmin, UnauthorizedError } from '../../../../lib/auth'
 import { InvalidTransitionError } from '../../../../lib/order/states'
@@ -26,6 +26,7 @@ const ACTIONS = {
   markShipped: (id, p, op) => markShipped(id, { ...p, by: op }),
   markDelivered: (id, p, op) => markDelivered(id, op),
   cancelOrder: (id, p, op) => cancelOrder(id, { ...p, by: op }),
+  linkInbound: (id, p, op) => linkInbound(id, { ...p, by: op }),
 }
 
 export default function handler(req, res) {
