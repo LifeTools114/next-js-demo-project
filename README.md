@@ -7,11 +7,13 @@
 npm install
 npm run build:ext   # 확장용 계산 로직 번들
 npm run dev         # 백엔드 http://localhost:3000
-npm test            # 로직 테스트 64개
+npm test            # 로직 테스트 160개
 npm run pack:ext    # 웹스토어 업로드용 zip
 ```
 
 확장 설치: 크롬 `chrome://extensions` → 개발자 모드 → **압축해제된 확장 프로그램을 로드** → `extension/` 선택
+
+**운영 방법은 [docs/OPERATIONS.md](docs/OPERATIONS.md)** — 하루 5분 동선, 설정 체크리스트, 검토 큐 대응.
 
 ---
 
