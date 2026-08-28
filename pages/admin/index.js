@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { ORDER_STATES, TRANSITIONS } from '../../lib/order/states'
 import { krw, vnd, weight, formatDateTime } from '../../lib/format'
@@ -137,9 +138,12 @@ export default function AdminConsole() {
             onChange={(e) => saveToken(e.target.value)}
             placeholder="환경변수 ADMIN_TOKEN 값 (미설정 시 개발 환경에서는 비워도 됨)" />
         </div>
-        <button className="btn btn--ghost" onClick={load} disabled={loading}>
-          {loading ? '불러오는 중…' : '새로고침'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn--ghost" onClick={load} disabled={loading}>
+            {loading ? '불러오는 중…' : '새로고침'}
+          </button>
+          <Link href="/admin/intake" className="btn btn--ghost">📦 창고 입고 화면</Link>
+        </div>
       </div>
 
       {maint?.notice && (
