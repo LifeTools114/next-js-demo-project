@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'GET 또는 POST 요청만 지원합니다.' })
   }
 
-  const { items, zone, customer, paymentMethod, track } = req.body ?? {}
+  const { items, zone, customer, paymentMethod, track, coupangOrderNo } = req.body ?? {}
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: '주문할 상품이 없습니다.' })
@@ -67,6 +67,8 @@ export default async function handler(req, res) {
         email: String(customer.email ?? '').slice(0, 120),
       },
       paymentMethod: paymentMethod || DEFAULT_METHOD,
+      // 쿠팡 결제 우선 흐름 — 고객이 이미 결제한 쿠팡 주문을 생성 시점에 연결
+      coupangOrderNo: typeof coupangOrderNo === 'string' ? coupangOrderNo : undefined,
     })
     // 생성 직후에도 고객에게는 고객용 뷰만 돌려줍니다.
     const { customerView } = await import('../../../lib/order/store')

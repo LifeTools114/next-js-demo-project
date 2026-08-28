@@ -178,7 +178,9 @@ export default function OrderPage() {
             {order.inbound?.coupangOrderNo && (
               <p className="note" style={{ marginTop: 10 }}>
                 연결된 쿠팡 주문: <b>{order.inbound.coupangOrderNo}</b>
-                {order.inbound.trackingNos.length > 0 && <> · 운송장 {order.inbound.trackingNos.join(', ')}</>}
+                {order.inbound.trackingNos.length > 0
+                  ? <> · 운송장 {order.inbound.trackingNos.join(', ')}</>
+                  : <><br /><small>📦 쿠팡에서 발송 알림을 받으면 위 폼에 운송장 번호도 등록해 주세요 — 창고 입고 확인이 빨라집니다.</small></>}
               </p>
             )}
           </div>

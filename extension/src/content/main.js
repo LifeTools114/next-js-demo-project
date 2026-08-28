@@ -34,8 +34,10 @@
     })
 
   // ── 1. 설정 적용 ──
+  let warehouse = null // 한국 창고 주소 — 배송대행은 쿠팡 결제 전에 알아야 합니다
   const cfg = await send('getConfig')
   if (cfg?.ok && cfg.config) {
+    warehouse = cfg.config.warehouse ?? null
     K.applyConfig(cfg.config.policy ?? {})
     globalThis.KBExtract.setSelectors(cfg.config.selectors)
     if (cfg.config.preferences?.zone) zone = cfg.config.preferences.zone
@@ -151,6 +153,7 @@
     KBPanel.setState({
       view: 'quote',
       operatorHint,
+      warehouse,
       // 점검 예고·복구 안내는 견적을 막지 않고 배너로만 알립니다.
       maintenanceNotice: mstatus.notice,
       affiliateWarn: affGate.warn ? '점검 중' : null,

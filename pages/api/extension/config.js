@@ -15,6 +15,7 @@ import { FX } from '../../../config/fx'
 import { AFFILIATE } from '../../../config/affiliate'
 import { DESTINATION } from '../../../config/eligibility'
 import { MAINTENANCE } from '../../../config/maintenance'
+import { WAREHOUSE } from '../../../config/warehouse'
 import { maintenanceStatus } from '../../../lib/maintenance'
 import { ensureFreshFx } from '../../../lib/fx/refresh'
 
@@ -86,6 +87,19 @@ export default function handler(req, res) {
     },
     zones: SHIPPING.zones,
     serviceAreaNotice: SHIPPING.serviceAreaNotice,
+
+    /**
+     * 한국 창고 주소 — 배송대행 고객이 쿠팡 배송지에 입력합니다.
+     * 쿠팡 결제를 먼저 하는 흐름이라 구매 "전"에 확장이 보여줘야 합니다.
+     */
+    warehouse: {
+      name: WAREHOUSE.name,
+      zip: WAREHOUSE.zip,
+      address1: WAREHOUSE.address1,
+      address2: WAREHOUSE.address2,
+      phone: WAREHOUSE.phone,
+      configured: WAREHOUSE.configured,
+    },
     leadTimeDays: SHIPPING.leadTimeDays,
     itemSurcharges: ITEM_SURCHARGES,
     consolidation: {

@@ -100,6 +100,24 @@ const KBPanel = (() => {
       <small>(청구무게 ${esc(String(q.shipping.billableKg))}kg 까지)</small></div>`
   }
 
+  /**
+   * 배송대행 구매 전 안내 — 쿠팡 결제를 먼저 하는 흐름이므로,
+   * 배송지(한국 창고)를 결제 전에 보여줘야 합니다. 주문완료 화면에서
+   * 확장이 배송 신청 버튼을 띄워 우리 주문과 자동 연결됩니다.
+   */
+  function warehouseNote() {
+    if (state.track !== 'forwarding') return ''
+    const w = state.warehouse
+    if (!w) return ''
+    const addr = w.configured
+      ? `${w.address1 ?? ''} ${w.address2 ?? ''}${w.zip ? ` (${w.zip})` : ''}`.trim()
+      : '창고 확정 후 안내됩니다'
+    return `<div class="note">🏠 쿠팡 배송지는 <b>한국 창고</b>로:
+      <span style="user-select:all">${esc(addr)}</span>
+      <br><small>받는 사람은 본인 이름 그대로. 결제 완료 화면에서 [하노이 배송 신청]을 누르면
+      주문이 자동 연결됩니다.</small></div>`
+  }
+
   /** 최소 주문 금액 미달 안내 — 담기는 막지 않습니다 (견적함에 모아 채울 수 있으므로). */
   function minOrderNote(q) {
     const mo = q?.minOrder
@@ -219,7 +237,7 @@ const KBPanel = (() => {
         <span class="tag info">청구무게 ${q.shipping.billableKg}kg</span>
         <span class="tag ${state.confidenceClass}">${esc(state.confidenceLabel)}</span>
       </div>
-      ${headroomNote(q)}${minOrderNote(q)}
+      ${headroomNote(q)}${minOrderNote(q)}${warehouseNote()}
       <div style="margin-top:8px">${rows}</div>
       <div class="row total"><span class="l">하노이 도착 총액</span><span class="v">${esc(state.fmt.krw(q.total))}</span></div>
       <div class="vnd">${esc(state.fmt.vnd(q.totalVnd))}</div>

@@ -187,6 +187,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return operatorHints()
       case 'captureCoupangOrder':
         return adminFetch({ path: '/api/admin/coupang-capture', method: 'POST', body: msg.payload ?? {} })
+      case 'openCheckout': {
+        // 쿠팡 주문완료 → 배송비 결제로 잇는 다리.
+        // 견적함의 배송대행 상품 + 방금 결제한 쿠팡 주문번호를 체크아웃에 넘깁니다.
+        const { cart = [] } = await storage.get('cart')
+        const items = cart.filter((i) => i.track !== 'agent')
+        if (items.length === 0) {
+          return { ok: false, error: '견적함에 배송대행 상품이 없습니다. 상품 페이지에서 먼저 담아주세요.' }
+        }
+        const { config } = await storage.get('config')
+        const zone = config?.preferences?.zone ?? 'hanoi'
+        const payload = encodeURIComponent(JSON.stringify({ items, zone }))
+        const no = String(msg.payload?.coupangOrderNo ?? '').replace(/\D/g, '').slice(0, 40)
+        const url = `${await backendUrl()}/checkout?cart=${payload}${no ? `&coupang=${no}` : ''}`
+        await chrome.tabs.create({ url })
+        return { ok: true }
+      }
       case 'openTabs': {
         const urls = (msg.payload?.urls ?? []).slice(0, 20)
         for (const url of urls) {

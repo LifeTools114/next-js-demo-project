@@ -61,6 +61,54 @@ test('입고 매칭: 수령인 코드·쿠팡 주문번호·운송장 무엇으�
   assert.equal(findByInbound('없는번호999'), null)
 })
 
+test('쿠팡 결제 우선: 생성 시 연결 → 수동 입금확인만으로 끝까지 자동', () => {
+  // 고객이 쿠팡에서 먼저 결제 → 트랜잭션(주문번호)을 들고 주문 생성
+  let o = createOrder({
+    items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
+    zone: 'hanoi', track: 'forwarding',
+    customer: { name: '김하노', phone: '0912', address: 'Hanoi' },
+    coupangOrderNo: '29000777777777',
+  })
+  assert.equal(o.state, 'AWAITING_PAYMENT', '배송비 청구서가 바로 발행돼야 합니다')
+  assert.equal(o.inbound.coupangOrderNo, '29000777777777')
+  assert.ok(o.history.some((h) => h.memo?.includes('29000777777777')), '연결 사실이 이력에 남아야 합니다')
+
+  // 웹훅 없이 운영자가 임의로 입금 확인 — 이후는 전부 자동
+  o = confirmPayment(o.id, { confirmedBy: 'op' })
+  assert.equal(o.state, 'PURCHASED', '수동 입금확인 한 번으로 창고 대기까지 가야 합니다')
+
+  o = recordWeighing(o.id, { actualWeightG: o.quote.weight.chargeableG })
+  assert.equal(o.state, 'SETTLED')
+})
+
+test('쿠팡 결제 우선: 구매대행 주문에는 연결이 무시된다', () => {
+  const o = createOrder({
+    items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
+    zone: 'hanoi', track: 'agent',
+    customer: { name: 'Mai', phone: '0912', address: 'Hanoi' },
+    coupangOrderNo: '29000777777777',
+  })
+  assert.equal(o.inbound, null)
+  assert.equal(customerView(o).inbound, null)
+})
+
+test('입고 매칭: 이름 폴백은 유일할 때만 통한다', () => {
+  const mk = (name, no) => {
+    const o = createOrder({
+      items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
+      zone: 'hanoi', track: 'forwarding',
+      customer: { name, phone: '0912', address: 'Hanoi' },
+      coupangOrderNo: no,
+    })
+    return confirmPayment(o.id, { confirmedBy: 'op' }) // → PURCHASED (운송 중)
+  }
+  const a = mk('박하노', '29000111111111')
+  assert.equal(findByInbound('받는사람: 박하노 / 서울 김포창고')?.id, a.id, '라벨의 이름만으로 찾아야 합니다')
+
+  mk('박하노', '29000222222222') // 동명 주문이 하나 더 운송 중이면
+  assert.equal(findByInbound('받는사람: 박하노 / 서울 김포창고'), null, '애매하면 사람에게 넘겨야 합니다')
+})
+
 test('입고 안내: 배송대행 고객에게만, 창고 도착 전까지만 보인다', () => {
   const f = customerView(forwardingOrder())
   assert.ok(f.forwardingGuide, '배송대행 주문에는 안내가 있어야 합니다')

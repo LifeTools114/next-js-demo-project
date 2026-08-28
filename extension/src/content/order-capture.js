@@ -56,15 +56,56 @@
     setTimeout(() => el.remove(), 6000)
   }
 
+  /**
+   * 고객 흐름 — 쿠팡 결제가 먼저입니다.
+   * 주문완료 트랜잭션(주문번호)을 받아 [하노이 배송 신청] 버튼을 띄우고,
+   * 누르면 견적함의 배송대행 상품 + 쿠팡 주문번호를 들고 배송비 결제
+   * (체크아웃)로 넘어갑니다. 자동으로 열지 않습니다 — 사용자 클릭만.
+   */
+  function offerForwarding(coupangOrderNo) {
+    const guard = `kb-offered-${coupangOrderNo}`
+    try {
+      if (sessionStorage.getItem(guard)) return
+      sessionStorage.setItem(guard, '1')
+    } catch { /* 안내가 두 번 떠도 해는 없습니다 */ }
+
+    const card = document.createElement('div')
+    card.style.cssText =
+      'position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;border:1px solid #f3d3dd;' +
+      'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#3d3644'
+    card.innerHTML =
+      '<b>🇻🇳 방금 결제하신 주문,<br>하노이로 받아보세요</b>' +
+      '<div style="font-size:11.5px;color:#766b80;margin-top:4px">쿠팡 주문이 자동 연결되고, 국제배송비 청구서로 이어집니다.</div>' +
+      '<button id="kb-fwd-go" style="margin-top:10px;width:100%;min-height:38px;border:0;border-radius:9px;' +
+      'background:#ef4a76;color:#fff;font-weight:700;cursor:pointer">하노이 배송 신청</button>' +
+      '<button id="kb-fwd-x" style="margin-top:6px;width:100%;min-height:30px;border:0;border-radius:9px;' +
+      'background:transparent;color:#9a8fa5;cursor:pointer">닫기</button>'
+    document.body.appendChild(card)
+    card.querySelector('#kb-fwd-x').addEventListener('click', () => card.remove())
+    card.querySelector('#kb-fwd-go').addEventListener('click', async () => {
+      const res = await send('openCheckout', { coupangOrderNo })
+      if (res?.ok) card.remove()
+      else toast(res?.error ?? '견적함을 확인해 주세요.', false)
+    })
+  }
+
   async function run() {
-    const st = await send('getAdminState')
-    if (!st?.hasToken) return
     if (!looksLikeOrderComplete()) return
 
     const cfg = await send('getConfig')
     const { coupangOrderNo, amountKrw } = extract(cfg?.config ?? {})
-    if (!coupangOrderNo || coupangOrderNo.length < 9 || !Number.isFinite(amountKrw) || amountKrw <= 0) return
+    if (!coupangOrderNo || coupangOrderNo.length < 9) return
 
+    const st = await send('getAdminState')
+
+    // ── 고객: 배송대행 신청 제안 (운영자 토큰이 없는 브라우저) ──
+    if (!st?.hasToken) {
+      offerForwarding(coupangOrderNo)
+      return
+    }
+
+    // ── 운영자: 구매대행 매입 자동 기록 ──
+    if (!Number.isFinite(amountKrw) || amountKrw <= 0) return
     // 같은 주문번호를 이 탭에서 두 번 보내지 않습니다 (새로고침 대비).
     const guard = `kb-captured-${coupangOrderNo}`
     try {

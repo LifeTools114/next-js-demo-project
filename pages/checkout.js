@@ -25,6 +25,8 @@ export default function Checkout() {
   const [quote, setQuote] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  // 쿠팡 결제 우선 흐름 — 주문완료 화면에서 넘어오면 주문번호가 함께 옵니다.
+  const [coupangOrderNo, setCoupangOrderNo] = useState('')
 
   // 확장에서 넘어온 견적함 복원
   useEffect(() => {
@@ -39,7 +41,14 @@ export default function Checkout() {
     } catch {
       setError('견적함 정보를 읽지 못했습니다. 확장프로그램에서 다시 시도해 주세요.')
     }
-  }, [router.isReady, router.query.cart])
+    if (typeof router.query.coupang === 'string') {
+      const no = router.query.coupang.replace(/\D/g, '').slice(0, 40)
+      if (no) {
+        setCoupangOrderNo(no)
+        setTrack('forwarding') // 이미 본인이 결제한 주문 = 배송대행
+      }
+    }
+  }, [router.isReady, router.query.cart, router.query.coupang])
 
   useEffect(() => {
     fetch('/api/payment-methods')
@@ -75,7 +84,7 @@ export default function Checkout() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, zone, track, customer: form, paymentMethod }),
+        body: JSON.stringify({ items, zone, track, customer: form, paymentMethod, coupangOrderNo: coupangOrderNo || undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '주문 생성에 실패했습니다.')
@@ -123,6 +132,15 @@ export default function Checkout() {
             🚫 배송할 수 없는 상품이 포함되어 있습니다.
             <br />
             {quote.eligibility.blocked.map((b) => `${b.productName} — ${b.label}`).join(' / ')}
+          </p>
+        </div>
+      )}
+
+      {coupangOrderNo && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <p className="note">
+            ✅ 쿠팡 주문 <b>{coupangOrderNo}</b> 이(가) 연결됩니다.
+            결제하신 상품은 한국 창고 도착 후 하노이로 이어서 배송됩니다.
           </p>
         </div>
       )}
