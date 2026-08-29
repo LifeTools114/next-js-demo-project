@@ -122,3 +122,19 @@ test('고시정보: 매수 표기로 시트마스크를 정확히 계산한다',
   const r = estimateItemWeight({ productName: '메디힐 마스크팩', specOverride: '23ml x 10매' })
   assert.ok(r.actualG > 230 && r.actualG < 300, `${r.actualG}g`)
 })
+
+test('비화장품 패드·쿠션은 화장품으로 오인하지 않는다', () => {
+  // 운동화 수선패드가 토너패드(단지 150ml)로 잡히면 8개에 2kg 이상 부풀어
+  // 배송비가 완전히 틀립니다 — 소형 잡화로 가볍게 잡아야 합니다.
+  const shoe = detectForm('릴리홈스 운동화 뒷꿈치 수선패드 쿠션, 8개, 블랙, 11x8cm')
+  assert.equal(shoe.form.id, 'small-goods')
+  const w = estimateItemWeight({ productName: '릴리홈스 운동화 뒷꿈치 수선패드 쿠션, 8개, 블랙' }, 1)
+  assert.ok(w.chargeableG < 700, `수선패드 8개가 ${w.chargeableG}g 로 과대추정되면 안 됩니다`)
+
+  // 진짜 화장품 패드·쿠션은 그대로 화장품으로 잡혀야 합니다.
+  assert.equal(detectForm('메디힐 마데카소사이드 토너패드 100매').form.id, 'toner-pad')
+  assert.equal(detectForm('아누아 어성초 필링패드').form.id, 'toner-pad')
+  assert.equal(detectForm('클리오 킬커버 쿠션 15g').form.id, 'cushion')
+  // 생활용품 쿠션(방석·베개)도 화장품 쿠션이 아닙니다.
+  assert.notEqual(detectForm('메모리폼 목쿠션 베개').form.id, 'cushion')
+})

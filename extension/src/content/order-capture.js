@@ -333,7 +333,15 @@
       if (config?.policy) K.applyConfig(config.policy)
       const zone = config?.preferences?.zone ?? 'hanoi'
       const q = K.quote(cart.map((i) => ({ ...i, track })), { track, zone })
-      return { ok: true, total: q.total, totalVnd: q.totalVnd, local: true }
+      return {
+        ok: true,
+        total: q.total,
+        totalVnd: q.totalVnd,
+        chargeableG: q.weight?.chargeableG,
+        billableKg: q.shipping?.billableKg,
+        breakdown: (q.breakdown ?? []).map((l) => ({ label: l.label, krw: l.krw })),
+        local: true,
+      }
     } catch { return null }
   }
 
@@ -448,6 +456,14 @@
         : '<div style="font-size:11px;color:#8b95a1">계산 중…</div>') +
       '</div>'
 
+    // 금액의 근거 — 두 트랙이 같은 무게를 쓰므로 무게 줄은 하나만 보여줍니다.
+    const wq = quotes.fwd ?? quotes.agent
+    const weightLine = wq?.billableKg
+      ? `<div style="margin-top:3px;font-size:10.5px;color:#8b95a1">📦 실측 추정 ${(
+          (wq.chargeableG ?? 0) / 1000
+        ).toFixed(1)}kg → 청구 <b>${wq.billableKg}kg</b> · 입고 후 실측으로 정산</div>`
+      : ''
+
     const priceBlock = cart.length === 0
       ? '<div style="margin-top:8px;color:#4e5968;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
         '금액 계산과 자동 신청이 가능합니다.</div>'
@@ -458,13 +474,24 @@
         '</div>' +
         (autoAdded
           ? `<div style="margin-top:5px;font-size:10.5px;color:#17916b">🛒 이 화면의 상품 ${cart.length}개 기준</div>`
-          : '')
+          : '') +
+        weightLine
 
     // ── 접힌 설명 영역 — 단계 안내와 구매대행 신청 버튼 ──
     const steps = (text) =>
       `<div style="margin-top:4px;font-size:11px;color:#4e5968;line-height:1.7">${text}</div>`
     const detailHead = (text) =>
       `<div style="margin-top:9px;font-size:11.5px;font-weight:800;color:#333d4b">${text}</div>`
+
+    // 금액 내역 줄들 — 견적 응답의 근거(배송비·관세·VAT·수수료)를 그대로 보여줍니다.
+    const bdRows = (q) => !q?.breakdown?.length
+      ? ''
+      : '<div style="margin-top:5px;border-top:1px dashed #e5e8eb;padding-top:5px">' +
+        q.breakdown.map((l) =>
+          `<div style="display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:#4e5968;line-height:1.8">` +
+          `<span>${esc(l.label)}</span><b style="white-space:nowrap">${won(l.krw) ?? ''}</b></div>`,
+        ).join('') +
+        '</div>'
 
     const detailBlock = !helperDetailOpen || cart.length === 0
       ? ''
@@ -475,9 +502,11 @@
         detailHead('배송대행 — 결제는 내가, 배송만 맡김') +
         steps(`쿠팡 결제 후 <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ③ 하노이 도착 ${lt.min}~${lt.max}일`) +
         steps('무게 기준: 1kg까지 기본요금 · 이후 kg 단위(0.5 이하 버림·초과 올림)') +
+        bdRows(quotes.fwd) +
         detailHead('구매대행 — 결제까지 맡김') +
         steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 입금 → ③ 저희가 대신 주문 → ' +
           `④ 하노이 도착 ${lt.min}~${lt.max}일`) +
+        bdRows(quotes.agent) +
         '<button id="kb-agent-go" style="margin-top:7px;width:100%;min-height:38px;border:0;border-radius:9px;' +
         'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성</button>' +
         '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">한국 카드·계좌 없이 동화(₫)로 이용할 수 있습니다</div>'

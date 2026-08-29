@@ -261,7 +261,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           })
           const data = await res.json().catch(() => null)
           if (!res.ok) return { ok: false, error: data?.error ?? `HTTP ${res.status}` }
-          return { ok: true, total: data?.quote?.total, totalVnd: data?.quote?.totalVnd }
+          // 총액만이 아니라 근거(무게·내역)까지 — 카드가 "왜 이 금액인지" 보여줍니다.
+          const q = data?.quote
+          return {
+            ok: true,
+            total: q?.total,
+            totalVnd: q?.totalVnd,
+            chargeableG: q?.weight?.chargeableG,
+            billableKg: q?.shipping?.billableKg,
+            breakdown: (q?.breakdown ?? []).slice(0, 10).map((l) => ({ label: l?.label, krw: l?.krw })),
+          }
         } catch (error) {
           return { ok: false, error: error.message }
         }
