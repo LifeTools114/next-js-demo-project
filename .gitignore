@@ -13,3 +13,7 @@ coupang-hanoi-extension.zip
 
 # 주문 스냅샷 (파일 영속화 — 고객 정보 포함, 절대 커밋 금지)
 .data/
+
+# Next.js dev 서버가 자동 생성하는 에이전트 안내 파일 (실행 시마다 재생성)
+AGENTS.md
+CLAUDE.md
