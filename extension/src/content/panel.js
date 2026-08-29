@@ -280,7 +280,7 @@ const KBPanel = (() => {
       ${state.detailOpen
         ? `<div style="margin-top:8px">${rows}</div>
            ${state.track === 'agent'
-             ? '<div class="note">와우회원가는 되도록 반영합니다. 쿠폰·신규가입 할인 등 개인 혜택은 구매대행에 사용할 수 없습니다.</div>'
+             ? '<div class="note">와우회원가는 되도록 반영합니다. 쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고, 타임세일·마감임박 등 기간 한정 할인가는 발주 시점에 끝나면 반영되지 않을 수 있습니다.</div>'
              : '<div class="note">본인 결제라 쿠폰·회원 할인을 모두 그대로 쓸 수 있습니다.</div>'}
            <div class="note">무게 기준: ${esc(state.ruleText ?? '')} · 입고 후 실측으로 정산합니다.</div>
            ${headroomNote(q)}${warehouseNote()}
