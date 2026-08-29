@@ -9,6 +9,22 @@ import { krw, vnd, weight, formatDateTime } from '../../lib/format'
  * 고객용 주문 조회.
  * 매입 원가·마진은 API 단계에서 이미 제거되어 여기로 오지 않습니다.
  */
+
+/** 상태 → 지금 물건이 있는 곳 (📍 위치 배너) */
+const LOCATION_BY_STATE = {
+  REQUESTED: '주문 접수 — 입금 확인 대기',
+  AWAITING_PAYMENT: '주문 접수 — 입금 확인 대기',
+  PAID: '한국 — 상품 준비 중',
+  PURCHASING: '한국 — 쿠팡 구매 진행 중',
+  PURCHASED: '한국 — 창고(서울 강서)로 이동 중',
+  IN_WAREHOUSE: '한국 창고(서울 강서) 도착 — 검수·포장 중',
+  SETTLEMENT_DUE: '한국 창고(서울 강서) 보관 중 — 정산 대기',
+  SETTLED: '한국 창고(서울 강서) — 발송 준비 완료',
+  SHIPPED: '하노이로 국제 운송 중',
+  DELIVERED: '배달 완료 🎉',
+  CANCELLED: '주문 취소됨',
+}
+
 export default function OrderPage() {
   const router = useRouter()
   const { id } = router.query
@@ -121,6 +137,47 @@ export default function OrderPage() {
               적용 환율 1원 = {order.fx.effectiveRate.toFixed(2)}₫ (주문 시점 고정)
               {order.invoice.expiresAt && ` · 유효기한 ${formatDateTime(order.invoice.expiresAt)}`}
             </p>
+          </div>
+        </section>
+      )}
+
+      {/* 📍 지금 위치 — 파트너의 도착·통관·배송일정 보고가 그대로 반영됩니다 */}
+      {!cancelled && (
+        <section className="panel">
+          <div className="panel__head">내 물건 위치</div>
+          <div className="panel__body">
+            <div className="row row--total" style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}>
+              <span className="row__label">📍 현재</span>
+              <span className="row__value">
+                {(order.state === 'SHIPPED' && order.delivery?.milestones?.length > 0
+                  ? order.delivery.milestones[order.delivery.milestones.length - 1].label
+                  : null) ?? LOCATION_BY_STATE[order.state] ?? order.stateInfo.label}
+              </span>
+            </div>
+            {order.delivery?.scheduledText && !order.delivery?.deliveredAt && (
+              <div className="row">
+                <span className="row__label">🚚 배달 예정</span>
+                <span className="row__value">{order.delivery.scheduledText}</span>
+              </div>
+            )}
+            {order.delivery?.trackingNo && (
+              <div className="row row--muted">
+                <span className="row__label">국제 운송장</span>
+                <span className="row__value">{order.delivery.trackingNo}</span>
+              </div>
+            )}
+            {order.delivery?.milestones?.length > 0 && (
+              <div className="note" style={{ marginTop: 10 }}>
+                {order.delivery.milestones.map((m, i) => (
+                  <span key={i}>· {formatDateTime(m.at)} — {m.label}<br /></span>
+                ))}
+              </div>
+            )}
+            {order.state === 'SHIPPED' && !order.delivery?.scheduledText && (
+              <p className="note" style={{ marginTop: 10 }}>
+                하노이 도착 후 배달 일정이 확정되면 여기에 표시됩니다.
+              </p>
+            )}
           </div>
         </section>
       )}

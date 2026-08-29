@@ -14,6 +14,8 @@
 import { listOrders, getOrder, markShipped, orderView } from '../../../lib/order/store.js'
 import { requireAdmin, UnauthorizedError } from '../../../lib/auth.js'
 import { toManifestCsv, manifestFileName } from '../../../lib/manifest.js'
+import { TELEGRAM, telegramEnabled } from '../../../config/telegram.js'
+import { sendDocument } from '../../../lib/telegram/api.js'
 
 function resolveOrders(idsParam) {
   if (idsParam) {
@@ -52,14 +54,29 @@ export default function handler(req, res) {
 
     const operator = req.headers['x-admin-user'] || 'admin'
     const shipped = []
+    const shippedOrders = []
     const failed = []
     for (const id of ids.slice(0, 200)) {
       try {
-        shipped.push(orderView(markShipped(id, { trackingNo: awb, by: operator })).orderNo)
+        const order = markShipped(id, { trackingNo: awb, by: operator })
+        shipped.push(orderView(order).orderNo)
+        shippedOrders.push(order)
       } catch (error) {
         failed.push({ id, error: error.message })
       }
     }
+
+    // 파트너 방으로 적하목록 자동 전송 — 사람이 파일을 옮길 필요가 없습니다.
+    // 실패해도 발송 처리는 이미 끝났으므로 응답을 막지 않습니다.
+    if (shippedOrders.length > 0 && telegramEnabled() && TELEGRAM.partnerChatId) {
+      sendDocument(
+        TELEGRAM.partnerChatId,
+        manifestFileName(),
+        toManifestCsv(shippedOrders),
+        `📦 하노이행 ${shippedOrders.length}건 발송 — AWB ${awb}`,
+      ).catch(() => {})
+    }
+
     return res.status(failed.length > 0 && shipped.length === 0 ? 409 : 200).json({ shipped, failed })
   }
 
