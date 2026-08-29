@@ -34,8 +34,11 @@ export const SHIPPING = {
    * 2kg 이상에서는 0.5kg 단위로 잘게 쪼개 과다 청구를 줄입니다.
    * (1kg 단위만 쓰면 2.1kg 주문에 3kg 을 청구하게 되어 경쟁사 대비 불리합니다)
    */
+  /**
+   * 운영자 확정(26.08.29): 최소 1kg, 1kg 부터는 전 구간 0.5kg 단위 올림.
+   * 예) 0.4kg→1kg · 1.2kg→1.5kg · 2.3kg→2.5kg
+   */
   roundingTiers: [
-    { upToKg: 2, stepKg: 1 },
     { upToKg: Infinity, stepKg: 0.5 },
   ],
 

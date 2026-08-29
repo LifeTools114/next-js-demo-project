@@ -46,12 +46,12 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'billing-increment',
-    label: '청구무게 구간별 올림 (~2kg 1kg 단위 · 2kg~ 0.5kg 단위) · 최소 1kg',
+    label: '청구무게: 최소 1kg · 1kg 부터 0.5kg 단위 올림 (고객 청구 기준)',
     where: 'config/shipping.js · roundingTiers / minBillableKg',
-    status: 'assumed',
-    source: '업계 일반 — S1 견적서(26.08.28)에는 kg당 요율만 있고 올림 단위·최소 청구무게가 없음',
-    risk: '업체 올림 단위가 우리와 다르면 원가와 청구가 어긋납니다.',
-    askBroker: 'S1 이정은 과장: 청구무게 올림 단위(0.1/0.5/1kg)와 최소 청구무게',
+    status: 'confirmed',
+    source: '운영자 확정 26.08.29',
+    risk: 'S1 의 원가 청구 단위는 미확인 — 우리보다 굵게(예: 1kg) 청구하면 구간별로 원가가 마진을 초과할 수 있음.',
+    askBroker: 'S1 이정은 과장: 원가 청구무게 올림 단위(0.1/0.5/1kg)와 최소 청구무게',
   },
   {
     id: 'import-duty',
