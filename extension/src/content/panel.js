@@ -43,6 +43,7 @@ const KBPanel = (() => {
 .note { background: #f9fafb; border-radius: 8px; padding: 9px 10px; font-size: 12px; color: #4e5968; line-height: 1.55; margin-top: 10px; }
 .note.warn { background: #fff8ef; color: #8a5a10; }
 .note.tip { background: #f0faf4; color: #1d6b40; }
+.note.added { background: #e6f6f0; color: #17916b; font-weight: 700; text-align: center; margin-top: 0; }
 .hero { text-align: center; padding: 12px 0 4px; }
 .hero .cap { font-size: 12.5px; font-weight: 700; color: #333d4b; }
 .hero .krw { font-size: 27px; font-weight: 800; color: #191f28; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -276,14 +277,23 @@ const KBPanel = (() => {
 
   function renderButtons() {
     if (state.view !== 'quote') return ''
-    if (state.track === 'forwarding') {
+    const label = state.track === 'forwarding' ? '견적함에 담기' : '구매대행 견적함에 담기'
+
+    // 담기 전 — 담기 버튼 하나. 견적함에 이미 담긴 게 있으면 개수만 살짝.
+    if (!state.added) {
       return `<div class="btns">
-        <button class="btn" data-act="add">견적함에 담기</button>
-        <button class="btn ghost" data-act="affiliate">쿠팡에서 주문하기 ↗</button>
-        <div class="disc">${esc(state.affiliateWarn ? state.affiliateWarn + ' · ' + state.disclosureShort : state.disclosureShort)}</div>
+        <button class="btn" data-act="add">${label}</button>
+        ${state.cartCount > 0 ? `<div class="disc">🧺 견적함에 ${state.cartCount}개 담겨 있어요</div>` : ''}
       </div>`
     }
-    return `<div class="btns"><button class="btn" data-act="add">구매대행 견적함에 담기</button></div>`
+
+    // 담은 후 — "됐다"는 확인과 다음 행동(주문서 작성 / 더 담기)을 보여줍니다.
+    return `<div class="btns">
+      <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
+      <button class="btn" data-act="checkout">주문서 바로 작성 →</button>
+      <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
+      <div class="disc">담긴 상품은 브라우저 오른쪽 위 확장 아이콘(🇻🇳, 숫자 배지)에서 언제든 볼 수 있어요.</div>
+    </div>`
   }
 
   function render() {
@@ -322,8 +332,8 @@ const KBPanel = (() => {
         render()
       }),
     )
-    wrap.querySelectorAll('[data-act="affiliate"]').forEach((b) =>
-      b.addEventListener('click', () => handlers.onAffiliate?.()),
+    wrap.querySelectorAll('[data-act="checkout"]').forEach((b) =>
+      b.addEventListener('click', () => handlers.onCheckout?.()),
     )
   }
 

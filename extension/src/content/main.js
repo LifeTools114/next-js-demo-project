@@ -47,7 +47,8 @@
     if (cfg.config.maintenance) K.applyConfig({ maintenance: cfg.config.maintenance })
   }
 
-  const policy = K.currentPolicy()
+  // "담겼습니다" 표시는 담은 그 상품에서만 — 다른 상품/옵션으로 넘어가면 초기화.
+  let addedProductId = null
 
   KBPanel.mount({
     onTrackChange: (t) => {
@@ -57,13 +58,16 @@
     },
     onAdd: async () => {
       if (!product) return
-      await send('addToCart', { ...product, quantity: 1, track })
-      KBPanel.setState({ added: true })
+      const res = await send('addToCart', { ...product, quantity: 1, track })
+      addedProductId = product.productId
+      KBPanel.setState({ added: true, cartCount: res?.count ?? 1 })
     },
-    onAffiliate: async () => {
-      // 사용자 클릭 시에만 제휴 링크를 생성합니다.
-      const res = await send('openAffiliate', { url: product.url, track })
-      if (!res?.ok) window.open(product.url, '_blank', 'noopener')
+    onCheckout: async () => {
+      // 견적함 내용을 그대로 들고 주문서(신청서)로 — 배송지 입력만 하면 됩니다.
+      const c = await send('getCart')
+      const items = c?.cart ?? []
+      if (items.length === 0) return
+      await send('openCheckout', { track, items })
     },
   })
 
@@ -151,27 +155,31 @@
     const q = K.quote([item], { track, zone })
     const conf = K.CONFIDENCE_TAG[q.weight.confidence.level] ?? K.CONFIDENCE_TAG.low
     const mstatus = K.maintenanceStatus(new Date(), country)
-    const affGate = K.checkMaintenanceAction('affiliateLink', { country })
 
     // 운영자 모드: 이 상품이 발주 목록에 있으면 담을 수량을 띄웁니다.
     // (일반 고객은 hints 가 null 이라 아무것도 보이지 않습니다)
     const hintRes = await send('operatorHints')
     const operatorHint = hintRes?.hints?.[extracted.productId] ?? null
 
+    // 견적함 개수 — "담겼는지" 확인을 패널에서 바로 할 수 있게.
+    const cartRes = await send('getCart')
+    const cartCount = (cartRes?.cart ?? []).reduce((s, i) => s + (i.quantity ?? 1), 0)
+
     KBPanel.setState({
       view: 'quote',
+      // 담김 표시는 담은 그 상품에 한해서만 유지합니다.
+      added: addedProductId === extracted.productId,
+      cartCount,
       operatorHint,
       warehouse,
       // 점검 예고·복구 안내는 견적을 막지 않고 배너로만 알립니다.
       maintenanceNotice: mstatus.notice,
-      affiliateWarn: affGate.warn ? '점검 중' : null,
       sourcing: q.sourcing,
       productName: extracted.productName,
       track,
       quote: q,
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
-      disclosureShort: policy.affiliateDisclosureShort,
       ruleText: K.roundingRuleText(),
       fmt: { krw: K.krw, vnd: K.vnd, weight: K.weight },
     })

@@ -48,7 +48,11 @@ async function getConfig() {
 
 async function addToCart(item) {
   const { cart = [] } = await storage.get('cart')
-  const idx = cart.findIndex((i) => i.productId === item.productId && i.track === item.track)
+  // 같은 상품이라도 옵션(상품명에 반영)이 다르면 다른 줄로 담습니다 —
+  // 옵션별 가격이 다른데 합치면 먼저 담은 옵션의 가격으로 뭉개집니다.
+  const idx = cart.findIndex(
+    (i) => i.productId === item.productId && i.track === item.track && i.productName === item.productName,
+  )
   if (idx >= 0) cart[idx].quantity += item.quantity ?? 1
   else cart.push({ ...item, addedAt: Date.now() })
   await storage.set({ cart })
