@@ -232,10 +232,14 @@
       }
     }
 
-    // 합계 — 결제창·장바구니 표기 모두 시도
-    const totalKrw = Number(
-      (text.match(/(?:총\s*상품\s*(?:가격|금액)|상품\s*금액)\s*:?\s*([\d,]+)\s*원/)?.[1] ?? '').replace(/,/g, ''),
-    )
+    // 합계 — 결제창·장바구니 표기 모두 시도.
+    // "총 상품 가격"은 즉시할인 전 금액이라, 실제 낼 "총 결제 금액"이
+    // 더 낮으면 그쪽을 씁니다 (할인 반영 — 구매대행 매입가·과세 기준).
+    // 결제 금액이 더 높은 경우는 국내 배송비가 붙은 것이므로 상품가 쪽을 유지합니다.
+    const asNum = (re) => Number((text.match(re)?.[1] ?? '').replace(/,/g, ''))
+    const goodsKrw = asNum(/(?:총\s*상품\s*(?:가격|금액)|상품\s*금액)\s*:?\s*([\d,]+)\s*원/)
+    const paidKrw = asNum(/(?:최종|총)\s*결제\s*금액\s*:?\s*([\d,]+)\s*원/)
+    const totalKrw = paidKrw > 0 && (!(goodsKrw > 0) || paidKrw < goodsKrw) ? paidKrw : goodsKrw
     if (items.length === 0 || !Number.isFinite(totalKrw) || totalKrw <= 0) return []
     // 개별 단가는 화면에 없을 수 있어 합계를 첫 항목에 둡니다.
     // 견적 엔진은 단가×수량으로 합산하므로 첫 항목 수량으로 나눠 단가로 만듭니다.
