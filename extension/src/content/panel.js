@@ -110,10 +110,12 @@ const KBPanel = (() => {
     const w = state.warehouse
     if (!w) return ''
     const addr = w.configured
-      ? `${w.address1 ?? ''} ${w.address2 ?? ''}${w.zip ? ` (${w.zip})` : ''}`.trim()
+      ? `${w.address1 ?? ''}${w.zip ? ` (${w.zip})` : ''}`.trim()
       : '창고 확정 후 안내됩니다'
+    const code = w.code ?? 'K-ECOM'
     return `<div class="note">🏠 쿠팡 배송지는 <b>한국 창고</b>로:
       <span style="user-select:all">${esc(addr)}</span>
+      <br>세부주소: <b>${esc(code)}(받는 분 성함)</b> — 꼭 이 형식으로!
       <br><small>받는 사람은 본인 이름 그대로. 결제 완료 화면에서 [하노이 배송 신청]을 누르면
       주문이 자동 연결됩니다.</small></div>`
   }

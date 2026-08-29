@@ -136,13 +136,16 @@ export default function OrderPage() {
             <p className="note">
               쿠팡 결제 시 배송지를 아래와 같이 입력해 주세요.
               <br />
-              <b>받는 사람 칸의 코드가 그대로 있어야 입고가 자동 확인됩니다.</b>
+              <b>세부주소의 {order.forwardingGuide.addressDetail} 코드가 있어야 창고가 접수합니다.</b>
             </p>
             <div className="note" style={{ marginTop: 10, userSelect: 'all' }}>
-              · 받는 사람: <b>{order.forwardingGuide.recipient}</b>
+              · 받는 사람: <b>{order.forwardingGuide.recipient}</b> (본인 이름 그대로)
               <br />
-              · 주소: {order.forwardingGuide.warehouse.address1} {order.forwardingGuide.warehouse.address2}
+              · 주소: {order.forwardingGuide.warehouse.address1}
               {order.forwardingGuide.warehouse.zip && ` (${order.forwardingGuide.warehouse.zip})`}
+              <br />
+              · 세부주소: <b>{order.forwardingGuide.addressDetail}</b>
+              {order.forwardingGuide.warehouse.address2 && ` ${order.forwardingGuide.warehouse.address2}`}
               <br />
               {order.forwardingGuide.warehouse.phone && <>· 연락처: {order.forwardingGuide.warehouse.phone}</>}
             </div>

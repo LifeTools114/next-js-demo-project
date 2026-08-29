@@ -97,6 +97,8 @@ export default function handler(req, res) {
       zip: WAREHOUSE.zip,
       address1: WAREHOUSE.address1,
       address2: WAREHOUSE.address2,
+      /** 세부주소 코드 접두사 — 확장은 "K-ECOM(받는 분 성함)" 으로 안내 */
+      code: WAREHOUSE.code,
       phone: WAREHOUSE.phone,
       configured: WAREHOUSE.configured,
     },
