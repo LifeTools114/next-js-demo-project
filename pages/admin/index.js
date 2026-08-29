@@ -162,6 +162,18 @@ export default function AdminConsole() {
             {loading ? '불러오는 중…' : '새로고침'}
           </button>
           <Link href="/admin/intake" className="btn btn--ghost">📦 창고 입고 화면</Link>
+          <button className="btn btn--ghost" onClick={async () => {
+            // 전체 주문 목록(무게·쿠팡 주문번호 포함)을 엑셀용 CSV 로 내려받습니다.
+            setError(null)
+            const res = await fetch('/api/admin/orders-export', { headers: { 'x-admin-token': token } })
+            if (!res.ok) return setError((await res.json().catch(() => ({}))).error ?? '다운로드에 실패했습니다.')
+            const blob = await res.blob()
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(blob)
+            a.download = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] ?? 'orders.csv'
+            a.click()
+            URL.revokeObjectURL(a.href)
+          }}>📄 주문 목록 엑셀</button>
         </div>
       </div>
 

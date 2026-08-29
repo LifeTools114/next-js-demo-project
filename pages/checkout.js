@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../components/Layout'
@@ -27,6 +27,35 @@ export default function Checkout() {
   const [error, setError] = useState(null)
   // 쿠팡 결제 우선 흐름 — 주문완료 화면에서 넘어오면 주문번호가 함께 옵니다.
   const [coupangOrderNo, setCoupangOrderNo] = useState('')
+
+  /**
+   * 수령인 정보 자동 저장·불러오기 — 단골이 주문할 때마다 베트남 주소를
+   * 다시 치지 않도록 이 브라우저에 저장해 두고 다음 주문서에 채웁니다.
+   * (서버가 아니라 고객 본인 브라우저에만 저장됩니다)
+   */
+  const RECIPIENT_KEY = 'kbeauty-hanoi:recipient'
+  const recipientLoaded = useRef(false)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(RECIPIENT_KEY) ?? 'null')
+      if (saved && typeof saved === 'object') {
+        setForm((f) => ({
+          ...f,
+          name: saved.name ?? '',
+          phone: saved.phone ?? '',
+          address: saved.address ?? '',
+          email: saved.email ?? '',
+        }))
+      }
+    } catch { /* 저장값이 없거나 손상 — 빈 폼으로 시작 */ }
+    recipientLoaded.current = true
+  }, [])
+  useEffect(() => {
+    // 저장값을 불러오기 전에 빈 폼으로 덮어쓰지 않도록 로드 후에만 저장합니다.
+    if (!recipientLoaded.current) return
+    if (!(form.name || form.phone || form.address || form.email)) return
+    try { window.localStorage.setItem(RECIPIENT_KEY, JSON.stringify(form)) } catch { /* 무시 */ }
+  }, [form])
 
   // 확장에서 넘어온 견적함 복원
   useEffect(() => {
@@ -166,12 +195,15 @@ export default function Checkout() {
 
       <form onSubmit={submit}>
         <section className="panel">
-          <div className="panel__head">수령인 정보</div>
+          <div className="panel__head">수령인 정보 (베트남)</div>
           <div className="panel__body">
+            <p className="note" style={{ marginBottom: 12, fontSize: 12 }}>
+              입력하신 정보는 이 브라우저에 자동 저장되어, 다음 주문서에 자동으로 채워집니다.
+            </p>
             {[
-              ['name', '이름 *', 'Nguyễn Thị Mai', 'text'],
-              ['phone', '연락처 *', '09xx xxx xxx', 'tel'],
-              ['address', '하노이 배송 주소 *', 'Số nhà, đường, phường, quận', 'text'],
+              ['name', '받는 분 이름 *', 'Nguyễn Thị Mai / 홍길동', 'text'],
+              ['phone', '베트남 전화번호 *', '09xx xxx xxx', 'tel'],
+              ['address', '베트남(하노이) 배송 주소 *', 'Số nhà, đường, phường, quận', 'text'],
               ['email', '이메일 (선택 — 진행 알림 수신)', 'you@example.com', 'email'],
             ].map(([key, label, ph, type]) => (
               <div className="field" key={key}>
