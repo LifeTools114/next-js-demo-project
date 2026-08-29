@@ -321,20 +321,41 @@
   const won = (n) => (Number.isFinite(n) ? `${Math.round(n).toLocaleString('ko-KR')}원` : null)
   const dong = (n) => (Number.isFinite(n) ? `₫${Math.round(n).toLocaleString('ko-KR')}` : null)
 
-  async function cartQuotes(cart) {
+  /**
+   * 서버 견적이 안 올 때의 로컬 계산 — 상품 페이지 패널과 같은 내장
+   * 계산기(KBCalc)를 씁니다. 서버가 꺼져 있어도 카드가 '계산 중…'에
+   * 머물지 않습니다. (주문 생성 시 서버가 어차피 다시 계산합니다)
+   */
+  function localQuote(cart, track, config) {
+    const K = globalThis.KBCalc
+    if (!K) return null
+    try {
+      if (config?.policy) K.applyConfig(config.policy)
+      const zone = config?.preferences?.zone ?? 'hanoi'
+      const q = K.quote(cart.map((i) => ({ ...i, track })), { track, zone })
+      return { ok: true, total: q.total, totalVnd: q.totalVnd, local: true }
+    } catch { return null }
+  }
+
+  async function cartQuotes(cart, config) {
     // 항상 지금 화면에서 읽은 items 를 그대로 보냅니다 — 백그라운드에 남은
     // 옛 초안·견적함이 금액에 끼어들 수 없습니다. 키는 내용 전체라
     // 수량·옵션(이름)·가격이 바뀌면 즉시 다시 견적합니다.
     const key = cart.map((i) => `${i.productName}|${i.quantity}|${i.productPrice}`).join(',')
-    // 성공한 견적은 내용이 바뀔 때까지 재사용, 실패는 10초 뒤 다시 시도 —
-    // 일시적 서버 오류로 '계산 중…'에 영영 머물지 않게.
-    const bothOk = Boolean(quoteCache.fwd && quoteCache.agent)
-    if (quoteCache.key === key && (bothOk || Date.now() - (quoteCache.at ?? 0) < 10_000)) return quoteCache
+    // 서버 견적 성공분은 내용이 바뀔 때까지 재사용, 로컬 대체분은 10초마다
+    // 서버를 다시 시도 — 서버가 살아나면 자동으로 서버 값으로 돌아갑니다.
+    const bothServer = Boolean(quoteCache.fwd && !quoteCache.fwd.local && quoteCache.agent && !quoteCache.agent.local)
+    if (quoteCache.key === key && (bothServer || Date.now() - (quoteCache.at ?? 0) < 10_000)) return quoteCache
     const [fwd, agent] = await Promise.all([
       send('quoteCart', { track: 'forwarding', items: cart }),
       send('quoteCart', { track: 'agent', items: cart }),
     ])
-    quoteCache = { key, at: Date.now(), fwd: fwd?.ok ? fwd : null, agent: agent?.ok ? agent : null }
+    quoteCache = {
+      key,
+      at: Date.now(),
+      fwd: fwd?.ok ? fwd : localQuote(cart, 'forwarding', config),
+      agent: agent?.ok ? agent : localQuote(cart, 'agent', config),
+    }
     return quoteCache
   }
 
@@ -394,7 +415,7 @@
     const cartRes = await send('getCart')
     const fallbackCart = cartRes?.cart ?? []
     const cart = pageItems.length > 0 ? pageItems : fallbackCart
-    const quotes = cart.length > 0 ? await cartQuotes(cart) : { fwd: null, agent: null }
+    const quotes = cart.length > 0 ? await cartQuotes(cart, cfg?.config) : { fwd: null, agent: null }
     const autoAdded = pageItems.length > 0
 
     let card = document.getElementById('kb-checkout-helper')

@@ -35,7 +35,7 @@
         "https://checkout.coupang.com/*",
         "https://cart.coupang.com/*"
       ],
-      "js": ["src/content/order-capture.js"],
+      "js": ["vendor/calc.js", "src/content/order-capture.js"],
       "run_at": "document_idle"
     }
   ],
