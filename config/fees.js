@@ -32,7 +32,11 @@ export const FEES = {
  * 0 이면 비활성화. ⚠️ 기본값은 제안값입니다 — config/assumptions.js · min-order
  */
 export const ORDER_MIN = {
-  goodsKrw: 20000,
+  /**
+   * 최소 주문 금액 (상품가 합계, 원) — 운영자 확정 (26-08-29): 폐지 (0 = 제한 없음).
+   * 되살리려면 금액만 넣으세요. 패널 안내·주문 API 거절이 함께 살아납니다.
+   */
+  goodsKrw: 0,
 }
 
 /**

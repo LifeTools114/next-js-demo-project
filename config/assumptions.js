@@ -128,11 +128,11 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'min-order',
-    label: '최소 주문 금액 — 상품가 합계 2만원',
-    where: 'config/fees.js · ORDER_MIN.goodsKrw',
-    status: 'assumed',
-    source: '제안 기본값 (운영자 확정 필요)',
-    risk: '너무 낮으면 소액 주문의 검수·통관 수고가 배송 마진($2/kg)을 넘어 역마진이 나고, 너무 높으면 첫 주문 진입장벽이 됩니다.',
+    label: '최소 주문 금액 — 없음 (폐지)',
+    where: 'config/fees.js · ORDER_MIN.goodsKrw = 0',
+    status: 'confirmed',
+    source: '운영자 확정 (26-08-29) — 진입장벽 제거 우선. 금액을 넣으면 안내·거절이 다시 살아납니다.',
+    risk: '소액 주문은 최소 청구 1kg(12,420원) 배송비가 상품가보다 클 수 있으나, 그 금액 자체에 마진이 있어 역마진은 아닙니다.',
   },
 ]
 

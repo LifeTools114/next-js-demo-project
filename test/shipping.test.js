@@ -132,15 +132,25 @@ test('대행 수수료: 구매대행에만 붙고 10%다', () => {
   assert.equal(calculateAgencyFee(900000, TRACK.AGENT).fee, 90000)
 })
 
-test('최소 주문 금액: 견적에 미달 여부와 부족액이 담긴다', () => {
-  const below = quote([{ productName: '립밤 4g', productPrice: 8000, quantity: 1 }], { track: TRACK.FORWARDING })
-  assert.equal(below.minOrder.goodsKrw, ORDER_MIN.goodsKrw)
-  assert.equal(below.minOrder.met, false)
-  assert.equal(below.minOrder.shortfallKrw, ORDER_MIN.goodsKrw - 8000)
+test('최소 주문 금액: 기본은 폐지(0) — 소액도 통과, 안내 없음', () => {
+  // 운영자 확정 (26-08-29): 진입장벽 제거. 0 이면 어떤 금액도 미달이 아닙니다.
+  assert.equal(ORDER_MIN.goodsKrw, 0)
+  const small = quote([{ productName: '립밤 4g', productPrice: 8000, quantity: 1 }], { track: TRACK.FORWARDING })
+  assert.equal(small.minOrder.met, true)
+  assert.equal(small.minOrder.shortfallKrw, 0)
+})
 
-  const above = quote([{ productName: '수분크림 50ml', productPrice: 25000, quantity: 1 }], { track: TRACK.FORWARDING })
-  assert.equal(above.minOrder.met, true)
-  assert.equal(above.minOrder.shortfallKrw, 0)
+test('최소 주문 금액(보존): 금액을 설정하면 미달 판정·부족액이 살아난다', () => {
+  ORDER_MIN.goodsKrw = 20000
+  try {
+    const below = quote([{ productName: '립밤 4g', productPrice: 8000, quantity: 1 }], { track: TRACK.FORWARDING })
+    assert.equal(below.minOrder.met, false)
+    assert.equal(below.minOrder.shortfallKrw, 12000)
+    const above = quote([{ productName: '수분크림 50ml', productPrice: 25000, quantity: 1 }], { track: TRACK.FORWARDING })
+    assert.equal(above.minOrder.met, true)
+  } finally {
+    ORDER_MIN.goodsKrw = 0
+  }
 })
 
 test('세금: 미징수가 기본 — 관세·VAT·할증 안내가 모두 0/빈값이다', () => {
