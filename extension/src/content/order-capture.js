@@ -418,11 +418,20 @@
     }
 
     // 금액의 근거 — 두 트랙이 같은 무게를 쓰므로 무게 줄은 하나만 보여줍니다.
+    // 여유 무게(같은 요금 구간의 남은 g)를 함께 보여 "수량을 늘렸는데 배송비가
+    // 그대로"인 이유가 장점(더 담아도 동일)으로 읽히게 합니다.
     const wq = quotes.fwd ?? quotes.agent
+    const headroomG = wq?.billableKg
+      ? Math.floor((wq.billableKg * 1000 + 500 - (wq.chargeableG ?? 0)) / 10) * 10
+      : 0
     const weightLine = wq?.billableKg
       ? `<div style="margin-top:3px;font-size:10.5px;color:#8b95a1">📦 실측 추정 ${(
           (wq.chargeableG ?? 0) / 1000
-        ).toFixed(1)}kg → 청구 <b>${wq.billableKg}kg</b></div>`
+        ).toFixed(1)}kg → 청구 <b>${wq.billableKg}kg</b>` +
+        (headroomG >= 50
+          ? ` · <b style="color:#17916b">${headroomG}g 더 담아도 배송비 동일</b>`
+          : '') +
+        '</div>'
       : ''
 
     const priceBlock = cart.length === 0
