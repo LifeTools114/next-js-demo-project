@@ -81,12 +81,13 @@
      * 살 수 없는 견적이 나갑니다. 쿠폰 할인 줄(-30,000원 등)을 합산해
      * 결제 금액에 되돌립니다. (즉시할인·와우회원가는 누구에게나 같으므로 유지)
      */
+    // 사이드바에서 "쿠\n폰할인"처럼 단어가 줄바꿈으로 쪼개지므로,
+    // 공백을 전부 지운 텍스트에서 '쿠폰 … -금액원' 패턴을 찾습니다.
     let couponKrw = 0
-    for (const line of text.split('\n')) {
-      if (!/쿠폰/.test(line) || /쿠팡캐시/.test(line)) continue
-      const cm = line.match(/-\s*([\d,]{3,})\s*원/)
-      if (cm) couponKrw += Number(cm[1].replace(/,/g, ''))
-    }
+    const flat = text.replace(/\s+/g, '')
+    const couponRe = /쿠폰[^\d-]{0,12}-([\d,]{3,})원/g
+    let cm
+    while ((cm = couponRe.exec(flat))) couponKrw += Number(cm[1].replace(/,/g, ''))
     const basisKrw = paidKrw > 0 ? paidKrw + couponKrw : 0
     const totalKrw = basisKrw > 0 && (!(goodsKrw > 0) || basisKrw < goodsKrw) ? basisKrw : goodsKrw
 

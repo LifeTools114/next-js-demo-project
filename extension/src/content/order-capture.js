@@ -436,8 +436,10 @@
     const ctaBlock = cart.length === 0
       ? ''
       : helperTrack === 'agent'
-        ? '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:40px;border:0;border-radius:9px;' +
-          'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성 →</button>' +
+        ? '<style>@keyframes kbPulse{0%,100%{box-shadow:0 0 0 0 rgba(49,130,246,.55)}50%{box-shadow:0 0 0 7px rgba(49,130,246,0)}}</style>' +
+          '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:40px;border:0;border-radius:9px;' +
+          'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;' +
+          'animation:kbPulse 1.5s ease-in-out infinite">구매대행 신청서 작성 →</button>' +
           '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">' +
           '쿠팡 결제 없이 원화/동화 입금 · 쿠폰·가입혜택 등 개인 할인은 사용 불가 (와우회원가는 반영)</div>'
         : onCart
@@ -560,11 +562,28 @@
       card.remove()
       try { sessionStorage.setItem('kb-helper-closed', '1') } catch { /* 무시 */ }
     })
-    card.querySelector('#kb-agent-go')?.addEventListener('click', async () => {
+    card.querySelector('#kb-agent-go')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget
+      /**
+       * 서버가 꺼져 있으면 신청서 탭이 "연결할 수 없음"으로 열려 아무것도
+       * 안 되는 것처럼 보입니다. 지금 견적이 로컬 대체분(local)이라는 건
+       * 서버 응답이 없다는 뜻이므로, 죽은 탭 대신 이유를 알려줍니다.
+       */
+      if (quotes.agent?.local || quotes.fwd?.local) {
+        toast('⚠️ 백엔드 서버가 꺼져 있어 신청서를 열 수 없습니다 — PowerShell에서 npm run dev 를 켠 뒤 다시 눌러주세요.', false)
+        return
+      }
+      btn.disabled = true
+      btn.textContent = '신청서 여는 중…'
       // 카드에 보인 금액 그대로 신청서로 — 지금 화면의 상품을 들려 보냅니다.
       const res = await send('openCheckout', { track: 'agent', items: cart })
-      if (res?.ok) toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 입금 안내가 나옵니다.', true)
-      else toast(res?.error ?? '견적함을 확인해 주세요.', false)
+      if (res?.ok) {
+        toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 입금 안내가 나옵니다.', true)
+      } else {
+        toast(res?.error ?? '신청서를 열지 못했습니다 — 다시 눌러주세요.', false)
+      }
+      btn.disabled = false
+      btn.textContent = '구매대행 신청서 작성 →'
     })
     card.querySelectorAll('[data-kb-sel]').forEach((b) =>
       b.addEventListener('click', () => {

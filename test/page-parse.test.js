@@ -50,3 +50,12 @@ test('계정 전용 쿠폰은 구매대행 기준가에서 제외된다 — 대�
   const items = P.extractItemsFromText(text)
   assert.equal(items[0].productPrice, 43400)
 })
+
+test('줄바꿈으로 쪼개진 쿠폰 문구도 감지한다 (사이드바 줄바꿈)', () => {
+  // 결제 요약 사이드바가 좁아 "쿠\n폰할인"으로 렌더링되는 실제 사례.
+  const text = ['앰플엔 펩타이드샷 앰플 100ml', '수량 1개',
+    '총 상품 가격 44,800원',
+    'WOW 와우 전용 쿠', '폰할인 변경 -30,000원',
+    '총 결제 금액 14,800원'].join('\n')
+  assert.equal(P.extractItemsFromText(text)[0].productPrice, 44800)
+})
