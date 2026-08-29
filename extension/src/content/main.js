@@ -189,6 +189,43 @@
   new MutationObserver(debounced).observe(document.body, { subtree: true, childList: true })
 
   /**
+   * 색상·용량 같은 진짜 옵션은 URL(itemId)만 바꾸는 SPA 전환이라 JSON-LD 가
+   * 첫 로드 값으로 남습니다. URL 이 바뀌면 새 HTML 의 구조화 데이터를 받아
+   * 문서의 JSON-LD 를 갈아끼운 뒤 다시 계산합니다.
+   */
+  async function refetchStructuredData() {
+    try {
+      const html = await (await fetch(location.href, { credentials: 'include' })).text()
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      const fresh = doc.querySelectorAll('script[type="application/ld+json"]')
+      if (fresh.length === 0) return
+      document.querySelectorAll('script[type="application/ld+json"]').forEach((s) => s.remove())
+      for (const s of fresh) {
+        const clone = document.createElement('script')
+        clone.type = 'application/ld+json'
+        clone.textContent = s.textContent
+        document.head.appendChild(clone)
+      }
+    } catch { /* 실패하면 기존 데이터로 계산합니다 */ }
+  }
+
+  let lastHref = location.href
+  const onNav = () => {
+    if (location.href === lastHref) return
+    lastHref = location.href
+    refetchStructuredData().then(compute)
+  }
+  for (const fn of ['pushState', 'replaceState']) {
+    const orig = history[fn]
+    history[fn] = function (...args) {
+      const r = orig.apply(this, args)
+      onNav()
+      return r
+    }
+  }
+  window.addEventListener('popstate', onNav)
+
+  /**
    * 점검이 끝나면 자동으로 다시 계산합니다.
    * 사용자가 탭을 열어둔 채 점검 창을 넘어가는 경우, 새로고침을 요구하지 않습니다.
    */

@@ -208,6 +208,27 @@ const KBExtract = (() => {
    * 상품 상세 페이지에서 정보를 추출합니다.
    * @returns {{ok:boolean, ...}} ok:false 면 절대 견적을 만들지 않습니다.
    */
+  /**
+   * 옵션 실시간 보정 — 쿠팡은 수량 옵션(1개/2개…)을 클릭해도 JSON-LD 를
+   * 갱신하지 않아 첫 로드 값(1개 가격)이 남습니다. 화면에서 "선택된"
+   * 옵션 요소의 "N개 … 원" 을 읽어 가격·수량을 덮어씁니다.
+   */
+  function selectedOptionOverride() {
+    const queries = ['input[type=radio]:checked', '[aria-checked="true"]', '[class*="selected" i]']
+    for (const q of queries) {
+      let nodes
+      try { nodes = document.querySelectorAll(q) } catch { continue }
+      for (const node of nodes) {
+        const holder = node.closest('label,li,[role="radio"]') ?? node.parentElement ?? node
+        const text = (holder.innerText ?? '').trim()
+        if (!text || text.length > 80) continue
+        const m = text.match(/(\d+)\s*개\s*\n?\s*([\d,]{4,})\s*원/)
+        if (m) return { count: Number(m[1]), price: Number(m[2].replace(/,/g, '')) }
+      }
+    }
+    return null
+  }
+
   function extractProduct() {
     const base = fromJsonLd() ?? fromMeta() ?? fromSelectors()
 
@@ -225,17 +246,29 @@ const KBExtract = (() => {
 
     const notice = extractNoticeSpec()
 
+    // 선택된 수량 옵션이 있으면 가격과 상품명 끝의 "N개" 를 그 값으로.
+    // (상품명의 개수는 무게 계산이 그대로 쓰므로 함께 맞춰야 합니다)
+    const opt = selectedOptionOverride()
+    let productName = base.productName
+    let price = base.price
+    if (opt?.price) {
+      price = opt.price
+      productName = /,?\s*\d+\s*개\s*$/.test(productName)
+        ? productName.replace(/,?\s*\d+\s*개\s*$/, `, ${opt.count}개`)
+        : `${productName}, ${opt.count}개`
+    }
+
     return {
       ok: true,
       productId: extractProductId(),
-      productName: base.productName,
+      productName,
       /**
        * 고시정보의 용량·중량은 상품명보다 정확하므로 무게 산정에 우선 사용합니다.
        * 단 상품명 뒤에 이어붙이면 용량이 두 번 파싱될 수 있어 별도 필드로 넘깁니다.
        */
       specOverride: notice?.value ?? null,
       noticeSpec: notice,
-      price: base.price,
+      price,
       image: base.image,
       brand: base.brand,
       categoryPath: extractBreadcrumb(),
