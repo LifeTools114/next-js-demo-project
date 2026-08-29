@@ -203,31 +203,22 @@
     const body = squash(document.body?.innerText ?? '')
     const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
     const okCode = body.includes(code)
+    /**
+     * 이 결제창의 상품을 항상 새로 읽습니다 — 견적함에 뭐가 남아 있든
+     * 카드의 금액은 "지금 결제하는 상품" 기준이어야 합니다.
+     * (수량을 바꾸면 다음 갱신 때 금액도 따라갑니다)
+     */
+    const pageItems = extractCheckoutItems().map((it, i) => ({
+      ...it, productId: `chk-${i}`, track: 'forwarding',
+    }))
+    if (pageItems.length > 0) await send('setCheckoutDraft', { items: pageItems })
+
     const cartRes = await send('getCart')
-    let cart = cartRes?.cart ?? []
-    let autoAdded = false
-
-    // 견적함이 비어 있으면 결제창의 상품을 자동으로 담습니다.
-    // (운영자 브라우저는 발주 결제 중일 수 있어 자동 담기를 하지 않습니다)
-    if (cart.length === 0) {
-      const st = await send('getAdminState')
-      if (!st?.hasToken) {
-        const pageItems = extractCheckoutItems()
-        if (pageItems.length > 0) {
-          cart = pageItems.map((it, i) => ({
-            ...it,
-            productId: `chk-${Date.now()}-${i}`,
-            track: 'forwarding',
-            addedAt: Date.now(),
-          }))
-          await send('setCart', cart)
-          autoAdded = true
-        }
-      }
-    }
-
+    const fallbackCart = cartRes?.cart ?? []
+    const cart = pageItems.length > 0 ? pageItems : fallbackCart
     const fwdCount = cart.filter((i) => i.track !== 'agent').length
     const quotes = cart.length > 0 ? await cartQuotes(cart) : { fwd: null, agent: null }
+    const autoAdded = pageItems.length > 0
 
     let card = document.getElementById('kb-checkout-helper')
     if (!card) {
@@ -250,7 +241,7 @@
         ? '<div style="margin-top:8px;color:#766b80;font-size:11.5px">상품 페이지에서 [견적함에 담기]를 하면 ' +
           '배송비 계산과 자동 신청이 가능합니다.</div>'
         : (autoAdded
-            ? `<div style="margin-top:7px;font-size:11px;color:#17916b">🛒 결제 중인 상품 ${cart.length}개를 자동으로 담았습니다.</div>`
+            ? `<div style="margin-top:7px;font-size:11px;color:#17916b">🛒 이 결제의 상품 ${cart.length}개 기준으로 계산했습니다.</div>`
             : '') +
           `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
           (fwdKrw
@@ -335,12 +326,13 @@
     if (location.host === 'checkout.coupang.com') return renderCheckoutHelper()
   }
 
-  // 결제·완료 화면이 SPA 전환으로 나타나는 경우까지 몇 초 재시도합니다.
+  // 결제·완료 화면이 SPA 전환으로 나타나는 경우까지 재시도합니다.
+  // 결제창에서는 수량 변경이 금액에 따라오도록 갱신을 멈추지 않습니다.
   let tries = 0
   const timer = setInterval(() => {
     tries += 1
     run()
-    if (tries >= 8) clearInterval(timer)
+    if (tries >= 8 && location.host !== 'checkout.coupang.com') clearInterval(timer)
   }, 1500)
   run()
 })()

@@ -99,6 +99,18 @@ async function openAffiliate({ url, track }) {
  * 자격증명을 두지 않습니다. 요청은 전부 여기서 대신 보냅니다.
  */
 
+/**
+ * 결제 흐름의 상품 출처 — 최근 2시간 내 결제창 드래프트가 있으면 그것,
+ * 없으면 견적함. "결제창의 사실"이 "담아둔 계획"보다 우선입니다.
+ */
+async function checkoutSource() {
+  const { checkoutDraft = [], checkoutDraftAt = 0, cart = [] } = await storage.get([
+    'checkoutDraft', 'checkoutDraftAt', 'cart',
+  ])
+  const fresh = Date.now() - checkoutDraftAt < 2 * 60 * 60 * 1000
+  return fresh && checkoutDraft.length > 0 ? checkoutDraft : cart
+}
+
 /** 운영자 API 로 열어줄 경로 접두사 — 그 외는 거부합니다 */
 const ADMIN_PATHS = ['/api/orders', '/api/admin/']
 
@@ -187,17 +199,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return operatorHints()
       case 'captureCoupangOrder':
         return adminFetch({ path: '/api/admin/coupang-capture', method: 'POST', body: msg.payload ?? {} })
+      case 'setCheckoutDraft': {
+        // 결제창에서 읽은 "지금 결제 중인 상품" — 견적함과 분리 보관합니다.
+        // 견적함은 고객이 직접 담은 계획이고, 드래프트는 이 결제의 사실입니다.
+        await storage.set({ checkoutDraft: msg.payload?.items ?? [], checkoutDraftAt: Date.now() })
+        return { ok: true }
+      }
       case 'openCheckout': {
         // 쿠팡 결제 → 배송비 결제로 잇는 다리.
-        // track: 'agent' 면 한국 결제수단이 없는 고객의 구매대행 요청 —
-        // 견적함 전체를 구매대행으로 바꿔 주문서로 저장하게 합니다.
-        const { cart = [] } = await storage.get('cart')
+        // 방금 결제창에서 읽은 드래프트가 있으면 그것이 진실입니다 (견적함은 폴백).
+        // track: 'agent' 면 한국 결제수단이 없는 고객의 구매대행 요청.
+        const src = await checkoutSource()
         const asAgent = msg.payload?.track === 'agent'
         const items = asAgent
-          ? cart.map((i) => ({ ...i, track: 'agent' }))
-          : cart.filter((i) => i.track !== 'agent')
+          ? src.map((i) => ({ ...i, track: 'agent' }))
+          : src.filter((i) => i.track !== 'agent')
         if (items.length === 0) {
-          return { ok: false, error: '견적함이 비어 있습니다. 상품 페이지에서 먼저 담아주세요.' }
+          return { ok: false, error: '결제 상품을 읽지 못했습니다. 상품 페이지에서 [견적함에 담기] 후 다시 시도해주세요.' }
         }
         const { config } = await storage.get('config')
         const zone = config?.preferences?.zone ?? 'hanoi'
@@ -205,12 +223,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const no = String(msg.payload?.coupangOrderNo ?? '').replace(/\D/g, '').slice(0, 40)
         const url = `${await backendUrl()}/checkout?cart=${payload}${!asAgent && no ? `&coupang=${no}` : ''}`
         await chrome.tabs.create({ url })
+        // 신청서로 넘어간 드래프트는 소진 — 다음 결제에 재사용되지 않게.
+        await storage.set({ checkoutDraft: [] })
         return { ok: true }
       }
       case 'quoteCart': {
         // 결제창 카드의 금액 미리보기 — 서버 견적으로 패널·주문서와 일치시킵니다.
-        const { cart = [] } = await storage.get('cart')
-        if (cart.length === 0) return { ok: false, error: 'empty' }
+        const src = await checkoutSource()
+        if (src.length === 0) return { ok: false, error: 'empty' }
         const track = msg.payload?.track === 'agent' ? 'agent' : 'forwarding'
         const { config } = await storage.get('config')
         const zone = config?.preferences?.zone ?? 'hanoi'
@@ -218,7 +238,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           const res = await fetch(`${await backendUrl()}/api/quote`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: cart.map((i) => ({ ...i, track })), zone, track }),
+            body: JSON.stringify({ items: src.map((i) => ({ ...i, track })), zone, track }),
           })
           const data = await res.json().catch(() => null)
           if (!res.ok) return { ok: false, error: data?.error ?? `HTTP ${res.status}` }
