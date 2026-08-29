@@ -24,7 +24,7 @@ class Config:
 
     # 진입/청산 규칙
     # 공시일 다음 거래일 시가 매수 후:
-    hold_days: int = 5                  # 최대 보유 거래일 수 (경과 시 종가 매도)
+    hold_days: int = 9                  # 최대 보유 거래일 수 (경과 시 종가 매도)
     stop_loss: float = -0.05            # 매수가 대비 -5% 도달 시 손절
     take_profit: float | None = 0.10    # +10% 도달 시 익절 (None이면 미사용)
 
