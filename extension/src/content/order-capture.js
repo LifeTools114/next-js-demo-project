@@ -490,20 +490,37 @@
         : '') +
       detailBlock
 
-    // 쿠팡 배송지 창과 같은 생김새의 3칸 미니 안내 — 어디에 뭘 넣는지 한눈에.
-    const field = (icon, value, hint) =>
-      `<div style="display:flex;align-items:center;gap:6px;border:1px solid #e5e8eb;border-radius:8px;` +
-      `background:#fff;padding:6px 9px;margin-top:6px;font-size:12px;color:#191f28">` +
-      `<span>${icon}</span><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(value)}</b></div>` +
-      `<div style="margin:2px 0 0 6px;font-size:10.5px;color:#a05a12">↑ ${esc(hint)}</div>`
+    /**
+     * 쿠팡 「배송지 선택」 창의 실제 생김새·칸 순서 그대로 흉내낸 안내 —
+     * 받는 사람 → 우편번호 찾기 → 휴대폰 번호 → 상세주소.
+     * 사용자가 두 창을 나란히 놓고 칸별로 그대로 옮겨 적을 수 있습니다.
+     * 상세주소(+본인 이름)는 소포 주인 매칭의 열쇠라 색·배지로 강조합니다.
+     */
+    const dlgRow = (icon, label, value, opts = {}) =>
+      `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:7px 9px;` +
+      `border:${opts.hot ? '2px solid #f59f00' : '1px solid #e5e8eb'};border-radius:8px;` +
+      `background:${opts.hot ? '#fff8e6' : '#fff'}">` +
+      `<span style="font-size:14px">${icon}</span>` +
+      '<span style="flex:1;min-width:0">' +
+      `<span style="display:block;font-size:10px;color:#8b95a1">${esc(label)}</span>` +
+      `<b style="display:block;font-size:12.5px;color:${opts.hot ? '#d9480f' : '#191f28'};` +
+      `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(value)}</b></span>` +
+      (opts.badge
+        ? `<span style="flex-shrink:0;font-size:9.5px;font-weight:800;color:#fff;background:#f59f00;` +
+          `border-radius:6px;padding:2px 6px">${opts.badge}</span>`
+        : '') +
+      (opts.tail ? `<span style="color:#8b95a1">${opts.tail}</span>` : '') +
+      '</div>'
 
     const miniForm =
-      '<div style="margin-top:7px;padding:9px;border-radius:10px;background:#f9fafb">' +
-      '<div style="font-size:11px;color:#4e5968;text-align:center"><b>배송지 선택</b> 창에 이렇게 입력</div>' +
-      field('👤', code, '이름 칸') +
-      field('📍', addr1, '주소 검색(🔍)에 붙여넣기') +
-      field('🏠', `${code} 본인이름`, '상세주소 — 본인 이름을 이어서') +
-      field('📞', phone, '연락처 — 자동으로 입력됩니다') +
+      '<div style="margin-top:7px;padding:10px 9px;border-radius:12px;background:#f9fafb;border:1px solid #e5e8eb">' +
+      '<div style="font-size:11.5px;font-weight:800;color:#191f28;text-align:center">쿠팡 「배송지 선택」 창에 이렇게 입력</div>' +
+      dlgRow('👤', '받는 사람', code) +
+      dlgRow('📍', '우편번호 찾기 — 아래 [주소 복사] 후 붙여넣어 검색', addr1, { tail: '🔍' }) +
+      dlgRow('📱', '휴대폰 번호 — 자동으로 입력됩니다', phone) +
+      dlgRow('🏠', '상세주소 — 주소 선택 후 나타나는 칸', `${code} 본인이름`, { hot: true, badge: '중요' }) +
+      '<div style="margin-top:6px;font-size:10.5px;font-weight:700;color:#d9480f;text-align:center;line-height:1.5">' +
+      '⭐ 상세주소의 <u>본인 이름</u>으로 소포 주인을 찾습니다 — 꼭 넣어주세요!</div>' +
       '</div>' +
       `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
