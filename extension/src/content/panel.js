@@ -215,7 +215,7 @@ const KBPanel = (() => {
 
     const goodsNote =
       state.track === 'forwarding'
-        ? `<div class="note">상품가 ${esc(state.fmt.krw(q.goods))}는 고객님이 쿠팡에 직접 결제하십니다. (관세 과세표준에는 포함)</div>`
+        ? `<div class="note">상품가 ${esc(state.fmt.krw(q.goods))}는 고객님이 쿠팡에 직접 결제하십니다.</div>`
         : ''
 
     const sched = q.sourcing?.schedule ?? {

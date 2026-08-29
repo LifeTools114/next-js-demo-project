@@ -5,6 +5,13 @@ import { quote, calculateAgencyFee, calculateTaxes, krwToVnd, TRACK } from '../l
 import { compareConsolidation } from '../lib/consolidation.js'
 import { SHIPPING } from '../config/shipping.js'
 import { FEES, ORDER_MIN } from '../config/fees.js'
+import { TAXES } from '../config/taxes.js'
+
+/** 세율표 보존 검증용 — 미징수 스위치를 잠깐 켜고 계산을 확인합니다 */
+const withTaxes = (fn) => {
+  TAXES.collect = true
+  try { fn() } finally { TAXES.collect = false }
+}
 
 test('청구무게: 정수 kg — 소수 0.5 이하 버림·초과 올림 (운영자 확정, 업체와 동일)', () => {
   assert.equal(toBillableKg(100), 1, '최소 청구무게')
@@ -136,28 +143,30 @@ test('최소 주문 금액: 견적에 미달 여부와 부족액이 담긴다', 
   assert.equal(above.minOrder.shortfallKrw, 0)
 })
 
-test('세금: 품목군별 관세율이 적용된다', () => {
-  // 신발 30% vs 일반 10% — 같은 금액이라도 관세가 다릅니다.
+test('세금: 미징수가 기본 — 관세·VAT·할증 안내가 모두 0/빈값이다', () => {
+  // 운영자 확정 (26-08-29): 개인통관·무증빙 채널이라 걷지 않습니다.
+  const t = calculateTaxes([{ productName: '나이키 운동화 270', productPrice: 100000, quantity: 1 }], 12420)
+  assert.equal(t.duty, 0)
+  assert.equal(t.vat, 0)
+  assert.equal(t.total, 0)
+  assert.deepEqual(t.surcharged, [])
+  // 견적 명세에도 세금·결제수수료 줄이 없어야 합니다.
+  const q = quote([{ productName: '수분크림 50ml', productPrice: 25000, quantity: 1 }], { track: TRACK.AGENT })
+  assert.ok(!q.breakdown.some((r) => ['duty', 'vat', 'payment'].includes(r.key)))
+  assert.equal(q.total, 25000 + q.agency.fee + q.shipping.totalKrw)
+})
+
+test('세금(보존): 스위치를 켜면 품목군별 관세율·VAT 계산이 살아있다', () => withTaxes(() => {
+  // 신발 30% vs 일반 10% — 정책이 되돌아왔을 때를 위한 회귀 방지.
   const shoes = calculateTaxes([{ productName: '나이키 운동화 270', productPrice: 100000, quantity: 1 }], 0)
-  const misc = calculateTaxes([{ productName: '알 수 없는 물건', productPrice: 100000, quantity: 1 }], 0)
+  const misc = calculateTaxes([{ productName: '알 수 없는 물건', productPrice: 100000, quantity: 1 }], 20000)
   assert.equal(shoes.duty, 30000)
-  assert.equal(misc.duty, 10000)
   assert.ok(shoes.extraDutyKrw > 0)
-  assert.equal(misc.extraDutyKrw, 0)
-})
-
-test('세금: VAT 는 관세 위에 부과된다', () => {
-  const t = calculateTaxes([{ productName: '알 수 없는 물건', productPrice: 100000, quantity: 1 }], 20000)
-  assert.equal(t.cif, 120000)
-  assert.equal(t.duty, 12000)
-  assert.equal(t.vat, 13200) // (120000 + 12000) × 10%
-})
-
-test('세금: 면세 한도가 폐지되어 소액도 과세된다', () => {
-  const t = calculateTaxes([{ productName: '소액 물건', productPrice: 5000, quantity: 1 }], 6500)
-  assert.equal(t.exempt, false)
-  assert.ok(t.total > 0)
-})
+  assert.equal(misc.cif, 120000)
+  assert.equal(misc.duty, 12000)
+  assert.equal(misc.vat, 13200) // (120000 + 12000) × 10%
+  assert.equal(misc.exempt, false)
+}))
 
 test('견적: 배송대행은 상품가를 청구하지 않지만 과세표준에는 포함한다', () => {
   const items = [{ productName: '토리든 세럼 50ml', productPrice: 19900, quantity: 2 }]
