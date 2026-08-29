@@ -40,19 +40,29 @@ const KBPanel = (() => {
 .blocked { background: #fff0f0; border: 1px solid #ffd5d5; border-radius: 10px; padding: 12px; }
 .blocked h4 { margin: 0 0 6px; font-size: 13.5px; color: #9b2c2c; }
 .blocked p { margin: 0; font-size: 12.5px; color: #742a2a; line-height: 1.5; }
-.note { background: #faf7fb; border-radius: 8px; padding: 9px 10px; font-size: 11.5px; color: #766b80; line-height: 1.5; margin-top: 10px; }
+.note { background: #faf7fb; border-radius: 8px; padding: 9px 10px; font-size: 12px; color: #5b5164; line-height: 1.55; margin-top: 10px; }
 .note.warn { background: #fff8ef; color: #8a5a10; }
 .note.tip { background: #f0faf4; color: #1d6b40; }
+.hero { text-align: center; padding: 12px 0 4px; }
+.hero .cap { font-size: 12.5px; font-weight: 700; color: #453b4d; }
+.hero .krw { font-size: 27px; font-weight: 800; color: #1b1220; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.hero .vnd2 { font-size: 17px; font-weight: 800; color: #d92e5c; margin-top: 1px; font-variant-numeric: tabular-nums; }
+.hero .meta { font-size: 12px; color: #5b5164; margin-top: 6px; }
+.detail-toggle { width: 100%; min-height: 34px; margin-top: 10px; border: 1px solid #ece7ef; border-radius: 9px;
+  background: #fff; color: #453b4d; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .btns { padding: 0 14px 14px; display: grid; gap: 8px; }
 .btn { min-height: 42px; border: 0; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
   background: #ef4a76; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .btn.ghost { background: #fff; color: #453b4d; border: 1px solid #ece7ef; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .disc { font-size: 10.5px; color: #766b80; line-height: 1.45; text-align: center; margin-top: -2px; }
-.track { display: flex; gap: 6px; margin-bottom: 10px; }
-.track button { flex: 1; min-height: 36px; border: 1px solid #ece7ef; background: #fff; border-radius: 8px;
-  font-size: 12px; font-weight: 700; color: #766b80; cursor: pointer; }
+.track { display: flex; gap: 8px; margin-bottom: 4px; }
+.track button { flex: 1; min-height: 52px; border: 2px solid #ece7ef; background: #fff; border-radius: 11px;
+  font-size: 15px; font-weight: 800; color: #453b4d; cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; }
+.track button small { font-size: 10.5px; font-weight: 600; color: #9a8fa5; }
 .track button[aria-pressed="true"] { background: #ef4a76; border-color: #ef4a76; color: #fff; }
+.track button[aria-pressed="true"] small { color: #ffd9e4; }
 .err { font-size: 12.5px; color: #b7791f; background: #fff8ef; border-radius: 8px; padding: 10px; line-height: 1.5; }
 .maint { background: #f2f0f7; border: 1px solid #ddd8e6; border-radius: 10px; padding: 14px; text-align: center; }
 .maint .icon { font-size: 28px; display: block; margin-bottom: 8px; }
@@ -228,28 +238,34 @@ const KBPanel = (() => {
           이 상품 <b>${esc(String(state.operatorHint.quantity))}개</b>를 담으세요.</div>`
       : ''
 
+    /**
+     * 단순·강조 레이아웃: 트랙 버튼 2개 → 총액 하나 크게 → 담기 버튼.
+     * 세부 내역·부가 안내는 [자세한 내역]을 눌러야 펼쳐집니다.
+     * 단, 돈이 더 나가거나 주문이 막히는 경고는 항상 보입니다.
+     */
     return `<div class="body">
       ${banner}${opHint}
       <p class="name">${esc(state.productName)}</p>
       <div class="track">
-        <button data-track="forwarding" aria-pressed="${state.track === 'forwarding'}">배송대행</button>
-        <button data-track="agent" aria-pressed="${state.track === 'agent'}">구매대행</button>
+        <button data-track="forwarding" aria-pressed="${state.track === 'forwarding'}">배송대행<small>결제는 내가 · 배송만 맡김</small></button>
+        <button data-track="agent" aria-pressed="${state.track === 'agent'}">구매대행<small>결제까지 맡김</small></button>
       </div>
-      <div>
-        <span class="tag info">청구무게 ${q.shipping.billableKg}kg</span>
-        <span class="tag ${state.confidenceClass}">${esc(state.confidenceLabel)}</span>
+      <div class="hero">
+        <div class="cap">하노이 도착 총액</div>
+        <div class="krw">${esc(state.fmt.krw(q.total))}</div>
+        <div class="vnd2">${esc(state.fmt.vnd(q.totalVnd))}</div>
+        <div class="meta">청구무게 ${q.shipping.billableKg}kg · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
       </div>
-      ${headroomNote(q)}${minOrderNote(q)}${warehouseNote()}
-      <div style="margin-top:8px">${rows}</div>
-      <div class="row total"><span class="l">하노이 도착 총액</span><span class="v">${esc(state.fmt.krw(q.total))}</span></div>
-      <div class="vnd">${esc(state.fmt.vnd(q.totalVnd))}</div>
-      ${goodsNote}${surcharged}${warn}
-      ${overseasBlock}
-      <div class="note">📦 하노이 도착 예상 <b>${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}영업일</b><br>
-        <small>쿠팡→한국창고 ${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}일 +
-        한국창고→하노이 ${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}일</small></div>
-      <div class="note">표시 금액은 상품명 기반 추정 무게로 계산한 예상 견적입니다.
-      한국 창고 입고 후 실측하여 차액을 정산합니다.</div>
+      ${goodsNote}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
+      <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
+      ${state.detailOpen
+        ? `<div style="margin-top:8px">${rows}</div>
+           ${headroomNote(q)}${warehouseNote()}
+           <div class="note">📦 쿠팡→한국창고 ${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}일 +
+             한국창고→하노이 ${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}일</div>
+           <div class="note">표시 금액은 상품명 기반 추정 무게로 계산한 예상 견적입니다.
+           한국 창고 입고 후 실측하여 차액을 정산합니다.</div>`
+        : ''}
     </div>`
   }
 
@@ -295,6 +311,12 @@ const KBPanel = (() => {
       b.addEventListener('click', () => handlers.onTrackChange?.(b.dataset.track)),
     )
     wrap.querySelectorAll('[data-act="add"]').forEach((b) => b.addEventListener('click', () => handlers.onAdd?.()))
+    wrap.querySelectorAll('[data-act="detail"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        state.detailOpen = !state.detailOpen
+        render()
+      }),
+    )
     wrap.querySelectorAll('[data-act="affiliate"]').forEach((b) =>
       b.addEventListener('click', () => handlers.onAffiliate?.()),
     )
