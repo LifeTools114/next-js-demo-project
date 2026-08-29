@@ -157,17 +157,42 @@
    * 와도 배송비 계산·자동 신청이 되도록, 주문 목록("상품명 / 수량 N개")과
    * 총 상품 가격을 본문에서 뽑아 견적함을 자동으로 채웁니다.
    */
+  const NOT_A_NAME = /배송지|요청사항|결제|금액|쿠팡캐시|할인|수량|삭제|선택|쿠폰|무료배송|도착|장바구니|주문/
+
   function extractCheckoutItems() {
     const text = document.body?.innerText ?? ''
     const items = []
+
+    // 형식 1 (결제창): "상품명 \n 수량 N개"
     const re = /([^\n]{6,120})\n\s*수량\s*(\d+)\s*개/g
     let m
     while ((m = re.exec(text)) && items.length < 20) {
       const name = m[1].trim()
-      if (/배송지|요청사항|결제|금액|쿠팡캐시|할인/.test(name)) continue
+      if (NOT_A_NAME.test(name)) continue
       items.push({ productName: name.slice(0, 120), quantity: Number(m[2]) || 1, productPrice: 0 })
     }
-    const totalKrw = Number((text.match(/총\s*상품\s*가격\s*([\d,]+)\s*원/)?.[1] ?? '').replace(/,/g, ''))
+
+    // 형식 2 (장바구니): "수량" 라벨과 숫자가 줄로 분리 — 가장 가까운 앞줄을 상품명으로
+    if (items.length === 0) {
+      const lines = text.split('\n').map((l) => l.trim())
+      for (let i = 0; i < lines.length && items.length < 20; i++) {
+        const qm = lines[i].match(/^수량\s*(\d*)$/)
+        if (!qm) continue
+        const qty = Number(qm[1] || lines[i + 1]?.match(/^(\d{1,3})$/)?.[1] || 1)
+        for (let back = i - 1; back >= Math.max(0, i - 5); back--) {
+          const cand = lines[back]
+          if (cand.length >= 6 && cand.length <= 120 && !NOT_A_NAME.test(cand) && !/^[\d,]+원?$/.test(cand)) {
+            items.push({ productName: cand.slice(0, 120), quantity: qty || 1, productPrice: 0 })
+            break
+          }
+        }
+      }
+    }
+
+    // 합계 — 결제창·장바구니 표기 모두 시도
+    const totalKrw = Number(
+      (text.match(/(?:총\s*상품\s*(?:가격|금액)|상품\s*금액)\s*:?\s*([\d,]+)\s*원/)?.[1] ?? '').replace(/,/g, ''),
+    )
     if (items.length === 0 || !Number.isFinite(totalKrw) || totalKrw <= 0) return []
     // 개별 단가는 화면에 없을 수 있어 합계를 첫 항목에 둡니다 (세금은 합계 기준이라 견적에 충분).
     items[0].productPrice = totalKrw
@@ -289,13 +314,19 @@
       `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
       'background:#ef4a76;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
 
-    card.innerHTML =
-      '<b>🇻🇳 하노이 배송</b>' +
-      (ok
+    // 장바구니 화면에는 배송지가 아직 없으므로 검사 대신 예고만 합니다.
+    const onCart = location.host === 'cart.coupang.com'
+    const statusBlock = onCart
+      ? '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#eef4fb;color:#2b5e9e">' +
+        '주문 단계에서 배송지(한국 창고) 입력을 도와드립니다.</div>'
+      : ok
         ? '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b">' +
           '<b>✓ 배송지 확인됨</b> — 안심하고 결제하세요.</div>'
         : '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#fff3e6;color:#a05a12">' +
-          '<b>⚠️ 배송지가 한국 창고가 아닙니다</b></div>' + miniForm) +
+          '<b>⚠️ 배송지가 한국 창고가 아닙니다</b></div>' + miniForm
+
+    card.innerHTML =
+      '<b>🇻🇳 하노이 배송</b>' + statusBlock +
       cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
       'background:#faf7fb;color:#9a8fa5;cursor:pointer">닫기</button>'
@@ -321,9 +352,11 @@
     })
   }
 
+  const MONEY_HOSTS = ['checkout.coupang.com', 'cart.coupang.com']
+
   async function run() {
     if (looksLikeOrderComplete()) return runOrderComplete()
-    if (location.host === 'checkout.coupang.com') return renderCheckoutHelper()
+    if (MONEY_HOSTS.includes(location.host)) return renderCheckoutHelper()
   }
 
   // 결제·완료 화면이 SPA 전환으로 나타나는 경우까지 재시도합니다.
@@ -332,7 +365,7 @@
   const timer = setInterval(() => {
     tries += 1
     run()
-    if (tries >= 8 && location.host !== 'checkout.coupang.com') clearInterval(timer)
+    if (tries >= 8 && !MONEY_HOSTS.includes(location.host)) clearInterval(timer)
   }, 1500)
   run()
 })()

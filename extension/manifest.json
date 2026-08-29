@@ -10,6 +10,7 @@
     "https://m.coupang.com/*",
     "https://mc.coupang.com/*",
     "https://checkout.coupang.com/*",
+    "https://cart.coupang.com/*",
     "http://localhost:3000/*"
   ],
   "background": {
@@ -31,7 +32,8 @@
         "https://mc.coupang.com/*",
         "https://m.coupang.com/*",
         "https://www.coupang.com/*",
-        "https://checkout.coupang.com/*"
+        "https://checkout.coupang.com/*",
+        "https://cart.coupang.com/*"
       ],
       "js": ["src/content/order-capture.js"],
       "run_at": "document_idle"
