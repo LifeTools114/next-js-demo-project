@@ -152,6 +152,23 @@
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
   const squash = (s) => String(s ?? '').replace(/\s+/g, '')
 
+  // 카드가 1.5초마다 다시 그려져도 서버 견적은 장바구니가 바뀔 때만 다시 부릅니다.
+  let quoteCache = { key: null, fwd: null, agent: null }
+
+  const won = (n) => (Number.isFinite(n) ? `${Math.round(n).toLocaleString('ko-KR')}원` : null)
+  const dong = (n) => (Number.isFinite(n) ? `₫${Math.round(n).toLocaleString('ko-KR')}` : null)
+
+  async function cartQuotes(cart) {
+    const key = cart.map((i) => `${i.productId}x${i.quantity}`).join(',')
+    if (quoteCache.key === key) return quoteCache
+    const [fwd, agent] = await Promise.all([
+      send('quoteCart', { track: 'forwarding' }),
+      send('quoteCart', { track: 'agent' }),
+    ])
+    quoteCache = { key, fwd: fwd?.ok ? fwd : null, agent: agent?.ok ? agent : null }
+    return quoteCache
+  }
+
   async function renderCheckoutHelper() {
     try { if (sessionStorage.getItem('kb-helper-closed')) return } catch { /* 무시 */ }
 
@@ -165,7 +182,9 @@
     const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
     const okCode = body.includes(code)
     const cartRes = await send('getCart')
-    const fwdCount = (cartRes?.cart ?? []).filter((i) => i.track !== 'agent').length
+    const cart = cartRes?.cart ?? []
+    const fwdCount = cart.filter((i) => i.track !== 'agent').length
+    const quotes = cart.length > 0 ? await cartQuotes(cart) : { fwd: null, agent: null }
 
     let card = document.getElementById('kb-checkout-helper')
     if (!card) {
@@ -179,12 +198,42 @@
     }
 
     const ok = okAddr && okCode
-    const cartLine =
-      `<div style="margin-top:8px;color:#766b80;font-size:11.5px">${
-        fwdCount > 0
-          ? `견적함 ${fwdCount}개 — 결제하면 배송 신청서가 자동으로 열립니다.`
-          : '결제 후 자동 신청까지 하려면 상품 페이지에서 [견적함에 담기]를 먼저 해주세요.'
-      }</div>`
+    const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
+
+    // ── 배송대행: 결제할 금액과 결제 후 순서를 한눈에 ──
+    const fwdKrw = won(quotes.fwd?.total)
+    const moneyBlock =
+      cart.length === 0
+        ? '<div style="margin-top:8px;color:#766b80;font-size:11.5px">상품 페이지에서 [견적함에 담기]를 하면 ' +
+          '배송비 계산과 자동 신청이 가능합니다.</div>'
+        : `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
+          (fwdKrw
+            ? `<div style="display:flex;justify-content:space-between;align-items:baseline">` +
+              `<span style="font-size:11.5px;color:#766b80">쿠팡 결제 후 내실 배송비</span>` +
+              `<b style="font-size:15px;color:#d92e5c">${fwdKrw}</b></div>` +
+              (dong(quotes.fwd?.totalVnd)
+                ? `<div style="text-align:right;font-size:11px;color:#9a8fa5">≈ ${dong(quotes.fwd.totalVnd)}</div>`
+                : '')
+            : '<div style="font-size:11.5px;color:#766b80">배송비는 신청서에서 계산됩니다.</div>') +
+          `<div style="margin-top:6px;font-size:11px;color:#574d61;line-height:1.7">` +
+          `결제 후 진행 — <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ` +
+          `③ 하노이 도착 ${lt.min}~${lt.max}일</div></div>`
+
+    // ── 한국 결제수단이 없는 고객: 동화 구매대행으로 전환 ──
+    const agentKrw = won(quotes.agent?.total)
+    const agentVnd = dong(quotes.agent?.totalVnd)
+    const agentBlock =
+      cart.length === 0
+        ? ''
+        : '<div style="margin-top:9px;border-top:1px dashed #eee3ee;padding-top:9px">' +
+          '<div style="font-size:11.5px;color:#574d61">💳 한국 카드·계좌가 없어 결제가 어려우신가요?</div>' +
+          '<button id="kb-agent-go" style="margin-top:6px;width:100%;min-height:34px;border:1px solid #ef4a76;' +
+          'border-radius:9px;background:#fff;color:#ef4a76;font-weight:700;cursor:pointer">동화(₫)로 구매대행 요청</button>' +
+          `<div style="margin-top:4px;font-size:10.5px;color:#9a8fa5;line-height:1.6">` +
+          (agentVnd ? `총 ${agentVnd}${agentKrw ? ` (${agentKrw})` : ''} — 상품가·수수료·배송비 포함. ` : '') +
+          '주문서가 저장되고, 입금 확인 후 저희가 대신 주문해 드립니다.</div></div>'
+
+    const cartLine = moneyBlock + agentBlock
 
     // 쿠팡 배송지 창과 같은 생김새의 3칸 미니 안내 — 어디에 뭘 넣는지 한눈에.
     const field = (icon, value, hint) =>
@@ -227,6 +276,11 @@
     card.querySelector('#kb-helper-x').addEventListener('click', () => {
       card.remove()
       try { sessionStorage.setItem('kb-helper-closed', '1') } catch { /* 무시 */ }
+    })
+    card.querySelector('#kb-agent-go')?.addEventListener('click', async () => {
+      const res = await send('openCheckout', { track: 'agent' })
+      if (res?.ok) toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 동화 입금 안내가 나옵니다.', true)
+      else toast(res?.error ?? '견적함을 확인해 주세요.', false)
     })
   }
 

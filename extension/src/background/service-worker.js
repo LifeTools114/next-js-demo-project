@@ -188,20 +188,44 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case 'captureCoupangOrder':
         return adminFetch({ path: '/api/admin/coupang-capture', method: 'POST', body: msg.payload ?? {} })
       case 'openCheckout': {
-        // 쿠팡 주문완료 → 배송비 결제로 잇는 다리.
-        // 견적함의 배송대행 상품 + 방금 결제한 쿠팡 주문번호를 체크아웃에 넘깁니다.
+        // 쿠팡 결제 → 배송비 결제로 잇는 다리.
+        // track: 'agent' 면 한국 결제수단이 없는 고객의 구매대행 요청 —
+        // 견적함 전체를 구매대행으로 바꿔 주문서로 저장하게 합니다.
         const { cart = [] } = await storage.get('cart')
-        const items = cart.filter((i) => i.track !== 'agent')
+        const asAgent = msg.payload?.track === 'agent'
+        const items = asAgent
+          ? cart.map((i) => ({ ...i, track: 'agent' }))
+          : cart.filter((i) => i.track !== 'agent')
         if (items.length === 0) {
-          return { ok: false, error: '견적함에 배송대행 상품이 없습니다. 상품 페이지에서 먼저 담아주세요.' }
+          return { ok: false, error: '견적함이 비어 있습니다. 상품 페이지에서 먼저 담아주세요.' }
         }
         const { config } = await storage.get('config')
         const zone = config?.preferences?.zone ?? 'hanoi'
         const payload = encodeURIComponent(JSON.stringify({ items, zone }))
         const no = String(msg.payload?.coupangOrderNo ?? '').replace(/\D/g, '').slice(0, 40)
-        const url = `${await backendUrl()}/checkout?cart=${payload}${no ? `&coupang=${no}` : ''}`
+        const url = `${await backendUrl()}/checkout?cart=${payload}${!asAgent && no ? `&coupang=${no}` : ''}`
         await chrome.tabs.create({ url })
         return { ok: true }
+      }
+      case 'quoteCart': {
+        // 결제창 카드의 금액 미리보기 — 서버 견적으로 패널·주문서와 일치시킵니다.
+        const { cart = [] } = await storage.get('cart')
+        if (cart.length === 0) return { ok: false, error: 'empty' }
+        const track = msg.payload?.track === 'agent' ? 'agent' : 'forwarding'
+        const { config } = await storage.get('config')
+        const zone = config?.preferences?.zone ?? 'hanoi'
+        try {
+          const res = await fetch(`${await backendUrl()}/api/quote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: cart.map((i) => ({ ...i, track })), zone, track }),
+          })
+          const data = await res.json().catch(() => null)
+          if (!res.ok) return { ok: false, error: data?.error ?? `HTTP ${res.status}` }
+          return { ok: true, total: data?.quote?.total, totalVnd: data?.quote?.totalVnd }
+        } catch (error) {
+          return { ok: false, error: error.message }
+        }
       }
       case 'openTabs': {
         const urls = (msg.payload?.urls ?? []).slice(0, 20)
