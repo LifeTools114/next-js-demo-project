@@ -255,6 +255,9 @@ const KBPanel = (() => {
         <div class="cap">하노이 도착 총액</div>
         <div class="krw">${esc(state.fmt.krw(q.total))}</div>
         <div class="vnd2">${esc(state.fmt.vnd(q.totalVnd))}</div>
+        ${q.goods > 0
+          ? `<div class="meta">상품가 <b>${esc(state.fmt.krw(q.goods))}</b> ${q.goodsChargedToCustomer ? '포함' : '별도 — 쿠팡에서 직접 결제'}</div>`
+          : ''}
         <div class="meta">실측 추정 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)}</div>
         <div class="meta sub">${esc(state.ruleText ?? '')} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
       </div>

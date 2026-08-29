@@ -214,16 +214,30 @@ const KBExtract = (() => {
    * 옵션 요소의 "N개 … 원" 을 읽어 가격·수량을 덮어씁니다.
    */
   function selectedOptionOverride() {
-    const queries = ['input[type=radio]:checked', '[aria-checked="true"]', '[class*="selected" i]']
+    // 마지막 후보(active)는 넓은 그물 — 라디오가 커스텀 div 인 페이지 대비.
+    const queries = ['input[type=radio]:checked', '[aria-checked="true"]', '[class*="selected" i]', '[class*="active" i]']
+    const seen = new Set()
     for (const q of queries) {
       let nodes
       try { nodes = document.querySelectorAll(q) } catch { continue }
       for (const node of nodes) {
-        const holder = node.closest('label,li,[role="radio"]') ?? node.parentElement ?? node
-        const text = (holder.innerText ?? '').trim()
-        if (!text || text.length > 80) continue
-        const m = text.match(/(\d+)\s*개\s*\n?\s*([\d,]{4,})\s*원/)
-        if (m) return { count: Number(m[1]), price: Number(m[2].replace(/,/g, '')) }
+        /**
+         * 선택 표시 요소는 텍스트 없는 동그라미(input·span)인 경우가 많아
+         * label/li 고정 탐색으로는 옵션 줄을 놓칩니다. 자신부터 조상으로
+         * 올라가며 "N개 … 원" 이 있는 가장 작은 블록을 찾습니다.
+         * 120자 상한이 안전장치 — 옵션 목록 전체를 감싸는 조상은 다른
+         * 옵션 가격까지 섞여 있으므로 길이에서 걸러집니다.
+         */
+        let holder = node
+        for (let up = 0; holder && up < 5; up++) {
+          if (seen.has(holder)) break
+          seen.add(holder)
+          const text = (holder.innerText ?? '').trim()
+          if (text.length > 120) break
+          const m = text.match(/(\d+)\s*개\s*\n?\s*([\d,]{4,})\s*원/)
+          if (m) return { count: Number(m[1]), price: Number(m[2].replace(/,/g, '')) }
+          holder = holder.parentElement
+        }
       }
     }
     return null
