@@ -439,7 +439,7 @@
         ? '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:40px;border:0;border-radius:9px;' +
           'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성 →</button>' +
           '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">' +
-          '쿠팡 결제 없이 원화/동화 입금으로 진행 · 개인 쿠폰 할인은 적용되지 않습니다</div>'
+          '쿠팡 결제 없이 원화/동화 입금 · 쿠폰·가입혜택 등 개인 할인은 사용 불가 (와우회원가는 반영)</div>'
         : onCart
           ? '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
             'font-size:11.5px;font-weight:700">다음: [주문하기]로 이동해 쿠팡 결제를 진행하세요 — ' +
@@ -472,12 +472,13 @@
           : '') +
         detailHead('배송대행 — 결제는 내가, 배송만 맡김') +
         steps(`쿠팡 결제 후 <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ③ 하노이 도착 ${lt.min}~${lt.max}일`) +
+        steps('본인 결제라 <b>쿠폰·회원 할인을 모두 그대로</b> 쓸 수 있습니다.') +
         steps('무게 기준: 1kg까지 기본요금 · 이후 kg 단위(0.5 이하 버림·초과 올림)') +
         bdRows(quotes.fwd) +
         detailHead('구매대행 — 결제까지 맡김') +
         steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 입금 → ③ 저희가 대신 주문 → ' +
           `④ 하노이 도착 ${lt.min}~${lt.max}일`) +
-        steps('와우회원가·즉시할인은 반영되고, <b>계정 전용 쿠폰 할인은 적용되지 않습니다</b>.') +
+        steps('와우회원가는 되도록 반영합니다. <b>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없습니다.</b>') +
         bdRows(quotes.agent)
 
     const cartLine = priceBlock + ctaBlock +

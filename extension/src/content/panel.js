@@ -279,6 +279,9 @@ const KBPanel = (() => {
       <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
       ${state.detailOpen
         ? `<div style="margin-top:8px">${rows}</div>
+           ${state.track === 'agent'
+             ? '<div class="note">와우회원가는 되도록 반영합니다. 쿠폰·신규가입 할인 등 개인 혜택은 구매대행에 사용할 수 없습니다.</div>'
+             : '<div class="note">본인 결제라 쿠폰·회원 할인을 모두 그대로 쓸 수 있습니다.</div>'}
            <div class="note">무게 기준: ${esc(state.ruleText ?? '')} · 입고 후 실측으로 정산합니다.</div>
            ${headroomNote(q)}${warehouseNote()}
            <div class="note">📦 쿠팡→한국창고 ${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}일 +

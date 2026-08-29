@@ -108,7 +108,8 @@ export default function OrderPage() {
       {order.track === 'agent' && !cancelled && (
         <div className="section" style={{ paddingBottom: 0 }}>
           <p className="note" style={{ fontSize: 12.5 }}>
-            🛒 신청서의 상품가 <b>그대로</b> 대리 주문합니다 (와우회원가 기준).
+            🛒 신청서의 상품가 <b>그대로</b> 대리 주문합니다 (와우회원가 기준 ·
+            쿠폰·신규가입 할인 등 <b>개인 혜택은 사용할 수 없습니다</b>).
             발주 시 가격 인상·품절·마감이 확인되면 임의로 구매하지 않고 연락드리며,
             취소 시 전액 환불됩니다.
           </p>
