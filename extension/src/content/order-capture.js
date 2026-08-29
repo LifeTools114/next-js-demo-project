@@ -51,6 +51,7 @@
 
   function toast(text, ok) {
     const el = document.createElement('div')
+    el.dataset.kbUi = '1'
     el.textContent = text
     el.style.cssText =
       'position:fixed;right:16px;bottom:16px;z-index:2147483647;padding:10px 14px;border-radius:10px;' +
@@ -73,6 +74,7 @@
     } catch { /* 안내가 두 번 떠도 해는 없습니다 */ }
 
     const card = document.createElement('div')
+    card.dataset.kbUi = '1'
     card.style.cssText =
       'position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;border:1px solid #dbe4f0;' +
       'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#191f28'
@@ -153,6 +155,22 @@
   const squash = (s) => String(s ?? '').replace(/\s+/g, '')
 
   /**
+   * 페이지 본문 텍스트에서 우리가 띄운 UI(data-kb-ui)를 뺀 값.
+   *
+   * 배송지 검사·상품 추출에 body.innerText 를 그대로 쓰면 안 됩니다 —
+   * 경고 카드의 주소 안내(창고 주소·K-ECOM)가 검사에 잡혀
+   * "주소 있음 ↔ 없음"이 매 갱신마다 뒤집히고 카드가 깜박입니다.
+   */
+  function pageTextSansOurUi() {
+    let out = ''
+    for (const el of document.body?.children ?? []) {
+      if (el.dataset?.kbUi) continue
+      out += (el.innerText ?? '') + '\n'
+    }
+    return out
+  }
+
+  /**
    * 결제창에서 직접 상품 읽기 — 고객이 [견적함에 담기] 없이 바로구매로
    * 와도 배송비 계산·자동 신청이 되도록, 주문 목록("상품명 / 수량 N개")과
    * 총 상품 가격을 본문에서 뽑아 견적함을 자동으로 채웁니다.
@@ -160,7 +178,7 @@
   const NOT_A_NAME = /배송지|요청사항|결제|금액|쿠팡캐시|할인|수량|삭제|선택|쿠폰|무료배송|도착|장바구니|주문/
 
   function extractCheckoutItems() {
-    const text = document.body?.innerText ?? ''
+    const text = pageTextSansOurUi()
     const items = []
 
     // 형식 1 (결제창): "상품명 \n 수량 N개"
@@ -308,12 +326,15 @@
     // 옛 초안·견적함이 금액에 끼어들 수 없습니다. 키는 내용 전체라
     // 수량·옵션(이름)·가격이 바뀌면 즉시 다시 견적합니다.
     const key = cart.map((i) => `${i.productName}|${i.quantity}|${i.productPrice}`).join(',')
-    if (quoteCache.key === key) return quoteCache
+    // 성공한 견적은 내용이 바뀔 때까지 재사용, 실패는 10초 뒤 다시 시도 —
+    // 일시적 서버 오류로 '계산 중…'에 영영 머물지 않게.
+    const bothOk = Boolean(quoteCache.fwd && quoteCache.agent)
+    if (quoteCache.key === key && (bothOk || Date.now() - (quoteCache.at ?? 0) < 10_000)) return quoteCache
     const [fwd, agent] = await Promise.all([
       send('quoteCart', { track: 'forwarding', items: cart }),
       send('quoteCart', { track: 'agent', items: cart }),
     ])
-    quoteCache = { key, fwd: fwd?.ok ? fwd : null, agent: agent?.ok ? agent : null }
+    quoteCache = { key, at: Date.now(), fwd: fwd?.ok ? fwd : null, agent: agent?.ok ? agent : null }
     return quoteCache
   }
 
@@ -353,7 +374,7 @@
     // 배송지 다이얼로그가 열려 있으면 연락처를 채워둡니다.
     autofillPhone(phone)
 
-    const body = squash(document.body?.innerText ?? '')
+    const body = squash(pageTextSansOurUi())
     const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
     const okCode = body.includes(code)
     const onCart = location.host === 'cart.coupang.com'
@@ -380,6 +401,7 @@
     if (!card) {
       card = document.createElement('div')
       card.id = 'kb-checkout-helper'
+      card.dataset.kbUi = '1'
       card.style.cssText =
         'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:280px;background:#fff;' +
         'border:1px solid #dbe4f0;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);' +
