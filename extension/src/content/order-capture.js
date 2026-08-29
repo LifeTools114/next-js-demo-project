@@ -201,6 +201,8 @@
 
   // 카드가 1.5초마다 다시 그려져도 서버 견적은 장바구니가 바뀔 때만 다시 부릅니다.
   let quoteCache = { key: null, fwd: null, agent: null }
+  // 카드의 트랙 토글 상태 — 배송대행/구매대행 금액을 버튼으로 오가며 봅니다.
+  let helperTrack = 'forwarding'
 
   const won = (n) => (Number.isFinite(n) ? `${Math.round(n).toLocaleString('ko-KR')}원` : null)
   const dong = (n) => (Number.isFinite(n) ? `₫${Math.round(n).toLocaleString('ko-KR')}` : null)
@@ -216,6 +218,29 @@
     return quoteCache
   }
 
+  /**
+   * 배송지 입력창의 연락처 자동 입력 — 빈 칸일 때만, 배송지 다이얼로그
+   * 안에서만 채웁니다. 사용자가 적은 값은 절대 덮어쓰지 않습니다.
+   * (쿠팡은 React 라 네이티브 setter 로 넣어야 값이 인식됩니다)
+   */
+  function autofillPhone(phone) {
+    if (!phone) return
+    const inputs = document.querySelectorAll(
+      'input[type="tel"], input[name*="phone" i], input[placeholder*="휴대폰"], input[placeholder*="전화"]',
+    )
+    for (const input of inputs) {
+      if (input.dataset.kbFilled || input.value.trim() !== '' || !input.offsetParent) continue
+      const dialog = input.closest('[role="dialog"], form') ?? input.parentElement?.parentElement
+      if (!dialog || !/배송지/.test((dialog.innerText ?? '').slice(0, 2000))) continue
+      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')?.set
+      if (setter) setter.call(input, phone)
+      else input.value = phone
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      input.dataset.kbFilled = '1'
+    }
+  }
+
   async function renderCheckoutHelper() {
     try { if (sessionStorage.getItem('kb-helper-closed')) return } catch { /* 무시 */ }
 
@@ -224,6 +249,10 @@
     const addr1 = w.address1 || '서울특별시 강서구 개화동로 11길 5'
     const zip = w.zip || '07504'
     const code = w.code || 'K-ECOM'
+    const phone = w.phone || '010-7360-1156'
+
+    // 배송지 다이얼로그가 열려 있으면 연락처를 채워둡니다.
+    autofillPhone(phone)
 
     const body = squash(document.body?.innerText ?? '')
     const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
@@ -259,43 +288,54 @@
     const ok = okAddr && okCode
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
-    // ── 배송대행: 결제할 금액과 결제 후 순서를 한눈에 ──
-    const fwdKrw = won(quotes.fwd?.total)
-    const moneyBlock =
-      cart.length === 0
-        ? '<div style="margin-top:8px;color:#766b80;font-size:11.5px">상품 페이지에서 [견적함에 담기]를 하면 ' +
-          '배송비 계산과 자동 신청이 가능합니다.</div>'
-        : (autoAdded
-            ? `<div style="margin-top:7px;font-size:11px;color:#17916b">🛒 이 결제의 상품 ${cart.length}개 기준으로 계산했습니다.</div>`
-            : '') +
-          `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
-          (fwdKrw
-            ? `<div style="display:flex;justify-content:space-between;align-items:baseline">` +
-              `<span style="font-size:11.5px;color:#766b80">쿠팡 결제 후 내실 배송비</span>` +
-              `<b style="font-size:15px;color:#d92e5c">${fwdKrw}</b></div>` +
-              (dong(quotes.fwd?.totalVnd)
-                ? `<div style="text-align:right;font-size:11px;color:#9a8fa5">≈ ${dong(quotes.fwd.totalVnd)}</div>`
-                : '')
-            : '<div style="font-size:11.5px;color:#766b80">배송비는 신청서에서 계산됩니다.</div>') +
-          `<div style="margin-top:6px;font-size:11px;color:#574d61;line-height:1.7">` +
-          `결제 후 진행 — <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ` +
-          `③ 하노이 도착 ${lt.min}~${lt.max}일</div></div>`
+    // ── 트랙 토글: 이 화면에서 배송대행·구매대행 금액을 버튼으로 오갑니다 ──
+    const trackBtn = (id, label) =>
+      `<button data-kb-track="${id}" style="flex:1;min-height:36px;border-radius:9px;cursor:pointer;` +
+      `font-weight:800;font-size:13px;${helperTrack === id
+        ? 'border:0;background:#ef4a76;color:#fff'
+        : 'border:1px solid #e5dbe6;background:#fff;color:#574d61'}">${label}</button>`
 
-    // ── 한국 결제수단이 없는 고객: 동화 구매대행으로 전환 ──
-    const agentKrw = won(quotes.agent?.total)
-    const agentVnd = dong(quotes.agent?.totalVnd)
-    const agentBlock =
-      cart.length === 0
-        ? ''
-        : '<div style="margin-top:9px;border-top:1px dashed #eee3ee;padding-top:9px">' +
-          '<div style="font-size:11.5px;color:#574d61">💳 한국 카드·계좌가 없어 결제가 어려우신가요?</div>' +
-          '<button id="kb-agent-go" style="margin-top:6px;width:100%;min-height:34px;border:1px solid #ef4a76;' +
-          'border-radius:9px;background:#fff;color:#ef4a76;font-weight:700;cursor:pointer">동화(₫)로 구매대행 요청</button>' +
-          `<div style="margin-top:4px;font-size:10.5px;color:#9a8fa5;line-height:1.6">` +
-          (agentVnd ? `총 ${agentVnd}${agentKrw ? ` (${agentKrw})` : ''} — 상품가·수수료·배송비 포함. ` : '') +
-          '주문서가 저장되고, 입금 확인 후 저희가 대신 주문해 드립니다.</div></div>'
+    const bigMoney = (label, q) =>
+      `<div style="text-align:center;padding:4px 0 2px">` +
+      `<div style="font-size:11.5px;color:#574d61;font-weight:700">${label}</div>` +
+      (q && won(q.total)
+        ? `<div style="font-size:21px;font-weight:800;color:#1b1220">${won(q.total)}</div>` +
+          (dong(q.totalVnd) ? `<div style="font-size:14px;font-weight:800;color:#d92e5c">≈ ${dong(q.totalVnd)}</div>` : '')
+        : '<div style="font-size:12px;color:#766b80;padding:6px 0">금액은 신청서에서 계산됩니다</div>') +
+      '</div>'
 
-    const cartLine = moneyBlock + agentBlock
+    const steps = (text) =>
+      `<div style="margin-top:6px;font-size:11px;color:#574d61;line-height:1.7">${text}</div>`
+
+    let trackBlock
+    if (cart.length === 0) {
+      trackBlock =
+        '<div style="margin-top:8px;color:#5b5164;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
+        '금액 계산과 자동 신청이 가능합니다.</div>'
+    } else if (helperTrack === 'forwarding') {
+      trackBlock =
+        `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
+        bigMoney('쿠팡 결제 후 내실 배송비', quotes.fwd) +
+        steps(`결제 후 — <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ③ 하노이 도착 ${lt.min}~${lt.max}일`) +
+        '</div>'
+    } else {
+      trackBlock =
+        `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
+        bigMoney('구매대행 총액 (상품가·수수료·배송비 포함)', quotes.agent) +
+        steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 입금 → ③ 저희가 대신 주문 → ' +
+          `④ 하노이 도착 ${lt.min}~${lt.max}일`) +
+        '</div>' +
+        '<button id="kb-agent-go" style="margin-top:7px;width:100%;min-height:38px;border:0;border-radius:9px;' +
+        'background:#ef4a76;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성</button>' +
+        '<div style="margin-top:4px;font-size:10.5px;color:#9a8fa5;text-align:center">한국 카드·계좌 없이 동화(₫)로 이용할 수 있습니다</div>'
+    }
+
+    const cartLine =
+      (autoAdded && cart.length > 0
+        ? `<div style="margin-top:7px;font-size:11px;color:#17916b">🛒 이 결제의 상품 ${cart.length}개 기준</div>`
+        : '') +
+      (cart.length > 0 ? `<div style="display:flex;gap:6px;margin-top:8px">${trackBtn('forwarding', '배송대행')}${trackBtn('agent', '구매대행')}</div>` : '') +
+      trackBlock
 
     // 쿠팡 배송지 창과 같은 생김새의 3칸 미니 안내 — 어디에 뭘 넣는지 한눈에.
     const field = (icon, value, hint) =>
@@ -310,6 +350,7 @@
       field('👤', code, '이름 칸') +
       field('📍', addr1, '주소 검색(🔍)에 붙여넣기') +
       field('🏠', `${code} 본인이름`, '상세주소 — 본인 이름을 이어서') +
+      field('📞', phone, '연락처 — 자동으로 입력됩니다') +
       '</div>' +
       `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
       'background:#ef4a76;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
@@ -325,11 +366,16 @@
         : '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#fff3e6;color:#a05a12">' +
           '<b>⚠️ 배송지가 한국 창고가 아닙니다</b></div>' + miniForm
 
-    card.innerHTML =
+    const html =
       '<b>🇻🇳 하노이 배송</b>' + statusBlock +
       cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
       'background:#faf7fb;color:#9a8fa5;cursor:pointer">닫기</button>'
+
+    // 내용이 그대로면 다시 그리지 않습니다 — 주기 갱신 때 깜박이지 않게.
+    if (card.dataset.kbHtml === html) return
+    card.dataset.kbHtml = html
+    card.innerHTML = html
 
     card.querySelectorAll('button[data-copy]').forEach((b) =>
       b.addEventListener('click', async () => {
@@ -347,9 +393,16 @@
     })
     card.querySelector('#kb-agent-go')?.addEventListener('click', async () => {
       const res = await send('openCheckout', { track: 'agent' })
-      if (res?.ok) toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 동화 입금 안내가 나옵니다.', true)
+      if (res?.ok) toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 입금 안내가 나옵니다.', true)
       else toast(res?.error ?? '견적함을 확인해 주세요.', false)
     })
+    card.querySelectorAll('[data-kb-track]').forEach((b) =>
+      b.addEventListener('click', () => {
+        helperTrack = b.dataset.kbTrack
+        card.dataset.kbHtml = ''
+        renderCheckoutHelper()
+      }),
+    )
   }
 
   const MONEY_HOSTS = ['checkout.coupang.com', 'cart.coupang.com']

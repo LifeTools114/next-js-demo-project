@@ -33,12 +33,19 @@ export default function Checkout() {
     if (!router.isReady) return
     const raw = router.query.cart
     if (typeof raw !== 'string') return
-    try {
-      const parsed = JSON.parse(decodeURIComponent(raw))
+    // Next 라우터가 이미 한 번 디코드해 주므로 그대로 파싱을 먼저 시도합니다.
+    // 상품명에 '%' 가 있으면(예: "순도 100%") 이중 디코드가 터지기 때문입니다.
+    const candidates = [raw]
+    try { candidates.push(decodeURIComponent(raw)) } catch { /* 이중 인코딩이 아니면 실패할 수 있음 */ }
+    let parsed = null
+    for (const c of candidates) {
+      try { parsed = JSON.parse(c); break } catch { /* 다음 후보 */ }
+    }
+    if (parsed) {
       if (Array.isArray(parsed.items)) setItems(parsed.items)
       if (parsed.zone) setZone(parsed.zone)
       if (parsed.items?.[0]?.track) setTrack(parsed.items[0].track)
-    } catch {
+    } else {
       setError('견적함 정보를 읽지 못했습니다. 확장프로그램에서 다시 시도해 주세요.')
     }
     if (typeof router.query.coupang === 'string') {

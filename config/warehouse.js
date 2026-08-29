@@ -25,7 +25,8 @@ export const WAREHOUSE = {
   address2: env('KR_WAREHOUSE_ADDR2'),
   /** 세부주소 코드의 접두사 — "K-ECOM(이름)" 의 K-ECOM 부분 */
   code: env('KR_WAREHOUSE_CODE') || 'K-ECOM',
-  phone: env('KR_WAREHOUSE_PHONE'),
+  /** 배송지 연락처 — 확장이 쿠팡 배송지 입력창에 자동으로 채웁니다 */
+  phone: env('KR_WAREHOUSE_PHONE') || '010-7360-1156',
   configured: Boolean(address1),
 }
 
