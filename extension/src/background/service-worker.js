@@ -18,6 +18,12 @@ const storage = {
   set: (obj) => new Promise((r) => chrome.storage.local.set(obj, r)),
 }
 
+// 확장을 새로고침(🔄)·업데이트하면 설정 캐시(6시간)를 비웁니다 —
+// 서버에서 바꾼 정책(요율·최소주문 등)이 기다림 없이 바로 반영되도록.
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({ configAt: 0 })
+})
+
 async function backendUrl() {
   const { backend } = await storage.get('backend')
   return (backend || DEFAULT_BACKEND).replace(/\/$/, '')
