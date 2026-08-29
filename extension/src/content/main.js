@@ -152,7 +152,11 @@
         return u.origin + u.pathname + (keep.toString() ? `?${keep}` : '')
       })(),
     }
-    const q = K.quote([item], { track, zone })
+    // 두 트랙을 모두 계산합니다 — 첫 화면이 "배송대행 얼마 / 구매대행 얼마"
+    // 두 줄을 항상 같이 보여주기 때문입니다. (같은 상품이라 무게는 동일)
+    const qF = K.quote([item], { track: 'forwarding', zone })
+    const qA = K.quote([item], { track: 'agent', zone })
+    const q = track === 'agent' ? qA : qF
     const conf = K.CONFIDENCE_TAG[q.weight.confidence.level] ?? K.CONFIDENCE_TAG.low
     const mstatus = K.maintenanceStatus(new Date(), country)
 
@@ -178,6 +182,7 @@
       productName: extracted.productName,
       track,
       quote: q,
+      quotes: { forwarding: qF, agent: qA },
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
       ruleText: K.roundingRuleText(),

@@ -58,6 +58,18 @@ const KBPanel = (() => {
 .btn.ghost { background: #fff; color: #333d4b; border: 1px solid #e5e8eb; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .disc { font-size: 10.5px; color: #4e5968; line-height: 1.45; text-align: center; margin-top: -2px; }
+/* 첫 화면의 두 줄 가격표 — 결제창 카드와 같은 생김새. 행을 누르면 선택. */
+.pricebox { border: 1px solid #e5e8eb; border-radius: 12px; background: #fff; overflow: hidden; }
+.prow { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 12px; border: 0; background: #fff; cursor: pointer; text-align: left; font: inherit; }
+.prow + .prow { border-top: 1px solid #f2f4f6; }
+.prow[aria-pressed="true"] { background: #f4f8ff; box-shadow: inset 3px 0 0 #3182f6; }
+.prow .pl b { font-size: 13.5px; font-weight: 800; color: #191f28; display: block; }
+.prow .pl small { font-size: 10.5px; color: #8b95a1; }
+.prow .pk { font-size: 18px; font-weight: 800; color: #3182f6; display: block; text-align: right;
+  white-space: nowrap; font-variant-numeric: tabular-nums; }
+.prow .pv { font-size: 11px; font-weight: 700; color: #f04452; white-space: nowrap; display: block; text-align: right; }
+.wline { font-size: 11px; color: #8b95a1; margin-top: 6px; }
 .track { display: flex; gap: 8px; margin-bottom: 4px; }
 .track button { flex: 1; min-height: 52px; border: 2px solid #e5e8eb; background: #fff; border-radius: 11px;
   font-size: 15px; font-weight: 800; color: #333d4b; cursor: pointer; display: flex; flex-direction: column;
@@ -237,27 +249,28 @@ const KBPanel = (() => {
       : ''
 
     /**
-     * 단순·강조 레이아웃: 트랙 버튼 2개 → 총액 하나 크게 → 담기 버튼.
-     * 세부 내역·부가 안내는 [자세한 내역]을 눌러야 펼쳐집니다.
+     * 어느 화면에서든 같은 첫인상: "배송대행 얼마 / 구매대행 얼마" 두 줄.
+     * (결제창 카드와 동일한 레이아웃) 행을 누르면 그 트랙이 선택되고,
+     * 세부 내역·안내는 [자세한 내역]을 눌러야 펼쳐집니다.
      * 단, 돈이 더 나가거나 주문이 막히는 경고는 항상 보입니다.
      */
+    const qs = state.quotes ?? {}
+    const priceRow = (id, label, sub, qq) => qq
+      ? `<button class="prow" data-track="${id}" aria-pressed="${state.track === id}">
+          <span class="pl"><b>${label}</b><small>${sub}</small></span>
+          <span class="pr"><b class="pk">${esc(state.fmt.krw(qq.total))}</b>
+            <small class="pv">≈ ${esc(state.fmt.vnd(qq.totalVnd))}</small></span>
+        </button>`
+      : ''
+
     return `<div class="body">
       ${banner}${opHint}
       <p class="name">${esc(state.productName)}</p>
-      <div class="track">
-        <button data-track="forwarding" aria-pressed="${state.track === 'forwarding'}">배송대행<small>결제는 내가 · 배송만 맡김</small></button>
-        <button data-track="agent" aria-pressed="${state.track === 'agent'}">구매대행<small>결제까지 맡김</small></button>
+      <div class="pricebox">
+        ${priceRow('forwarding', '배송대행', '배송비 · 쿠팡 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
+        ${priceRow('agent', '구매대행', '총액 · 결제까지 맡김', qs.agent ?? (state.track === 'agent' ? q : null))}
       </div>
-      <div class="hero">
-        <div class="cap">하노이 도착 총액</div>
-        <div class="krw">${esc(state.fmt.krw(q.total))}</div>
-        <div class="vnd2">${esc(state.fmt.vnd(q.totalVnd))}</div>
-        ${q.goods > 0
-          ? `<div class="meta">상품가 <b>${esc(state.fmt.krw(q.goods))}</b> ${q.goodsChargedToCustomer ? '포함' : '별도 — 쿠팡에서 직접 결제'}</div>`
-          : ''}
-        <div class="meta">실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)}</div>
-        <div class="meta sub">도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
-      </div>
+      <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
       ${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
       <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
       ${state.detailOpen
