@@ -63,7 +63,13 @@ const KBPanel = (() => {
 .prow { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;
   padding: 10px 12px; border: 0; background: #fff; cursor: pointer; text-align: left; font: inherit; }
 .prow + .prow { border-top: 1px solid #f2f4f6; }
-.prow[aria-pressed="true"] { background: #f4f8ff; box-shadow: inset 3px 0 0 #3182f6; }
+/* 선택된 행 — 파란 배경 + 흰 글씨 + ✓ 로 확실하게 */
+.prow[aria-pressed="true"] { background: #3182f6; }
+.prow[aria-pressed="true"] .pl b { color: #fff; }
+.prow[aria-pressed="true"] .pl b::before { content: '✓ '; }
+.prow[aria-pressed="true"] .pl small { color: #cfe0fc; }
+.prow[aria-pressed="true"] .pk { color: #fff; }
+.prow[aria-pressed="true"] .pv { color: #ffd9d9; }
 .prow .pl b { font-size: 13.5px; font-weight: 800; color: #191f28; display: block; }
 .prow .pl small { font-size: 10.5px; color: #8b95a1; }
 .prow .pk { font-size: 18px; font-weight: 800; color: #3182f6; display: block; text-align: right;

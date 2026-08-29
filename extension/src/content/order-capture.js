@@ -395,21 +395,27 @@
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
     // ── 가격 두 줄이 카드의 전부 — 행을 눌러 진행 방식을 고릅니다 ──
-    const priceRow = (id, label, sub, q) =>
-      `<button data-kb-sel="${id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;` +
-      'width:100%;padding:9px 11px;border:0;cursor:pointer;text-align:left;font:inherit;' +
-      `${helperTrack === id ? 'background:#f4f8ff;box-shadow:inset 3px 0 0 #3182f6;' : 'background:#fff;'}">` +
-      `<span><span style="display:block;font-weight:800;font-size:13px;color:#191f28">${label}</span>` +
-      `<span style="font-size:10.5px;color:#8b95a1">${sub}</span></span>` +
-      (q && won(q.total)
-        ? '<span style="text-align:right">' +
-          `<span style="display:block;font-weight:800;font-size:17px;color:#3182f6;white-space:nowrap">${won(q.total)}</span>` +
-          (dong(q.totalVnd)
-            ? `<span style="display:block;font-size:11px;font-weight:700;color:#f04452;white-space:nowrap">≈ ${dong(q.totalVnd)}</span>`
-            : '') +
-          '</span>'
-        : '<span style="font-size:11px;color:#8b95a1">계산 중…</span>') +
-      '</button>'
+    // 선택된 행은 파란 배경 + 흰 글씨 + ✓ 로 누가 봐도 "선택됨"이게.
+    const priceRow = (id, label, sub, q) => {
+      const sel = helperTrack === id
+      return (
+        `<button data-kb-sel="${id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;` +
+        'width:100%;padding:9px 11px;border:0;cursor:pointer;text-align:left;font:inherit;' +
+        `background:${sel ? '#3182f6' : '#fff'}">` +
+        `<span><span style="display:block;font-weight:800;font-size:13px;color:${sel ? '#fff' : '#191f28'}">` +
+        `${sel ? '✓ ' : ''}${label}</span>` +
+        `<span style="font-size:10.5px;color:${sel ? '#cfe0fc' : '#8b95a1'}">${sub}</span></span>` +
+        (q && won(q.total)
+          ? '<span style="text-align:right">' +
+            `<span style="display:block;font-weight:800;font-size:17px;color:${sel ? '#fff' : '#3182f6'};white-space:nowrap">${won(q.total)}</span>` +
+            (dong(q.totalVnd)
+              ? `<span style="display:block;font-size:11px;font-weight:700;color:${sel ? '#ffd9d9' : '#f04452'};white-space:nowrap">≈ ${dong(q.totalVnd)}</span>`
+              : '') +
+            '</span>'
+          : `<span style="font-size:11px;color:${sel ? '#cfe0fc' : '#8b95a1'}">계산 중…</span>`) +
+        '</button>'
+      )
+    }
 
     // 금액의 근거 — 두 트랙이 같은 무게를 쓰므로 무게 줄은 하나만 보여줍니다.
     const wq = quotes.fwd ?? quotes.agent
