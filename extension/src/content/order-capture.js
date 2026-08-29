@@ -152,6 +152,28 @@
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
   const squash = (s) => String(s ?? '').replace(/\s+/g, '')
 
+  /**
+   * 결제창에서 직접 상품 읽기 — 고객이 [견적함에 담기] 없이 바로구매로
+   * 와도 배송비 계산·자동 신청이 되도록, 주문 목록("상품명 / 수량 N개")과
+   * 총 상품 가격을 본문에서 뽑아 견적함을 자동으로 채웁니다.
+   */
+  function extractCheckoutItems() {
+    const text = document.body?.innerText ?? ''
+    const items = []
+    const re = /([^\n]{6,120})\n\s*수량\s*(\d+)\s*개/g
+    let m
+    while ((m = re.exec(text)) && items.length < 20) {
+      const name = m[1].trim()
+      if (/배송지|요청사항|결제|금액|쿠팡캐시|할인/.test(name)) continue
+      items.push({ productName: name.slice(0, 120), quantity: Number(m[2]) || 1, productPrice: 0 })
+    }
+    const totalKrw = Number((text.match(/총\s*상품\s*가격\s*([\d,]+)\s*원/)?.[1] ?? '').replace(/,/g, ''))
+    if (items.length === 0 || !Number.isFinite(totalKrw) || totalKrw <= 0) return []
+    // 개별 단가는 화면에 없을 수 있어 합계를 첫 항목에 둡니다 (세금은 합계 기준이라 견적에 충분).
+    items[0].productPrice = totalKrw
+    return items
+  }
+
   // 카드가 1.5초마다 다시 그려져도 서버 견적은 장바구니가 바뀔 때만 다시 부릅니다.
   let quoteCache = { key: null, fwd: null, agent: null }
 
@@ -182,7 +204,28 @@
     const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
     const okCode = body.includes(code)
     const cartRes = await send('getCart')
-    const cart = cartRes?.cart ?? []
+    let cart = cartRes?.cart ?? []
+    let autoAdded = false
+
+    // 견적함이 비어 있으면 결제창의 상품을 자동으로 담습니다.
+    // (운영자 브라우저는 발주 결제 중일 수 있어 자동 담기를 하지 않습니다)
+    if (cart.length === 0) {
+      const st = await send('getAdminState')
+      if (!st?.hasToken) {
+        const pageItems = extractCheckoutItems()
+        if (pageItems.length > 0) {
+          cart = pageItems.map((it, i) => ({
+            ...it,
+            productId: `chk-${Date.now()}-${i}`,
+            track: 'forwarding',
+            addedAt: Date.now(),
+          }))
+          await send('setCart', cart)
+          autoAdded = true
+        }
+      }
+    }
+
     const fwdCount = cart.filter((i) => i.track !== 'agent').length
     const quotes = cart.length > 0 ? await cartQuotes(cart) : { fwd: null, agent: null }
 
@@ -206,7 +249,10 @@
       cart.length === 0
         ? '<div style="margin-top:8px;color:#766b80;font-size:11.5px">상품 페이지에서 [견적함에 담기]를 하면 ' +
           '배송비 계산과 자동 신청이 가능합니다.</div>'
-        : `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
+        : (autoAdded
+            ? `<div style="margin-top:7px;font-size:11px;color:#17916b">🛒 결제 중인 상품 ${cart.length}개를 자동으로 담았습니다.</div>`
+            : '') +
+          `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
           (fwdKrw
             ? `<div style="display:flex;justify-content:space-between;align-items:baseline">` +
               `<span style="font-size:11.5px;color:#766b80">쿠팡 결제 후 내실 배송비</span>` +
