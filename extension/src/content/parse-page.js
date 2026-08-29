@@ -74,7 +74,21 @@
     const asNum = (regex) => Number((text.match(regex)?.[1] ?? '').replace(/,/g, ''))
     const goodsKrw = asNum(/(?:총\s*상품\s*(?:가격|금액)|상품\s*금액)\s*:?\s*([\d,]+)\s*원/)
     const paidKrw = asNum(/(?:최종|총)\s*결제\s*금액\s*:?\s*([\d,]+)\s*원/)
-    const totalKrw = paidKrw > 0 && (!(goodsKrw > 0) || paidKrw < goodsKrw) ? paidKrw : goodsKrw
+
+    /**
+     * 계정 전용 쿠폰(와우 가입 쿠폰 등)은 이 고객 계정에서만 깎입니다 —
+     * 대리 구매자는 쓸 수 없으므로 구매대행 기준가에 반영하면 그 가격으로
+     * 살 수 없는 견적이 나갑니다. 쿠폰 할인 줄(-30,000원 등)을 합산해
+     * 결제 금액에 되돌립니다. (즉시할인·와우회원가는 누구에게나 같으므로 유지)
+     */
+    let couponKrw = 0
+    for (const line of text.split('\n')) {
+      if (!/쿠폰/.test(line) || /쿠팡캐시/.test(line)) continue
+      const cm = line.match(/-\s*([\d,]{3,})\s*원/)
+      if (cm) couponKrw += Number(cm[1].replace(/,/g, ''))
+    }
+    const basisKrw = paidKrw > 0 ? paidKrw + couponKrw : 0
+    const totalKrw = basisKrw > 0 && (!(goodsKrw > 0) || basisKrw < goodsKrw) ? basisKrw : goodsKrw
 
     if (items.length === 0 || !Number.isFinite(totalKrw) || totalKrw <= 0) return []
     // 개별 단가는 화면에 없을 수 있어 합계를 첫 항목에 둡니다.

@@ -162,6 +162,17 @@ export default function Checkout() {
         </p>
       </div>
 
+      {track === 'agent' && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <p className="note" style={{ fontSize: 12.5 }}>
+            🛒 <b>화면에 표시된 가격 그대로</b> 대리 주문합니다 (와우회원가 기준 ·
+            일부 상품은 와우가가 적용되지 않을 수 있습니다).
+            발주 시점에 <b>가격이 오르거나 품절·마감</b>이면 임의로 구매하지 않고
+            연락드리며, 취소 시 입금액은 전액 환불됩니다.
+          </p>
+        </div>
+      )}
+
       {blocked && (
         <div className="section" style={{ paddingTop: 0 }}>
           <p className="note note--danger">

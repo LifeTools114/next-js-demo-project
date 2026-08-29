@@ -104,6 +104,17 @@ export default function OrderPage() {
         </p>
       </div>
 
+      {/* 구매대행 — 표시가 그대로 주문한다는 약속과 예외(품절·마감·가격 변동) 안내 */}
+      {order.track === 'agent' && !cancelled && (
+        <div className="section" style={{ paddingBottom: 0 }}>
+          <p className="note" style={{ fontSize: 12.5 }}>
+            🛒 신청서의 상품가 <b>그대로</b> 대리 주문합니다 (와우회원가 기준).
+            발주 시 가격 인상·품절·마감이 확인되면 임의로 구매하지 않고 연락드리며,
+            취소 시 전액 환불됩니다.
+          </p>
+        </div>
+      )}
+
       {/* 결제가 필요한 상태면 가장 위에 청구 안내 */}
       {order.payable && balance > 0 && (
         <section className="panel">

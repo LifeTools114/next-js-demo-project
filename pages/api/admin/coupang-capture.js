@@ -49,8 +49,33 @@ export default function handler(req, res) {
     })
   }
 
+  /**
+   * 표시가 초과 검사 — 구매대행은 고객이 화면에서 본 가격 그대로가 약속.
+   * 결제액이 주문서 상품가 합을 국내배송비 여유(3,500원) 이상 넘으면
+   * 자동 기록하지 않고 검토로 남깁니다. (와우가 미적용·가격 인상·마감임박
+   * 대체 구매 등 — 사람이 확인 후 팝업에서 직접 기록하거나 취소·환불)
+   * 더 싸게 산 경우(쿠폰 자동 적용 등)는 그대로 기록되고 차액이 마진으로 남습니다.
+   */
+  const target = purchasing[0]
+  const quotedGoodsKrw = target.items.reduce(
+    (s, i) => s + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1), 0,
+  )
+  const OVERPAY_TOLERANCE_KRW = 3500
+  if (quotedGoodsKrw > 0 && amountKrw > quotedGoodsKrw + OVERPAY_TOLERANCE_KRW) {
+    appendLog('coupang-capture-review.jsonl', {
+      event: 'over-price', coupangOrderNo, amountKrw, quotedGoodsKrw,
+      diffKrw: amountKrw - quotedGoodsKrw, orderNo: target.orderNo, by: operator,
+    })
+    return res.status(200).json({
+      matched: false,
+      reason: 'over-price',
+      quotedGoodsKrw,
+      hint: `결제액이 고객 표시가(${quotedGoodsKrw.toLocaleString('ko-KR')}원)를 초과합니다 — 검토 후 직접 기록하세요.`,
+    })
+  }
+
   try {
-    const order = recordPurchase(purchasing[0].id, { coupangOrderNo, amountKrw, by: operator })
+    const order = recordPurchase(target.id, { coupangOrderNo, amountKrw, by: operator })
     return res.status(200).json({ matched: true, order: orderView(order) })
   } catch (error) {
     return res.status(400).json({ error: error.message })

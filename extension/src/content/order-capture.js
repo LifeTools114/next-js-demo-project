@@ -259,6 +259,8 @@
   let quoteCache = { key: null, fwd: null, agent: null }
   // [이용 방법 보기] 펼침 상태 — 카드는 가격만 먼저, 설명은 클릭해야 보입니다.
   let helperDetailOpen = false
+  // 카드에서 고객이 고른 진행 방식 — 행을 눌러 선택하고, 그에 맞는 다음 행동을 안내합니다.
+  let helperTrack = 'forwarding'
 
   const won = (n) => (Number.isFinite(n) ? `${Math.round(n).toLocaleString('ko-KR')}원` : null)
   const dong = (n) => (Number.isFinite(n) ? `₫${Math.round(n).toLocaleString('ko-KR')}` : null)
@@ -345,7 +347,16 @@
     // 배송지 다이얼로그가 열려 있으면 연락처를 채워둡니다.
     autofillPhone(phone)
 
-    const body = squash(pageTextSansOurUi())
+    /**
+     * 배송지 검사는 "배송지 섹션"만 봅니다 — 페이지 전체를 보면 주소록
+     * (배송지 변경 목록)에 저장된 창고 주소가 잡혀서, 고객이 개인 주소로
+     * 바꿔도 ✓ 확인됨으로 오판합니다. 섹션 경계를 못 찾으면 전체로 폴백.
+     */
+    const allText = pageTextSansOurUi()
+    const addrSection = allText.match(
+      /배송지[\s\S]{0,500}?(?=배송\s*요청사항|결제\s*수단|결제수단|주문\s*상품|배송\s*1건|최종\s*결제)/,
+    )?.[0] ?? allText
+    const body = squash(addrSection)
     const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
     const okCode = body.includes(code)
     const onCart = location.host === 'cart.coupang.com'
@@ -383,20 +394,22 @@
     const ok = okAddr && okCode
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
-    // ── 가격 두 줄이 카드의 전부 — 설명은 [이용 방법]을 눌러야 보입니다 ──
-    const priceRow = (label, sub, q) =>
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 2px">' +
-      `<div><div style="font-weight:800;font-size:13px;color:#191f28">${label}</div>` +
-      `<div style="font-size:10.5px;color:#8b95a1">${sub}</div></div>` +
+    // ── 가격 두 줄이 카드의 전부 — 행을 눌러 진행 방식을 고릅니다 ──
+    const priceRow = (id, label, sub, q) =>
+      `<button data-kb-sel="${id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;` +
+      'width:100%;padding:9px 11px;border:0;cursor:pointer;text-align:left;font:inherit;' +
+      `${helperTrack === id ? 'background:#f4f8ff;box-shadow:inset 3px 0 0 #3182f6;' : 'background:#fff;'}">` +
+      `<span><span style="display:block;font-weight:800;font-size:13px;color:#191f28">${label}</span>` +
+      `<span style="font-size:10.5px;color:#8b95a1">${sub}</span></span>` +
       (q && won(q.total)
-        ? '<div style="text-align:right">' +
-          `<div style="font-weight:800;font-size:17px;color:#3182f6;white-space:nowrap">${won(q.total)}</div>` +
+        ? '<span style="text-align:right">' +
+          `<span style="display:block;font-weight:800;font-size:17px;color:#3182f6;white-space:nowrap">${won(q.total)}</span>` +
           (dong(q.totalVnd)
-            ? `<div style="font-size:11px;font-weight:700;color:#f04452;white-space:nowrap">≈ ${dong(q.totalVnd)}</div>`
+            ? `<span style="display:block;font-size:11px;font-weight:700;color:#f04452;white-space:nowrap">≈ ${dong(q.totalVnd)}</span>`
             : '') +
-          '</div>'
-        : '<div style="font-size:11px;color:#8b95a1">계산 중…</div>') +
-      '</div>'
+          '</span>'
+        : '<span style="font-size:11px;color:#8b95a1">계산 중…</span>') +
+      '</button>'
 
     // 금액의 근거 — 두 트랙이 같은 무게를 쓰므로 무게 줄은 하나만 보여줍니다.
     const wq = quotes.fwd ?? quotes.agent
@@ -409,15 +422,31 @@
     const priceBlock = cart.length === 0
       ? '<div style="margin-top:8px;color:#4e5968;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
         '금액 계산과 자동 신청이 가능합니다.</div>'
-      : '<div style="margin-top:7px;border:1px solid #e5e8eb;border-radius:10px;padding:2px 10px;background:#fff">' +
-        priceRow('배송대행', '배송비 · 쿠팡 결제는 내가', quotes.fwd) +
+      : '<div style="margin-top:7px;border:1px solid #e5e8eb;border-radius:10px;overflow:hidden;background:#fff">' +
+        priceRow('forwarding', '배송대행', '배송비 · 쿠팡 결제는 내가', quotes.fwd) +
         '<div style="border-top:1px solid #f2f4f6"></div>' +
-        priceRow('구매대행', '총액 · 결제까지 맡김', quotes.agent) +
+        priceRow('agent', '구매대행', '총액 · 결제까지 맡김', quotes.agent) +
         '</div>' +
         (autoAdded
           ? `<div style="margin-top:5px;font-size:10.5px;color:#17916b">🛒 이 화면의 상품 ${cart.length}개 기준</div>`
           : '') +
         weightLine
+
+    // ── 선택한 방식의 다음 행동 — 카드가 결제/신청으로 유도합니다 ──
+    const ctaBlock = cart.length === 0
+      ? ''
+      : helperTrack === 'agent'
+        ? '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:40px;border:0;border-radius:9px;' +
+          'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성 →</button>' +
+          '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">' +
+          '쿠팡 결제 없이 원화/동화 입금으로 진행 · 개인 쿠폰 할인은 적용되지 않습니다</div>'
+        : onCart
+          ? '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
+            'font-size:11.5px;font-weight:700">다음: [주문하기]로 이동해 쿠팡 결제를 진행하세요 — ' +
+            '결제가 끝나면 배송 신청서가 자동으로 열립니다.</div>'
+          : '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
+            'font-size:11.5px;font-weight:700">다음: 아래 쿠팡 [결제하기]를 누르세요 — ' +
+            '결제가 끝나면 배송 신청서가 자동으로 열립니다.</div>'
 
     // ── 접힌 설명 영역 — 단계 안내와 구매대행 신청 버튼 ──
     const steps = (text) =>
@@ -448,16 +477,14 @@
         detailHead('구매대행 — 결제까지 맡김') +
         steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 입금 → ③ 저희가 대신 주문 → ' +
           `④ 하노이 도착 ${lt.min}~${lt.max}일`) +
-        bdRows(quotes.agent) +
-        '<button id="kb-agent-go" style="margin-top:7px;width:100%;min-height:38px;border:0;border-radius:9px;' +
-        'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성</button>' +
-        '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">한국 카드·계좌 없이 동화(₫)로 이용할 수 있습니다</div>'
+        steps('와우회원가·즉시할인은 반영되고, <b>계정 전용 쿠폰 할인은 적용되지 않습니다</b>.') +
+        bdRows(quotes.agent)
 
-    const cartLine = priceBlock +
+    const cartLine = priceBlock + ctaBlock +
       (cart.length > 0
         ? '<button id="kb-detail" style="margin-top:7px;width:100%;min-height:30px;border:1px solid #e5e8eb;' +
           'border-radius:8px;background:#fff;color:#4e5968;font-weight:700;font-size:11.5px;cursor:pointer">' +
-          (helperDetailOpen ? '접기 ▴' : '이용 방법 · 신청 ▾') + '</button>'
+          (helperDetailOpen ? '접기 ▴' : '이용 방법 자세히 ▾') + '</button>'
         : '') +
       detailBlock
 
@@ -520,6 +547,13 @@
       if (res?.ok) toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 입금 안내가 나옵니다.', true)
       else toast(res?.error ?? '견적함을 확인해 주세요.', false)
     })
+    card.querySelectorAll('[data-kb-sel]').forEach((b) =>
+      b.addEventListener('click', () => {
+        helperTrack = b.dataset.kbSel === 'agent' ? 'agent' : 'forwarding'
+        card.dataset.kbHtml = ''
+        renderCheckoutHelper()
+      }),
+    )
     card.querySelector('#kb-detail')?.addEventListener('click', () => {
       helperDetailOpen = !helperDetailOpen
       card.dataset.kbHtml = ''

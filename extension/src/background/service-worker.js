@@ -175,7 +175,13 @@ async function operatorHints() {
     if (o.track !== 'agent' || !['PAID', 'PURCHASING'].includes(o.state)) continue
     for (const item of o.items ?? []) {
       if (!item.productId) continue
-      hints[item.productId] = { orderNo: o.orderNo, quantity: item.quantity, state: o.state }
+      // unitPriceKrw = 고객이 화면에서 본 가격 — 발주 시 이 가격(이하)인지 대조합니다.
+      hints[item.productId] = {
+        orderNo: o.orderNo,
+        quantity: item.quantity,
+        state: o.state,
+        unitPriceKrw: Number(item.productPrice) || 0,
+      }
     }
   }
   hintsCache = { at: Date.now(), hints }

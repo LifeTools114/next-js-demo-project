@@ -38,3 +38,15 @@ test('상품을 못 읽거나 합계가 없으면 빈 배열 — 옛 값으로 �
   assert.deepEqual(P.extractItemsFromText('배송지 확인\n결제하기'), [])
   assert.deepEqual(P.extractItemsFromText('어떤 상품 이름\n수량 1개'), [])
 })
+
+test('계정 전용 쿠폰은 구매대행 기준가에서 제외된다 — 대리구매 불가 가격 방지', () => {
+  // 와우 가입 쿠폰 -30,000원이 적용된 결제액(13,400)이 아니라,
+  // 대리 구매자도 낼 수 있는 가격(결제액+쿠폰 = 43,400)이 기준이어야 합니다.
+  const text = ['앰플엔 펩타이드샷 앰플 100ml', '수량 1개',
+    '총 상품 가격 44,800원', '즉시할인 -1,400원',
+    'WOW 와우 전용 쿠폰할인 변경 -30,000원',
+    '쿠팡캐시 전액사용 - 0 원',
+    '총 결제 금액 13,400원'].join('\n')
+  const items = P.extractItemsFromText(text)
+  assert.equal(items[0].productPrice, 43400)
+})

@@ -244,8 +244,12 @@ const KBPanel = (() => {
 
     // 운영자 발주 힌트 — 일반 고객에게는 절대 뜨지 않습니다 (토큰 필요)
     const opHint = state.operatorHint
-      ? `<div class="note tip">📋 발주 작업 <b>${esc(state.operatorHint.orderNo)}</b> —
-          이 상품 <b>${esc(String(state.operatorHint.quantity))}개</b>를 담으세요.</div>`
+      ? `<div class="note tip">📋 발주 <b>${esc(state.operatorHint.orderNo)}</b> —
+          이 상품 <b>${esc(String(state.operatorHint.quantity))}개</b>
+          ${state.operatorHint.unitPriceKrw > 0
+            ? `· 고객 표시가 <b>${esc(state.fmt.krw(state.operatorHint.unitPriceKrw))}</b><br>
+               <small>이 가격(이하)인지 확인 후 담으세요. 초과 시 결제 중단 → 검토.</small>`
+            : ''}</div>`
       : ''
 
     /**
