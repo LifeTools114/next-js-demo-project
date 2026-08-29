@@ -167,9 +167,17 @@
     const re = /([^\n]{6,120})\n\s*수량\s*(\d+)\s*개/g
     let m
     while ((m = re.exec(text)) && items.length < 20) {
-      const name = m[1].trim()
+      let name = m[1].trim()
+      // "옵션: 100ml, 3개" 줄이 수량 바로 앞이면 진짜 상품명은 그 앞 줄 —
+      // 옵션의 용량·개수는 무게 추정에 필요하므로 이름 뒤에 붙입니다.
+      if (/^옵션\s*[:：]/.test(name)) {
+        const prev = text.slice(0, m.index).split('\n').map((l) => l.trim()).filter(Boolean).pop()
+        if (prev && prev.length >= 6 && !NOT_A_NAME.test(prev) && !/^[\d,]+원?$/.test(prev)) {
+          name = `${prev} (${name.replace(/^옵션\s*[:：]\s*/, '')})`
+        }
+      }
       if (NOT_A_NAME.test(name)) continue
-      items.push({ productName: name.slice(0, 120), quantity: Number(m[2]) || 1, productPrice: 0 })
+      items.push({ productName: name.slice(0, 160), quantity: Number(m[2]) || 1, productPrice: 0 })
     }
 
     // 형식 2 (장바구니): "수량" 라벨과 숫자가 줄로 분리 — 가장 가까운 앞줄을 상품명으로
@@ -181,10 +189,27 @@
         const qty = Number(qm[1] || lines[i + 1]?.match(/^(\d{1,3})$/)?.[1] || 1)
         for (let back = i - 1; back >= Math.max(0, i - 5); back--) {
           const cand = lines[back]
-          if (cand.length >= 6 && cand.length <= 120 && !NOT_A_NAME.test(cand) && !/^[\d,]+원?$/.test(cand)) {
-            items.push({ productName: cand.slice(0, 120), quantity: qty || 1, productPrice: 0 })
+          if (cand.length >= 6 && cand.length <= 120 && !NOT_A_NAME.test(cand) &&
+              !/^[\d,]+원?$/.test(cand) && !/^옵션/.test(cand)) {
+            items.push({ productName: cand.slice(0, 160), quantity: qty || 1, productPrice: 0 })
             break
           }
+        }
+      }
+    }
+
+    // 두 형식 공통: 상품명 다음 몇 줄 안의 "옵션:" 줄을 이름에 붙입니다.
+    // 용량·개수(예: 100ml, 3개)가 옵션 줄에만 있으면 무게 추정이 빗나갑니다.
+    if (items.length > 0) {
+      const all = text.split('\n').map((l) => l.trim())
+      for (const it of items) {
+        const at = all.findIndex((l) => l.startsWith(it.productName.slice(0, 40)))
+        if (at < 0) continue
+        const opt = all.slice(at + 1, at + 4).find((l) => /^옵션\s*[:：]/.test(l))
+        if (!opt) continue
+        const optText = opt.replace(/^옵션\s*[:：]\s*/, '')
+        if (!it.productName.includes(optText)) {
+          it.productName = `${it.productName} (${optText})`.slice(0, 160)
         }
       }
     }
@@ -194,9 +219,80 @@
       (text.match(/(?:총\s*상품\s*(?:가격|금액)|상품\s*금액)\s*:?\s*([\d,]+)\s*원/)?.[1] ?? '').replace(/,/g, ''),
     )
     if (items.length === 0 || !Number.isFinite(totalKrw) || totalKrw <= 0) return []
-    // 개별 단가는 화면에 없을 수 있어 합계를 첫 항목에 둡니다 (세금은 합계 기준이라 견적에 충분).
-    items[0].productPrice = totalKrw
+    // 개별 단가는 화면에 없을 수 있어 합계를 첫 항목에 둡니다.
+    // 견적 엔진은 단가×수량으로 합산하므로 첫 항목 수량으로 나눠 단가로 만듭니다.
+    items[0].productPrice = Math.round(totalKrw / (items[0].quantity || 1))
     return items
+  }
+
+  /**
+   * 장바구니 DOM 추출 — 체크된 상품만.
+   *
+   * 장바구니 본문에는 "수량 N개" 라벨이 없고(스테퍼 UI) 옵션("옵션: 100ml, 3개")도
+   * 별도 줄이라 텍스트 파싱이 자주 빗나갑니다. 예전엔 그 실패가 옛 결제 초안
+   * 폴백으로 이어져 전혀 다른 금액이 떴습니다. 여기서는 체크박스가 선택된
+   * 상품 블록에서 직접 읽습니다:
+   *   이름 = 첫 유효 줄 (+ 옵션 줄 — 용량·개수가 무게 추정에 필요)
+   *   수량 = 스테퍼 입력값 · 가격 = 블록 안 "N,NNN원" 최솟값(취소선 정가 배제)
+   * 장바구니 가격 표시는 수량이 곱해진 줄 합계라 수량으로 나눠 단가로 만듭니다.
+   */
+  function extractCartItemsDom() {
+    const entries = []
+    const seen = new Set()
+    for (const box of document.querySelectorAll('input[type="checkbox"]:checked')) {
+      let root = box.closest('li, tr')
+      for (let up = 0; !(root?.innerText ?? '').includes('원') && up < 6; up++) {
+        root = (root ?? box).parentElement
+      }
+      const textAll = root?.innerText ?? ''
+      // 전체선택 체크박스는 목록 전체를 감싸는 조상까지 올라가므로 길이로 거릅니다.
+      if (!root || !textAll.includes('원') || textAll.length > 1200 || seen.has(root)) continue
+      seen.add(root)
+
+      const lines = textAll.split('\n').map((l) => l.trim()).filter(Boolean)
+      let name = ''
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i]
+        if (l.length < 6 || l.length > 160 || NOT_A_NAME.test(l) ||
+            /^[\d,.]+원?$/.test(l) || /^옵션/.test(l)) continue
+        name = l
+        const opt = lines.slice(i + 1, i + 4).find((x) => /^옵션\s*[:：]/.test(x))
+        if (opt) name += ` (${opt.replace(/^옵션\s*[:：]\s*/, '')})`
+        break
+      }
+      if (!name) continue
+
+      const stepper = Number(root.querySelector(
+        'input[type="number"], input[type="tel"], input[name*="quantity" i], input[class*="quantity" i]',
+      )?.value)
+      const qty = stepper >= 1 && stepper <= 99
+        ? stepper
+        : Number(lines.find((l) => /^\d{1,2}$/.test(l))) || 1
+
+      // "(100ml당 N원)" 단가 줄은 '('로 시작해 자연 제외 — 남는 금액 중 최솟값이 판매가.
+      const prices = lines
+        .filter((l) => /^[\d,]{3,}원$/.test(l))
+        .map((l) => Number(l.replace(/[^\d]/g, '')))
+        .filter((n) => n > 0)
+      const lineTotal = prices.length > 0 ? Math.min(...prices) : 0
+
+      entries.push({
+        root,
+        item: {
+          productName: name.slice(0, 160),
+          quantity: qty,
+          productPrice: Math.round(lineTotal / qty),
+        },
+      })
+      if (entries.length >= 20) break
+    }
+
+    // 전체선택이 만든 "목록 전체" 블록은 개별 상품 블록을 포함합니다 — 조상 블록 제거.
+    const items = entries
+      .filter((e) => !entries.some((o) => o !== e && e.root.contains(o.root)))
+      .map((e) => e.item)
+    // 가격을 하나도 못 읽었으면 실패로 보고 텍스트 방식에 넘깁니다.
+    return items.some((i) => i.productPrice > 0) ? items : []
   }
 
   // 카드가 1.5초마다 다시 그려져도 서버 견적은 장바구니가 바뀔 때만 다시 부릅니다.
@@ -208,11 +304,14 @@
   const dong = (n) => (Number.isFinite(n) ? `₫${Math.round(n).toLocaleString('ko-KR')}` : null)
 
   async function cartQuotes(cart) {
-    const key = cart.map((i) => `${i.productId}x${i.quantity}`).join(',')
+    // 항상 지금 화면에서 읽은 items 를 그대로 보냅니다 — 백그라운드에 남은
+    // 옛 초안·견적함이 금액에 끼어들 수 없습니다. 키는 내용 전체라
+    // 수량·옵션(이름)·가격이 바뀌면 즉시 다시 견적합니다.
+    const key = cart.map((i) => `${i.productName}|${i.quantity}|${i.productPrice}`).join(',')
     if (quoteCache.key === key) return quoteCache
     const [fwd, agent] = await Promise.all([
-      send('quoteCart', { track: 'forwarding' }),
-      send('quoteCart', { track: 'agent' }),
+      send('quoteCart', { track: 'forwarding', items: cart }),
+      send('quoteCart', { track: 'agent', items: cart }),
     ])
     quoteCache = { key, fwd: fwd?.ok ? fwd : null, agent: agent?.ok ? agent : null }
     return quoteCache
@@ -257,20 +356,23 @@
     const body = squash(document.body?.innerText ?? '')
     const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
     const okCode = body.includes(code)
+    const onCart = location.host === 'cart.coupang.com'
     /**
-     * 이 결제창의 상품을 항상 새로 읽습니다 — 견적함에 뭐가 남아 있든
-     * 카드의 금액은 "지금 결제하는 상품" 기준이어야 합니다.
-     * (수량을 바꾸면 다음 갱신 때 금액도 따라갑니다)
+     * 이 화면의 상품을 항상 새로 읽습니다 — 견적함·옛 초안에 뭐가 남아 있든
+     * 카드의 금액은 "지금 화면의 상품" 기준이어야 합니다.
+     * 장바구니는 체크된 상품만 DOM 에서 직접 읽고, 실패하면 텍스트 방식.
      */
-    const pageItems = extractCheckoutItems().map((it, i) => ({
-      ...it, productId: `chk-${i}`, track: 'forwarding',
-    }))
-    if (pageItems.length > 0) await send('setCheckoutDraft', { items: pageItems })
+    let raw = onCart ? extractCartItemsDom() : []
+    if (raw.length === 0) raw = extractCheckoutItems()
+    const pageItems = raw.map((it, i) => ({ ...it, productId: `chk-${i}`, track: 'forwarding' }))
+    // 초안은 결제창에서만 남깁니다 — 주문완료 후 자동 신청이 이 초안을 씁니다.
+    // (장바구니에서도 남기면 옛 초안이 다른 결제의 금액에 끼어들 수 있습니다)
+    if (pageItems.length > 0 && !onCart) await send('setCheckoutDraft', { items: pageItems })
 
+    // 화면에서 못 읽었을 때만 고객이 직접 담은 견적함으로 계산합니다.
     const cartRes = await send('getCart')
     const fallbackCart = cartRes?.cart ?? []
     const cart = pageItems.length > 0 ? pageItems : fallbackCart
-    const fwdCount = cart.filter((i) => i.track !== 'agent').length
     const quotes = cart.length > 0 ? await cartQuotes(cart) : { fwd: null, agent: null }
     const autoAdded = pageItems.length > 0
 
@@ -357,7 +459,6 @@
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
 
     // 장바구니 화면에는 배송지가 아직 없으므로 검사 대신 예고만 합니다.
-    const onCart = location.host === 'cart.coupang.com'
     const statusBlock = onCart
       ? '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#eef4fb;color:#2b5e9e">' +
         '주문 단계에서 배송지(한국 창고) 입력을 도와드립니다.</div>'
@@ -393,7 +494,8 @@
       try { sessionStorage.setItem('kb-helper-closed', '1') } catch { /* 무시 */ }
     })
     card.querySelector('#kb-agent-go')?.addEventListener('click', async () => {
-      const res = await send('openCheckout', { track: 'agent' })
+      // 카드에 보인 금액 그대로 신청서로 — 지금 화면의 상품을 들려 보냅니다.
+      const res = await send('openCheckout', { track: 'agent', items: cart })
       if (res?.ok) toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 입금 안내가 나옵니다.', true)
       else toast(res?.error ?? '견적함을 확인해 주세요.', false)
     })

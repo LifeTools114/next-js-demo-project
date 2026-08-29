@@ -99,6 +99,18 @@ async function openAffiliate({ url, track }) {
  * 자격증명을 두지 않습니다. 요청은 전부 여기서 대신 보냅니다.
  */
 
+/** 콘텐츠 스크립트가 넘긴 상품 목록 정리 — 형태만 믿고 값은 좁혀 받습니다 */
+function sanitizeItems(items) {
+  if (!Array.isArray(items)) return []
+  return items.slice(0, 20).map((i, idx) => ({
+    productId: String(i?.productId ?? `inline-${idx}`).slice(0, 64),
+    productName: String(i?.productName ?? '').slice(0, 160),
+    quantity: Math.max(1, Math.min(Number(i?.quantity) || 1, 99)),
+    productPrice: Math.max(0, Math.min(Number(i?.productPrice) || 0, 100_000_000)),
+    track: i?.track === 'agent' ? 'agent' : 'forwarding',
+  })).filter((i) => i.productName)
+}
+
 /**
  * 결제 흐름의 상품 출처 — 최근 2시간 내 결제창 드래프트가 있으면 그것,
  * 없으면 견적함. "결제창의 사실"이 "담아둔 계획"보다 우선입니다.
@@ -207,9 +219,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
       case 'openCheckout': {
         // 쿠팡 결제 → 배송비 결제로 잇는 다리.
-        // 방금 결제창에서 읽은 드래프트가 있으면 그것이 진실입니다 (견적함은 폴백).
+        // 호출자가 지금 화면에서 읽은 items 를 주면 그것이 최우선 진실이고,
+        // 없으면 결제창 드래프트 → 견적함 순서로 폴백합니다.
         // track: 'agent' 면 한국 결제수단이 없는 고객의 구매대행 요청.
-        const src = await checkoutSource()
+        const inline = sanitizeItems(msg.payload?.items)
+        const src = inline.length > 0 ? inline : await checkoutSource()
         const asAgent = msg.payload?.track === 'agent'
         const items = asAgent
           ? src.map((i) => ({ ...i, track: 'agent' }))
@@ -228,8 +242,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return { ok: true }
       }
       case 'quoteCart': {
-        // 결제창 카드의 금액 미리보기 — 서버 견적으로 패널·주문서와 일치시킵니다.
-        const src = await checkoutSource()
+        // 금액 미리보기 — 호출자가 준 items(지금 화면) 우선, 서버 견적으로 일치 보장.
+        const inline = sanitizeItems(msg.payload?.items)
+        const src = inline.length > 0 ? inline : await checkoutSource()
         if (src.length === 0) return { ok: false, error: 'empty' }
         const track = msg.payload?.track === 'agent' ? 'agent' : 'forwarding'
         const { config } = await storage.get('config')
