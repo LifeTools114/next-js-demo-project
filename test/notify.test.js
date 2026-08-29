@@ -4,9 +4,12 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { composeNotification } from '../lib/notify.js'
 
-const ROOT = new URL('..', import.meta.url).pathname
+// Windows 호환 — persist.test.js 의 주석 참조
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const STORE_URL = new URL('../lib/order/store.js', import.meta.url).href
 
 const baseOrder = {
   orderNo: 'HN2608280001',
@@ -38,7 +41,7 @@ test('알림 기록: 주문 생성부터 상태가 바뀔 때마다 jsonl 에 �
   delete env.NODE_TEST_CONTEXT
 
   execFileSync(process.execPath, ['--input-type=module', '-e', `
-    const S = await import('${ROOT}lib/order/store.js')
+    const S = await import('${STORE_URL}')
     const o = S.createOrder({
       items: [{ productName: '수분크림 100ml', productPrice: 25000, quantity: 1 }],
       zone: 'hanoi', track: 'agent',

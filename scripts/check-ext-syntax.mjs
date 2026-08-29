@@ -9,8 +9,10 @@
 import { execFileSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = new URL('..', import.meta.url).pathname
+// URL.pathname 은 Windows 에서 "/C:/..." 를 돌려줘 경로가 깨집니다.
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 function* walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

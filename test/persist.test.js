@@ -4,8 +4,13 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = new URL('..', import.meta.url).pathname
+// Windows 호환: URL.pathname 은 "/C:/..." 를 돌려줘 경로가 깨지고,
+// 백슬래시 경로를 -e 문자열에 넣으면 이스케이프로 해석됩니다.
+// 그래서 cwd 는 fileURLToPath, 동적 import 는 file:// href 를 씁니다.
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const STORE_URL = new URL('../lib/order/store.js', import.meta.url).href
 
 /**
  * 별도 프로세스에서 스토어를 구동합니다 — 진짜 "재시작"을 흉내내는 유일한 방법.
@@ -16,7 +21,7 @@ function runInFreshProcess(dir, code) {
   delete env.NODE_TEST_CONTEXT
   return execFileSync(
     process.execPath,
-    ['--input-type=module', '-e', `const S = await import('${ROOT}lib/order/store.js')\n${code}`],
+    ['--input-type=module', '-e', `const S = await import('${STORE_URL}')\n${code}`],
     { env, encoding: 'utf8', cwd: ROOT },
   ).trim()
 }
