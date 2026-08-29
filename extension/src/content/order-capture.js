@@ -16,9 +16,12 @@
 
   /** 주문완료 화면으로 보이는가 — URL 또는 본문 문구 */
   function looksLikeOrderComplete() {
+    const text = (document.body?.innerText ?? '').slice(0, 6000)
+    // 주문/결제 화면에도 브레드크럼 "주문결제 > 주문완료" 가 있으므로,
+    // 결제 버튼이 살아 있는 화면은 완료로 보지 않습니다.
+    if (/최종\s*결제\s*금액/.test(text) && /결제하기/.test(text)) return false
     if (/order.*(complete|done|success)|orderResult|thankyou/i.test(location.href)) return true
-    const text = document.body?.innerText ?? ''
-    return /주문이\s*완료|주문완료|결제가\s*완료/.test(text.slice(0, 4000))
+    return /주문이\s*완료|결제가\s*완료|구매가\s*완료/.test(text)
   }
 
   function bySelectors(selectors) {
@@ -89,18 +92,36 @@
     })
   }
 
-  async function run() {
-    if (!looksLikeOrderComplete()) return
+  /**
+   * 결제와 동시에 배송요청 — 완료 화면을 감지하면 견적함의 배송대행
+   * 상품 + 방금 쿠팡 주문번호로 배송비 결제(체크아웃)를 자동으로 엽니다.
+   * 견적함이 비어 있으면 자동으로 열 수 없으므로 안내 카드로 대신합니다.
+   */
+  async function autoForward(coupangOrderNo) {
+    const guard = `kb-fwd-${coupangOrderNo}`
+    try {
+      if (sessionStorage.getItem(guard)) return
+      sessionStorage.setItem(guard, '1')
+    } catch { /* 가드 불가 환경이면 카드 중복 정도만 감수합니다 */ }
 
+    const res = await send('openCheckout', { coupangOrderNo })
+    if (res?.ok) {
+      toast('🇻🇳 하노이 배송 신청서를 새 탭에 열었습니다 — 수령인 정보만 입력하면 끝!', true)
+    } else {
+      offerForwarding(coupangOrderNo)
+    }
+  }
+
+  async function runOrderComplete() {
     const cfg = await send('getConfig')
     const { coupangOrderNo, amountKrw } = extract(cfg?.config ?? {})
     if (!coupangOrderNo || coupangOrderNo.length < 9) return
 
     const st = await send('getAdminState')
 
-    // ── 고객: 배송대행 신청 제안 (운영자 토큰이 없는 브라우저) ──
+    // ── 고객: 결제 감지 → 배송요청 자동 (운영자 토큰이 없는 브라우저) ──
     if (!st?.hasToken) {
-      offerForwarding(coupangOrderNo)
+      await autoForward(coupangOrderNo)
       return
     }
 
@@ -121,12 +142,95 @@
     }
   }
 
-  // 주문완료 화면이 SPA 전환으로 나타나는 경우까지 몇 초 재시도합니다.
+  /**
+   * ── 주문/결제 화면 도우미 ──
+   * 결제 순간에도 "하노이 배송이 붙어 있다"가 보여야 고객이 안심하고
+   * 결제합니다. 배송지가 창고 주소 + K-ECOM 코드인지 자동 검사하고,
+   * 아니면 복사 버튼으로 바로 붙여넣게 합니다.
+   */
+  const esc = (s) =>
+    String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  const squash = (s) => String(s ?? '').replace(/\s+/g, '')
+
+  async function renderCheckoutHelper() {
+    try { if (sessionStorage.getItem('kb-helper-closed')) return } catch { /* 무시 */ }
+
+    const cfg = await send('getConfig')
+    const w = cfg?.config?.warehouse ?? {}
+    const addr1 = w.address1 || '서울특별시 강서구 개화동로 11길 5'
+    const zip = w.zip || '07504'
+    const code = w.code || 'K-ECOM'
+
+    const body = squash(document.body?.innerText ?? '')
+    const okAddr = body.includes(squash(addr1)) || body.includes(squash('개화동로11길 5'))
+    const okCode = body.includes(code)
+    const cartRes = await send('getCart')
+    const fwdCount = (cartRes?.cart ?? []).filter((i) => i.track !== 'agent').length
+
+    let card = document.getElementById('kb-checkout-helper')
+    if (!card) {
+      card = document.createElement('div')
+      card.id = 'kb-checkout-helper'
+      card.style.cssText =
+        'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:280px;background:#fff;' +
+        'border:1px solid #f3d3dd;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);' +
+        'padding:13px;font:12.5px/1.55 sans-serif;color:#3d3644'
+      document.body.appendChild(card)
+    }
+
+    const copyBtn = (label, value, id) =>
+      `<button data-copy="${esc(value)}" id="${id}" style="margin-top:5px;width:100%;min-height:30px;border:1px solid #eee3ee;` +
+      `border-radius:8px;background:#faf7fb;color:#574d61;cursor:pointer;text-align:left;padding:0 10px;font-size:12px">` +
+      `📋 ${label} 복사</button>`
+
+    const status = okAddr && okCode
+      ? '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b">' +
+        '<b>✓ 배송지 확인됨</b> — 한국 창고 + K-ECOM 코드.<br>안심하고 결제하세요.</div>'
+      : '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#fff3e6;color:#a05a12">' +
+        '<b>⚠️ 배송지를 확인하세요</b><br>[배송지 변경]에서 아래 값을 붙여넣으세요.<br>' +
+        '이 주소가 아니면 하노이로 배송되지 않습니다.</div>'
+
+    card.innerHTML =
+      '<b>🇻🇳 하노이 배송</b>' + status +
+      copyBtn('창고 주소', `${addr1}`, 'kb-cp-addr') +
+      copyBtn(`세부주소 ${code}(이름)`, `${code}()`, 'kb-cp-code') +
+      copyBtn('우편번호', zip, 'kb-cp-zip') +
+      '<div style="margin-top:6px;color:#9a8fa5;font-size:11px">세부주소는 붙여넣은 뒤 괄호 안에 본인 이름을 넣어주세요.</div>' +
+      `<div style="margin-top:8px;color:#766b80;font-size:11.5px">${
+        fwdCount > 0
+          ? `견적함 ${fwdCount}개 — 결제하면 배송 신청서가 자동으로 열립니다.`
+          : '결제 후 자동 신청까지 하려면 상품 페이지에서 [견적함에 담기]를 먼저 해주세요.'
+      }</div>` +
+      '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
+      'background:#faf7fb;color:#9a8fa5;cursor:pointer">닫기</button>'
+
+    card.querySelectorAll('button[data-copy]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(b.dataset.copy)
+          const orig = b.textContent
+          b.textContent = '✓ 복사됨'
+          setTimeout(() => { b.textContent = orig }, 1200)
+        } catch { /* 클립보드 권한 없으면 값이 보이니 수동 복사 가능 */ }
+      }),
+    )
+    card.querySelector('#kb-helper-x').addEventListener('click', () => {
+      card.remove()
+      try { sessionStorage.setItem('kb-helper-closed', '1') } catch { /* 무시 */ }
+    })
+  }
+
+  async function run() {
+    if (looksLikeOrderComplete()) return runOrderComplete()
+    if (location.host === 'checkout.coupang.com') return renderCheckoutHelper()
+  }
+
+  // 결제·완료 화면이 SPA 전환으로 나타나는 경우까지 몇 초 재시도합니다.
   let tries = 0
   const timer = setInterval(() => {
     tries += 1
     run()
-    if (tries >= 5) clearInterval(timer)
+    if (tries >= 8) clearInterval(timer)
   }, 1500)
   run()
 })()

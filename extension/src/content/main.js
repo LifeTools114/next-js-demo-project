@@ -137,8 +137,16 @@
       badges: extracted.badges,
       shippingText: extracted.shippingText,
       quantity: 1,
-      // 운영자 발주 시 "상품 탭 열기"가 정확히 이 페이지(옵션 포함)를 열도록
-      productUrl: location.origin + location.pathname,
+      // 운영자 발주 시 "상품 탭 열기"가 정확히 이 페이지(옵션 포함)를 열도록.
+      // itemId/vendorItemId 가 빠지면 기본 옵션이 열려 대리 주문을 그르칩니다.
+      productUrl: (() => {
+        const u = new URL(location.href)
+        const keep = new URLSearchParams()
+        for (const k of ['itemId', 'vendorItemId']) {
+          if (u.searchParams.get(k)) keep.set(k, u.searchParams.get(k))
+        }
+        return u.origin + u.pathname + (keep.toString() ? `?${keep}` : '')
+      })(),
     }
     const q = K.quote([item], { track, zone })
     const conf = K.CONFIDENCE_TAG[q.weight.confidence.level] ?? K.CONFIDENCE_TAG.low
