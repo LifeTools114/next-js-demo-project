@@ -138,3 +138,23 @@ test('비화장품 패드·쿠션은 화장품으로 오인하지 않는다', ()
   // 생활용품 쿠션(방석·베개)도 화장품 쿠션이 아닙니다.
   assert.notEqual(detectForm('메모리폼 목쿠션 베개').form.id, 'cushion')
 })
+
+test('알약·포·스틱 단위는 구성 수량이 아니다 — 낱개 곱셈 사고 방지', () => {
+  // '90정'을 상품 90개로 곱하면 영양제 하나가 11kg — 절대 금지.
+  const tab = estimateItemWeight({ productName: '일양약품 밀크씨슬 90정' }, 1)
+  assert.ok(tab.chargeableG < 500, `90정 영양제가 ${tab.chargeableG}g 이면 안 됩니다`)
+  const mix = estimateItemWeight({ productName: '맥심 모카골드 커피믹스 100개입' }, 1)
+  assert.ok(mix.chargeableG > 900 && mix.chargeableG < 2500, `커피믹스 100개입 ${mix.chargeableG}g`)
+  const stick = estimateItemWeight({ productName: '정관장 홍삼정 에브리타임 30포' }, 1)
+  assert.ok(stick.chargeableG > 150 && stick.chargeableG < 700, `홍삼 30포 ${stick.chargeableG}g`)
+  const wipes = estimateItemWeight({ productName: '베베숲 아기물티슈 70매 10팩' }, 1)
+  assert.ok(wipes.chargeableG > 4000 && wipes.chargeableG < 9000, `물티슈 10팩 ${wipes.chargeableG}g`)
+})
+
+test('기기 액세서리는 본체 무게로 잡히지 않는다', () => {
+  assert.notEqual(detectForm('갤럭시 S25 휴대폰 케이스 투명').form.id, 'phone')
+  assert.notEqual(detectForm('노트북 파우치 15인치').form.id, 'laptop')
+  assert.notEqual(detectForm('모니터 거치대 암').form.id, 'monitor')
+  // 본체는 그대로 본체.
+  assert.equal(detectForm('갤럭시s25 자급제 스마트폰').form.id, 'phone')
+})

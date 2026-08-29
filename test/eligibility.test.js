@@ -108,11 +108,16 @@ test('세이프리스트가 실제로 오탐을 막는다', () => {
 
 test('고액 주문은 차단하지 않고 견적 문의로 보낸다', () => {
   // 100만원 이상은 보험 여부를 확인해야 해서 자동 견적을 내지 않습니다.
-  const high = checkEligibility(p('다이슨 에어랩', { price: 599000, quantity: 3 }))
+  const high = checkEligibility(p('에르메스 실크 스카프', { price: 1200000, quantity: 1 }))
   assert.equal(high.shippable, true, '배송은 가능해야 합니다')
   assert.equal(high.verdict, VERDICT.MANUAL_QUOTE)
   assert.equal(high.autoQuote, false)
   assert.equal(high.ruleId, 'high-value')
+
+  // 가전(에어랩 등)은 고액 임계값 아래여도 가전 규칙으로 견적 문의.
+  const dyson = checkEligibility(p('다이슨 에어랩 멀티 스타일러', { price: 590000, quantity: 1 }))
+  assert.equal(dyson.autoQuote, false)
+  assert.equal(dyson.ruleId, 'appliance')
 })
 
 test('다량 주문은 자동 견적을 유지하되 경고한다', () => {

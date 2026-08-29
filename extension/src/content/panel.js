@@ -46,7 +46,7 @@ const KBPanel = (() => {
 .note.added { background: #e6f6f0; color: #17916b; font-weight: 700; text-align: center; margin-top: 0; }
 .hero { text-align: center; padding: 12px 0 4px; }
 .hero .cap { font-size: 12.5px; font-weight: 700; color: #333d4b; }
-.hero .krw { font-size: 27px; font-weight: 800; color: #191f28; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.hero .krw { font-size: 28px; font-weight: 800; color: #3182f6; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .hero .vnd2 { font-size: 17px; font-weight: 800; color: #f04452; margin-top: 1px; font-variant-numeric: tabular-nums; }
 .hero .meta { font-size: 12px; color: #4e5968; margin-top: 6px; }
 .hero .meta.sub { font-size: 11px; color: #8b95a1; margin-top: 2px; }
@@ -213,10 +213,6 @@ const KBPanel = (() => {
           .join(', ')} (추가 ${esc(state.fmt.krw(q.taxes.extraDutyKrw))})</div>`
       : ''
 
-    const goodsNote =
-      state.track === 'forwarding'
-        ? `<div class="note">상품가 ${esc(state.fmt.krw(q.goods))}는 고객님이 쿠팡에 직접 결제하십니다.</div>`
-        : ''
 
     const sched = q.sourcing?.schedule ?? {
       totalDays: q.shipping.leadTimeDays,
@@ -259,13 +255,14 @@ const KBPanel = (() => {
         ${q.goods > 0
           ? `<div class="meta">상품가 <b>${esc(state.fmt.krw(q.goods))}</b> ${q.goodsChargedToCustomer ? '포함' : '별도 — 쿠팡에서 직접 결제'}</div>`
           : ''}
-        <div class="meta">실측 추정 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)}</div>
-        <div class="meta sub">${esc(state.ruleText ?? '')} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
+        <div class="meta">실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)}</div>
+        <div class="meta sub">도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
       </div>
-      ${goodsNote}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
+      ${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
       <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
       ${state.detailOpen
         ? `<div style="margin-top:8px">${rows}</div>
+           <div class="note">무게 기준: ${esc(state.ruleText ?? '')} · 입고 후 실측으로 정산합니다.</div>
            ${headroomNote(q)}${warehouseNote()}
            <div class="note">📦 쿠팡→한국창고 ${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}일 +
              한국창고→하노이 ${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}일</div>

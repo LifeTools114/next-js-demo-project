@@ -2,9 +2,11 @@
   "manifest_version": 3,
   "name": "쿠팡 하노이 직구 도우미",
   "version": "0.1.0",
-  "description": "쿠팡 상품의 하노이 도착 가격을 바로 계산합니다. 무게 추정, 국제배송비, 관세·VAT, 배송 가능 여부 확인.",
+  "description": "쿠팡 상품의 하노이 도착 가격을 바로 계산합니다. 무게 추정, 국제배송비, 배송 가능 여부 확인.",
   "default_locale": "ko",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://www.coupang.com/*",
     "https://m.coupang.com/*",
@@ -18,7 +20,10 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.coupang.com/vp/products/*", "https://m.coupang.com/vm/products/*"],
+      "matches": [
+        "https://www.coupang.com/vp/products/*",
+        "https://m.coupang.com/vm/products/*"
+      ],
       "js": [
         "vendor/calc.js",
         "src/content/extract.js",
@@ -35,14 +40,26 @@
         "https://checkout.coupang.com/*",
         "https://cart.coupang.com/*"
       ],
-      "js": ["vendor/calc.js", "src/content/order-capture.js"],
+      "js": [
+        "vendor/calc.js",
+        "src/content/parse-page.js",
+        "src/content/order-capture.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_title": "하노이 직구 도우미",
-    "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
   },
-  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
 }
