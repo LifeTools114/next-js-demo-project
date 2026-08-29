@@ -40,8 +40,7 @@ def parse_args() -> Config:
     return cfg
 
 
-def main() -> None:
-    cfg = parse_args()
+def require_api_key() -> str:
     api_key = os.environ.get("DART_API_KEY", "").strip()
     if not api_key:
         sys.exit(
@@ -49,7 +48,11 @@ def main() -> None:
             "https://opendart.fss.or.kr 에서 무료 발급 후:\n"
             "  export DART_API_KEY=발급받은키"
         )
+    return api_key
 
+
+def load_data(cfg, api_key: str):
+    """공시 시그널 + 주가 + 캘린더 + 벤치마크를 수집(캐시 우선)해 반환."""
     print(f"[1/4] DART 공시 수집 ({cfg.start} ~ {cfg.end})")
     items = fetch_disclosures(api_key, cfg.start, cfg.end, cfg.cache_dir)
     signals = filter_signals(items, cfg)
@@ -74,6 +77,12 @@ def main() -> None:
         print(f"  주의: {missing}개 종목은 주가 데이터 없음(상장폐지 등) → 제외됨. "
               f"생존 편향으로 결과가 실제보다 좋게 나올 수 있음")
     signals = [s for s in signals if s["ticker"] in prices]
+    return signals, prices, calendar, benchmark
+
+
+def main() -> None:
+    cfg = parse_args()
+    signals, prices, calendar, benchmark = load_data(cfg, require_api_key())
 
     tp_desc = f"{cfg.take_profit:.0%}" if cfg.take_profit else "없음"
     print(f"[3/4] 백테스트 실행 (자본 {cfg.initial_capital:,}원, "

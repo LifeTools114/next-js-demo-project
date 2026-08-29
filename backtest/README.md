@@ -35,6 +35,15 @@ python3 -m backtest.run --start 20220101 --end 20221231   # 하락장만 따로
 공시 키워드, 동시 보유 종목 수, 비용, 유동성 필터 등 나머지 규칙은
 `backtest/config.py`에서 수정합니다.
 
+보유기간별 성적을 한 번에 비교하려면 (데이터 수집은 1회, 엔진만 반복 실행):
+
+```bash
+python3 -m backtest.compare                    # 3, 5, 9, 15거래일 비교
+python3 -m backtest.compare --hold-days 5 9    # 원하는 값만
+```
+
+총수익률·초과수익·MDD·승률·손익비·연도별 수익률이 나란히 표로 출력됩니다.
+
 ## 기본 전략 규칙
 
 | 항목 | 기본값 |
