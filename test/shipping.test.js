@@ -1,36 +1,35 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toBillableKg, calculateShipping, getRateTable, usdToKrw, roundingStepFor, roundingRuleText } from '../lib/pricing/shipping.js'
+import { toBillableKg, calculateShipping, getRateTable, usdToKrw, roundingRuleText } from '../lib/pricing/shipping.js'
 import { quote, calculateAgencyFee, calculateTaxes, krwToVnd, TRACK } from '../lib/pricing/landed.js'
 import { compareConsolidation } from '../lib/consolidation.js'
 import { SHIPPING } from '../config/shipping.js'
 import { FEES, ORDER_MIN } from '../config/fees.js'
 
-test('청구무게: 최소 1kg, 이후 0.5kg 단위로 올림한다 (운영자 확정 26.08.29)', () => {
+test('청구무게: 정수 kg — 소수 0.5 이하 버림·초과 올림 (운영자 확정, 업체와 동일)', () => {
   assert.equal(toBillableKg(100), 1, '최소 청구무게')
   assert.equal(toBillableKg(999), 1)
   assert.equal(toBillableKg(1000), 1, '정확히 1kg 은 1kg')
-  assert.equal(toBillableKg(1001), 1.5, '1kg 을 넘으면 다음 0.5kg 단계')
-  assert.equal(toBillableKg(1500), 1.5)
-  assert.equal(toBillableKg(1501), 2)
-  assert.equal(toBillableKg(2000), 2, '정확히 2kg 은 2kg')
-  assert.equal(toBillableKg(2001), 2.5)
-  assert.equal(toBillableKg(2300), 2.5)
-  assert.equal(toBillableKg(2500), 2.5, '정확히 2.5kg 은 2.5kg')
+  assert.equal(toBillableKg(1300), 1, '소수 0.3 은 버림')
+  assert.equal(toBillableKg(1500), 1, '소수 0.5 는 버림 (경계는 고객 유리)')
+  assert.equal(toBillableKg(1501), 2, '0.5 초과는 올림')
+  assert.equal(toBillableKg(2000), 2)
+  assert.equal(toBillableKg(2500), 2)
   assert.equal(toBillableKg(2501), 3)
-  assert.equal(toBillableKg(3400), 3.5)
-  assert.equal(toBillableKg(10100), 10.5)
+  assert.equal(toBillableKg(3400), 3)
+  assert.equal(toBillableKg(3600), 4)
+  assert.equal(toBillableKg(10100), 10)
 })
 
 test('여유 무게: 청구 경계까지 남은 g 을 알려준다', () => {
-  // 400g 담았어도 최소 1kg 청구 → 600g 은 공짜로 더 담을 수 있음
-  assert.equal(calculateShipping(400).headroomG, 600)
-  // 2.3kg → 2.5kg 청구 → 200g 여유
+  // 400g 담아도 1kg 요금이고, 1.5kg 까지 같은 요금 → 1100g 여유
+  assert.equal(calculateShipping(400).headroomG, 1100)
+  // 2.3kg → 2kg 요금, 2.5kg 까지 동일 → 200g 여유
   assert.equal(calculateShipping(2300).headroomG, 200)
-  // 정확히 경계면 여유 없음
+  // 정확히 경계(2.5kg)면 여유 없음
   assert.equal(calculateShipping(2500).headroomG, 0)
-  // 경계 직후는 다음 단계 하나가 통째로 여유
-  assert.equal(calculateShipping(2501).headroomG, 499)
+  // 경계 직후는 다음 경계(3.5kg)까지 통째로 여유
+  assert.equal(calculateShipping(2501).headroomG, 999)
   // 여유만큼 더 담아도 배송비가 정말 같은지 (경계 전 구간 전수 확인)
   for (const g of [400, 1500, 2300, 4700]) {
     const s = calculateShipping(g)
@@ -41,15 +40,15 @@ test('여유 무게: 청구 경계까지 남은 g 을 알려준다', () => {
   }
 })
 
-test('청구무게: 올림 단위는 전 구간 0.5kg 단일이다', () => {
-  assert.equal(roundingStepFor(1.2), 0.5)
-  assert.equal(roundingStepFor(2), 0.5)
-  assert.equal(roundingStepFor(50), 0.5)
+test('청구무게: 반내림 경계가 대칭이다 (x.5 까지 x, 그 위는 x+1)', () => {
+  for (const k of [1, 2, 5, 10]) {
+    assert.equal(toBillableKg(k * 1000 + 500), k, `${k}.5kg 은 ${k}kg`)
+    assert.equal(toBillableKg(k * 1000 + 501), k + 1, `${k}.501kg 은 ${k + 1}kg`)
+  }
 })
 
 test('청구무게: 부동소수 오차로 한 단계가 더 올라가지 않는다', () => {
-  // 경계값이 다음 구간으로 넘어가면 매 건 최대 $4.5 를 과다 청구하게 됩니다.
-  for (const kg of [1, 2, 2.5, 3, 3.5, 5, 10, 20]) {
+  for (const kg of [1, 2, 3, 5, 10, 20]) {
     assert.equal(toBillableKg(kg * 1000), kg, `${kg}kg 이 그대로여야 합니다`)
   }
 })
@@ -61,19 +60,19 @@ test('청구무게: 경쟁사보다 최소 단위가 작다', () => {
   assert.equal(toBillableKg(300), 1)
 })
 
-test('올림 규칙 문장이 최소무게와 단위를 설명한다', () => {
+test('청구 규칙 문장이 기본요금과 반내림을 설명한다', () => {
   const text = roundingRuleText()
-  assert.match(text, /최소 1kg/)
-  assert.match(text, /0\.5kg 단위/)
+  assert.match(text, /1kg까지 기본요금/)
+  assert.match(text, /0\.5 이하 버림/)
 })
 
 test('배송비: kg당 $9 정액 × 청구무게', () => {
-  const r = calculateShipping(1200) // 1.5kg 로 올림
-  assert.equal(r.billableKg, 1.5)
+  const r = calculateShipping(1600) // 소수 0.6 → 2kg
+  assert.equal(r.billableKg, 2)
   assert.equal(r.ratePerKgUsd, 9)
-  assert.equal(r.freightUsd, 13.5)
-  assert.equal(r.totalUsd, 13.5)
-  assert.equal(r.totalKrw, usdToKrw(13.5))
+  assert.equal(r.freightUsd, 18)
+  assert.equal(r.totalUsd, 18)
+  assert.equal(r.totalKrw, usdToKrw(18))
 })
 
 test('배송비: 구간 없이 무게에 정비례한다', () => {
@@ -268,12 +267,12 @@ test('상품 할증: 관세 과세표준(CIF)에 포함된다', () => {
   )
 })
 
-test('정산 허용오차: 올림 단위가 작은 오차를 흡수한다', () => {
-  // 실측이 조금 달라도 같은 구간이면 배송비가 변하지 않아 정산이 발생하지 않습니다.
-  assert.equal(toBillableKg(1050), toBillableKg(1450), '1.05kg 과 1.45kg 은 같은 1.5kg 구간')
-  assert.notEqual(toBillableKg(1450), toBillableKg(1550), '1.5kg 을 넘으면 구간이 바뀜')
-  assert.equal(toBillableKg(2600), toBillableKg(2900), '2.6kg 과 2.9kg 은 같은 3kg 구간')
-  assert.notEqual(toBillableKg(2900), toBillableKg(3100))
+test('정산 허용오차: 청구 구간이 작은 오차를 흡수한다', () => {
+  // 실측이 조금 달라도 같은 구간(x−0.5 초과 ~ x+0.5)이면 배송비가 같아 정산이 없습니다.
+  assert.equal(toBillableKg(700), toBillableKg(1500), '0.7kg 과 1.5kg 은 같은 1kg 요금')
+  assert.notEqual(toBillableKg(1500), toBillableKg(1600), '1.5kg 초과에서 구간이 바뀜')
+  assert.equal(toBillableKg(2600), toBillableKg(3400), '2.6kg 과 3.4kg 은 같은 3kg 요금')
+  assert.notEqual(toBillableKg(3400), toBillableKg(3600))
 })
 
 // ─────────── 확장 → 서버 필드 보존 ───────────

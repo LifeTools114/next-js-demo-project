@@ -35,12 +35,12 @@ export const SHIPPING = {
    * (1kg 단위만 쓰면 2.1kg 주문에 3kg 을 청구하게 되어 경쟁사 대비 불리합니다)
    */
   /**
-   * 운영자 확정(26.08.29): 최소 1kg, 1kg 부터는 전 구간 0.5kg 단위 올림.
-   * 예) 0.4kg→1kg · 1.2kg→1.5kg · 2.3kg→2.5kg
+   * 청구무게 규칙 — 운영자 확정(26.08.29, 업체 S1 과 동일 기준):
+   * 정수 kg 청구. 소수 부분이 0.5 이하면 버림, 0.5 초과면 올림.
+   * 예) 0.4→1kg(최소) · 1.3→1kg · 1.5→1kg · 1.6→2kg · 2.5→2kg · 2.6→3kg
+   * 원가(업체 청구)와 같은 단위라 청구 kg 마다 마진 $2 가 보장됩니다.
+   * 로직은 lib/pricing/shipping.js · toBillableKg 에 있습니다.
    */
-  roundingTiers: [
-    { upToKg: Infinity, stepKg: 0.5 },
-  ],
 
   /** 항공 부피무게 환산 계수: (가로×세로×높이 cm) / 6000 = kg */
   volumetricDivisor: 6000,

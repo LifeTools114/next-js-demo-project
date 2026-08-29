@@ -313,25 +313,26 @@ test('환율 동결: 정산은 주문 시점 환율로 재계산한다', async (
 
 // ─────────── 허용오차 (정산 빈도 억제) ───────────
 
-test('허용오차: 신뢰도가 높으면 작은 차액을 흡수한다', () => {
-  // 고정 3,000원만 쓰면 한 칸 차이(0.5kg × $9 = 6,210원)가 매번 정산으로 이어져
-  // 주문 7건 중 1건을 손으로 처리하게 됩니다.
+test('허용오차: 같은 청구 구간이면 정산이 없다 — 반내림이 ±0.5kg 를 흡수', () => {
+  // 정수 kg 반내림 규칙에서는 구간 자체가 흡수 장치입니다:
+  // 실측이 (청구kg + 0.5) 까지는 요금이 같아 정산이 아예 발생하지 않습니다.
   const o = createOrder({
     items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
   assert.equal(o.quote.weight.confidence.level, 'high')
-  assert.equal(SETTLEMENT_RULES.toleranceByConfidence.high, 12_500)
 
-  const base = o.quote.weight.chargeableG
-  const small = computeSettlement(o, base + 400)
-  assert.equal(small.action, 'none', '허용오차 이내는 흡수합니다')
-  assert.equal(small.tolerance.absorbed, true)
-  assert.ok(small.absKrw < small.tolerance.toleranceKrw)
+  const billable = o.quote.shipping.billableKg
+  // 구간 꼭대기(+0.5kg 경계)까지는 차액 0
+  const top = computeSettlement(o, billable * 1000 + 500)
+  assert.equal(top.action, 'none')
+  assert.equal(top.diffKrw, 0)
 
-  const large = computeSettlement(o, base + 1500)
-  assert.equal(large.action, 'additional')
-  assert.ok(large.absKrw >= large.tolerance.toleranceKrw)
+  // 경계를 1g 이라도 넘으면 한 칸(약 1kg×$9 + 세금)이 움직여 정산 대상
+  const over = computeSettlement(o, billable * 1000 + 501)
+  assert.equal(over.action, 'additional')
+  assert.ok(over.absKrw > SETTLEMENT_RULES.toleranceByConfidence.high,
+    '구간 이동 차액은 허용오차보다 커서 반드시 정산됩니다')
 })
 
 test('허용오차: 신뢰도가 낮으면 흡수하지 않는다', () => {
@@ -341,9 +342,9 @@ test('허용오차: 신뢰도가 낮으면 흡수하지 않는다', () => {
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
   assert.equal(o.quote.weight.confidence.level, 'low')
-  const s = computeSettlement(o, o.quote.weight.chargeableG + 1200)
+  const s = computeSettlement(o, o.quote.weight.chargeableG + 1000)
   assert.equal(s.tolerance.toleranceKrw, 3_000, '신뢰도 낮음은 흡수 폭이 좁습니다')
-  assert.equal(s.action, 'additional')
+  assert.equal(s.action, 'additional', '+1kg(12,420원)은 3,000원 허용오차를 넘습니다')
 })
 
 test('허용오차: 소액 차액은 신뢰도와 무관하게 정산하지 않는다', () => {
@@ -362,9 +363,8 @@ test('허용오차: 흡수해도 고객 청구액은 최초 견적 그대로다'
     items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
-  const s = computeSettlement(o, o.quote.weight.chargeableG + 400)
+  // 같은 구간 안(경계 이내)의 초과분은 청구액을 바꾸지 않습니다.
+  const s = computeSettlement(o, o.quote.shipping.billableKg * 1000 + 500)
   assert.equal(s.action, 'none')
-  // 흡수분은 우리 손익으로 들어가고 고객에게는 청구하지 않습니다.
-  assert.notEqual(s.absorbedKrw, undefined)
   assert.equal(s.quotedTotalKrw, o.quote.total)
 })

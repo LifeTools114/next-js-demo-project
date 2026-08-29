@@ -76,7 +76,6 @@ export default function handler(req, res) {
     policy: {
       ratePerKgUsd: SHIPPING.ratePerKgUsd,
       minBillableKg: SHIPPING.minBillableKg,
-      roundingTiers: SHIPPING.roundingTiers,
       agencyRate: FEES.agencyRate,
       minOrderGoodsKrw: ORDER_MIN.goodsKrw,
       vatRate: TAXES.vatRate,
