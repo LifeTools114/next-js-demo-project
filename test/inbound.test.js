@@ -104,8 +104,9 @@ test('입고 매칭: 이름 폴백은 유일할 때만 통한다', () => {
   }
   const a = mk('박하노', '29000111111111')
   assert.equal(findByInbound('받는사람: 박하노 / 서울 김포창고')?.id, a.id, '라벨의 이름만으로 찾아야 합니다')
-  // 파트너 라벨의 세부주소 형식도 그대로 매칭됩니다
-  assert.equal(findByInbound('개화동로 11길 5 K-ECOM(박하노)')?.id, a.id, 'K-ECOM(이름) 형식 매칭')
+  // 파트너 라벨의 세부주소 형식(공백·괄호 어느 쪽이든) 그대로 매칭됩니다
+  assert.equal(findByInbound('개화동로 11길 5 K-ECOM 박하노')?.id, a.id, '"K-ECOM 이름" 형식 매칭')
+  assert.equal(findByInbound('K-ECOM(박하노)')?.id, a.id, '괄호 형식도 매칭')
 
   mk('박하노', '29000222222222') // 동명 주문이 하나 더 운송 중이면
   assert.equal(findByInbound('받는사람: 박하노 / 서울 김포창고'), null, '애매하면 사람에게 넘겨야 합니다')
@@ -114,9 +115,9 @@ test('입고 매칭: 이름 폴백은 유일할 때만 통한다', () => {
 test('입고 안내: 배송대행 고객에게만, 창고 도착 전까지만 보인다', () => {
   const f = customerView(forwardingOrder())
   assert.ok(f.forwardingGuide, '배송대행 주문에는 안내가 있어야 합니다')
-  // 파트너 규격: 받는 사람은 본인 이름, 세부주소가 K-ECOM(이름)
-  assert.equal(f.forwardingGuide.recipient, '김하노')
-  assert.equal(f.forwardingGuide.addressDetail, 'K-ECOM(김하노)')
+  // 파트너 규격: 이름 칸은 코드(K-ECOM), 상세주소가 "K-ECOM 이름"
+  assert.equal(f.forwardingGuide.recipient, 'K-ECOM')
+  assert.equal(f.forwardingGuide.addressDetail, 'K-ECOM 김하노')
   assert.ok(f.forwardingGuide.warehouse.address1.includes('개화동로'), '확정 주소가 기본값이어야 합니다')
   assert.equal(f.forwardingGuide.warehouse.zip, '07504')
   assert.equal(f.forwardingGuide.warehouse.configured, true)

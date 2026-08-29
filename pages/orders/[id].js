@@ -196,7 +196,7 @@ export default function OrderPage() {
               <b>세부주소의 {order.forwardingGuide.addressDetail} 코드가 있어야 창고가 접수합니다.</b>
             </p>
             <div className="note" style={{ marginTop: 10, userSelect: 'all' }}>
-              · 받는 사람: <b>{order.forwardingGuide.recipient}</b> (본인 이름 그대로)
+              · 받는 사람(이름): <b>{order.forwardingGuide.recipient}</b>
               <br />
               · 주소: {order.forwardingGuide.warehouse.address1}
               {order.forwardingGuide.warehouse.zip && ` (${order.forwardingGuide.warehouse.zip})`}

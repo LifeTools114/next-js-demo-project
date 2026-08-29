@@ -178,29 +178,39 @@
       document.body.appendChild(card)
     }
 
-    const copyBtn = (label, value, id) =>
-      `<button data-copy="${esc(value)}" id="${id}" style="margin-top:5px;width:100%;min-height:30px;border:1px solid #eee3ee;` +
-      `border-radius:8px;background:#faf7fb;color:#574d61;cursor:pointer;text-align:left;padding:0 10px;font-size:12px">` +
-      `📋 ${label} 복사</button>`
-
-    const status = okAddr && okCode
-      ? '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b">' +
-        '<b>✓ 배송지 확인됨</b> — 한국 창고 + K-ECOM 코드.<br>안심하고 결제하세요.</div>'
-      : '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#fff3e6;color:#a05a12">' +
-        '<b>⚠️ 배송지를 확인하세요</b><br>[배송지 변경]에서 아래 값을 붙여넣으세요.<br>' +
-        '이 주소가 아니면 하노이로 배송되지 않습니다.</div>'
-
-    card.innerHTML =
-      '<b>🇻🇳 하노이 배송</b>' + status +
-      copyBtn('창고 주소', `${addr1}`, 'kb-cp-addr') +
-      copyBtn(`세부주소 ${code}(이름)`, `${code}()`, 'kb-cp-code') +
-      copyBtn('우편번호', zip, 'kb-cp-zip') +
-      '<div style="margin-top:6px;color:#9a8fa5;font-size:11px">세부주소는 붙여넣은 뒤 괄호 안에 본인 이름을 넣어주세요.</div>' +
+    const ok = okAddr && okCode
+    const cartLine =
       `<div style="margin-top:8px;color:#766b80;font-size:11.5px">${
         fwdCount > 0
           ? `견적함 ${fwdCount}개 — 결제하면 배송 신청서가 자동으로 열립니다.`
           : '결제 후 자동 신청까지 하려면 상품 페이지에서 [견적함에 담기]를 먼저 해주세요.'
-      }</div>` +
+      }</div>`
+
+    // 쿠팡 배송지 창과 같은 생김새의 3칸 미니 안내 — 어디에 뭘 넣는지 한눈에.
+    const field = (icon, value, hint) =>
+      `<div style="display:flex;align-items:center;gap:6px;border:1px solid #e5dbe6;border-radius:8px;` +
+      `background:#fff;padding:6px 9px;margin-top:6px;font-size:12px;color:#3d3644">` +
+      `<span>${icon}</span><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(value)}</b></div>` +
+      `<div style="margin:2px 0 0 6px;font-size:10.5px;color:#a05a12">↑ ${esc(hint)}</div>`
+
+    const miniForm =
+      '<div style="margin-top:7px;padding:9px;border-radius:10px;background:#faf7fb">' +
+      '<div style="font-size:11px;color:#766b80;text-align:center"><b>배송지 선택</b> 창에 이렇게 입력</div>' +
+      field('👤', code, '이름 칸') +
+      field('📍', addr1, '주소 검색(🔍)에 붙여넣기') +
+      field('🏠', `${code} 본인이름`, '상세주소 — 본인 이름을 이어서') +
+      '</div>' +
+      `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
+      'background:#ef4a76;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
+
+    card.innerHTML =
+      '<b>🇻🇳 하노이 배송</b>' +
+      (ok
+        ? '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b">' +
+          '<b>✓ 배송지 확인됨</b> — 안심하고 결제하세요.</div>'
+        : '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#fff3e6;color:#a05a12">' +
+          '<b>⚠️ 배송지가 한국 창고가 아닙니다</b></div>' + miniForm) +
+      cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
       'background:#faf7fb;color:#9a8fa5;cursor:pointer">닫기</button>'
 
