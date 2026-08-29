@@ -74,15 +74,15 @@
 
     const card = document.createElement('div')
     card.style.cssText =
-      'position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;border:1px solid #f3d3dd;' +
-      'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#3d3644'
+      'position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;border:1px solid #dbe4f0;' +
+      'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#191f28'
     card.innerHTML =
       '<b>🇻🇳 방금 결제하신 주문,<br>하노이로 받아보세요</b>' +
-      '<div style="font-size:11.5px;color:#766b80;margin-top:4px">쿠팡 주문이 자동 연결되고, 국제배송비 청구서로 이어집니다.</div>' +
+      '<div style="font-size:11.5px;color:#4e5968;margin-top:4px">쿠팡 주문이 자동 연결되고, 국제배송비 청구서로 이어집니다.</div>' +
       '<button id="kb-fwd-go" style="margin-top:10px;width:100%;min-height:38px;border:0;border-radius:9px;' +
-      'background:#ef4a76;color:#fff;font-weight:700;cursor:pointer">하노이 배송 신청</button>' +
+      'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">하노이 배송 신청</button>' +
       '<button id="kb-fwd-x" style="margin-top:6px;width:100%;min-height:30px;border:0;border-radius:9px;' +
-      'background:transparent;color:#9a8fa5;cursor:pointer">닫기</button>'
+      'background:transparent;color:#8b95a1;cursor:pointer">닫기</button>'
     document.body.appendChild(card)
     card.querySelector('#kb-fwd-x').addEventListener('click', () => card.remove())
     card.querySelector('#kb-fwd-go').addEventListener('click', async () => {
@@ -280,8 +280,8 @@
       card.id = 'kb-checkout-helper'
       card.style.cssText =
         'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:280px;background:#fff;' +
-        'border:1px solid #f3d3dd;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);' +
-        'padding:13px;font:12.5px/1.55 sans-serif;color:#3d3644'
+        'border:1px solid #dbe4f0;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);' +
+        'padding:13px;font:12.5px/1.55 sans-serif;color:#191f28'
       document.body.appendChild(card)
     }
 
@@ -292,42 +292,43 @@
     const trackBtn = (id, label) =>
       `<button data-kb-track="${id}" style="flex:1;min-height:36px;border-radius:9px;cursor:pointer;` +
       `font-weight:800;font-size:13px;${helperTrack === id
-        ? 'border:0;background:#ef4a76;color:#fff'
-        : 'border:1px solid #e5dbe6;background:#fff;color:#574d61'}">${label}</button>`
+        ? 'border:0;background:#3182f6;color:#fff'
+        : 'border:1px solid #e5e8eb;background:#fff;color:#4e5968'}">${label}</button>`
 
     const bigMoney = (label, q) =>
       `<div style="text-align:center;padding:4px 0 2px">` +
-      `<div style="font-size:11.5px;color:#574d61;font-weight:700">${label}</div>` +
+      `<div style="font-size:11.5px;color:#4e5968;font-weight:700">${label}</div>` +
       (q && won(q.total)
-        ? `<div style="font-size:21px;font-weight:800;color:#1b1220">${won(q.total)}</div>` +
-          (dong(q.totalVnd) ? `<div style="font-size:14px;font-weight:800;color:#d92e5c">≈ ${dong(q.totalVnd)}</div>` : '')
-        : '<div style="font-size:12px;color:#766b80;padding:6px 0">금액은 신청서에서 계산됩니다</div>') +
+        ? `<div style="font-size:21px;font-weight:800;color:#191f28">${won(q.total)}</div>` +
+          (dong(q.totalVnd) ? `<div style="font-size:14px;font-weight:800;color:#f04452">≈ ${dong(q.totalVnd)}</div>` : '')
+        : '<div style="font-size:12px;color:#4e5968;padding:6px 0">금액은 신청서에서 계산됩니다</div>') +
       '</div>'
 
     const steps = (text) =>
-      `<div style="margin-top:6px;font-size:11px;color:#574d61;line-height:1.7">${text}</div>`
+      `<div style="margin-top:6px;font-size:11px;color:#4e5968;line-height:1.7">${text}</div>`
 
     let trackBlock
     if (cart.length === 0) {
       trackBlock =
-        '<div style="margin-top:8px;color:#5b5164;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
+        '<div style="margin-top:8px;color:#4e5968;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
         '금액 계산과 자동 신청이 가능합니다.</div>'
     } else if (helperTrack === 'forwarding') {
       trackBlock =
-        `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
+        `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#f9fafb">` +
         bigMoney('쿠팡 결제 후 내실 배송비', quotes.fwd) +
+        steps('무게 기준: 1kg까지 기본요금 · 이후 kg 단위(0.5 이하 버림·초과 올림)') +
         steps(`결제 후 — <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ③ 하노이 도착 ${lt.min}~${lt.max}일`) +
         '</div>'
     } else {
       trackBlock =
-        `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#faf7fb">` +
+        `<div style="margin-top:8px;padding:9px 10px;border-radius:10px;background:#f9fafb">` +
         bigMoney('구매대행 총액 (상품가·수수료·배송비 포함)', quotes.agent) +
         steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 입금 → ③ 저희가 대신 주문 → ' +
           `④ 하노이 도착 ${lt.min}~${lt.max}일`) +
         '</div>' +
         '<button id="kb-agent-go" style="margin-top:7px;width:100%;min-height:38px;border:0;border-radius:9px;' +
-        'background:#ef4a76;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성</button>' +
-        '<div style="margin-top:4px;font-size:10.5px;color:#9a8fa5;text-align:center">한국 카드·계좌 없이 동화(₫)로 이용할 수 있습니다</div>'
+        'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">구매대행 신청서 작성</button>' +
+        '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">한국 카드·계좌 없이 동화(₫)로 이용할 수 있습니다</div>'
     }
 
     const cartLine =
@@ -339,21 +340,21 @@
 
     // 쿠팡 배송지 창과 같은 생김새의 3칸 미니 안내 — 어디에 뭘 넣는지 한눈에.
     const field = (icon, value, hint) =>
-      `<div style="display:flex;align-items:center;gap:6px;border:1px solid #e5dbe6;border-radius:8px;` +
-      `background:#fff;padding:6px 9px;margin-top:6px;font-size:12px;color:#3d3644">` +
+      `<div style="display:flex;align-items:center;gap:6px;border:1px solid #e5e8eb;border-radius:8px;` +
+      `background:#fff;padding:6px 9px;margin-top:6px;font-size:12px;color:#191f28">` +
       `<span>${icon}</span><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(value)}</b></div>` +
       `<div style="margin:2px 0 0 6px;font-size:10.5px;color:#a05a12">↑ ${esc(hint)}</div>`
 
     const miniForm =
-      '<div style="margin-top:7px;padding:9px;border-radius:10px;background:#faf7fb">' +
-      '<div style="font-size:11px;color:#766b80;text-align:center"><b>배송지 선택</b> 창에 이렇게 입력</div>' +
+      '<div style="margin-top:7px;padding:9px;border-radius:10px;background:#f9fafb">' +
+      '<div style="font-size:11px;color:#4e5968;text-align:center"><b>배송지 선택</b> 창에 이렇게 입력</div>' +
       field('👤', code, '이름 칸') +
       field('📍', addr1, '주소 검색(🔍)에 붙여넣기') +
       field('🏠', `${code} 본인이름`, '상세주소 — 본인 이름을 이어서') +
       field('📞', phone, '연락처 — 자동으로 입력됩니다') +
       '</div>' +
       `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
-      'background:#ef4a76;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
+      'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
 
     // 장바구니 화면에는 배송지가 아직 없으므로 검사 대신 예고만 합니다.
     const onCart = location.host === 'cart.coupang.com'
@@ -370,7 +371,7 @@
       '<b>🇻🇳 하노이 배송</b>' + statusBlock +
       cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
-      'background:#faf7fb;color:#9a8fa5;cursor:pointer">닫기</button>'
+      'background:#f9fafb;color:#8b95a1;cursor:pointer">닫기</button>'
 
     // 내용이 그대로면 다시 그리지 않습니다 — 주기 갱신 때 깜박이지 않게.
     if (card.dataset.kbHtml === html) return

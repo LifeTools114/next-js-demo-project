@@ -172,6 +172,7 @@
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
       disclosureShort: policy.affiliateDisclosureShort,
+      ruleText: K.roundingRuleText(),
       fmt: { krw: K.krw, vnd: K.vnd, weight: K.weight },
     })
   }

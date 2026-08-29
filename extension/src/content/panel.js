@@ -15,23 +15,23 @@ const KBPanel = (() => {
 .wrap { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000; width: 340px; max-width: calc(100vw - 32px); }
 .fab { width: 56px; height: 56px; border-radius: 50%; border: 0; margin-left: auto; display: flex;
   align-items: center; justify-content: center; font-size: 24px; cursor: pointer;
-  background: #ef4a76; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.22); }
+  background: #3182f6; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.22); }
 .fab[data-state="blocked"] { background: #c53030; }
-.fab[data-state="error"] { background: #766b80; }
+.fab[data-state="error"] { background: #4e5968; }
 .card { background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(27,18,32,.2);
-  overflow: hidden; border: 1px solid #ece7ef; max-height: 76vh; display: flex; flex-direction: column; }
-.head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; background: #fff1f5; border-bottom: 1px solid #ece7ef; }
-.head b { font-size: 13.5px; color: #1b1220; flex: 1; }
-.head button { background: none; border: 0; font-size: 18px; cursor: pointer; color: #766b80; line-height: 1; padding: 4px; }
+  overflow: hidden; border: 1px solid #e5e8eb; max-height: 76vh; display: flex; flex-direction: column; }
+.head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; background: #f2f4f6; border-bottom: 1px solid #e5e8eb; }
+.head b { font-size: 13.5px; color: #191f28; flex: 1; }
+.head button { background: none; border: 0; font-size: 18px; cursor: pointer; color: #4e5968; line-height: 1; padding: 4px; }
 .body { padding: 12px 14px; overflow-y: auto; }
 .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
-.row + .row { border-top: 1px dashed #ece7ef; }
-.row .l { color: #453b4d; flex: 1; min-width: 0; }
+.row + .row { border-top: 1px dashed #e5e8eb; }
+.row .l { color: #333d4b; flex: 1; min-width: 0; }
 .row .v { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.total { border-top: 2px solid #1b1220; margin-top: 8px; padding-top: 10px; font-size: 14px; }
+.total { border-top: 2px solid #191f28; margin-top: 8px; padding-top: 10px; font-size: 14px; }
 .total .v { font-size: 17px; }
-.vnd { text-align: right; color: #d92e5c; font-weight: 800; font-size: 15px; margin-top: 2px; }
-.name { font-size: 12.5px; line-height: 1.45; color: #453b4d; margin: 0 0 10px;
+.vnd { text-align: right; color: #f04452; font-weight: 800; font-size: 15px; margin-top: 2px; }
+.name { font-size: 12.5px; line-height: 1.45; color: #333d4b; margin: 0 0 10px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 6px; margin-right: 4px; }
 .tag.ok { background: #e6f6f0; color: #17916b; }
@@ -40,36 +40,37 @@ const KBPanel = (() => {
 .blocked { background: #fff0f0; border: 1px solid #ffd5d5; border-radius: 10px; padding: 12px; }
 .blocked h4 { margin: 0 0 6px; font-size: 13.5px; color: #9b2c2c; }
 .blocked p { margin: 0; font-size: 12.5px; color: #742a2a; line-height: 1.5; }
-.note { background: #faf7fb; border-radius: 8px; padding: 9px 10px; font-size: 12px; color: #5b5164; line-height: 1.55; margin-top: 10px; }
+.note { background: #f9fafb; border-radius: 8px; padding: 9px 10px; font-size: 12px; color: #4e5968; line-height: 1.55; margin-top: 10px; }
 .note.warn { background: #fff8ef; color: #8a5a10; }
 .note.tip { background: #f0faf4; color: #1d6b40; }
 .hero { text-align: center; padding: 12px 0 4px; }
-.hero .cap { font-size: 12.5px; font-weight: 700; color: #453b4d; }
-.hero .krw { font-size: 27px; font-weight: 800; color: #1b1220; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
-.hero .vnd2 { font-size: 17px; font-weight: 800; color: #d92e5c; margin-top: 1px; font-variant-numeric: tabular-nums; }
-.hero .meta { font-size: 12px; color: #5b5164; margin-top: 6px; }
-.detail-toggle { width: 100%; min-height: 34px; margin-top: 10px; border: 1px solid #ece7ef; border-radius: 9px;
-  background: #fff; color: #453b4d; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.hero .cap { font-size: 12.5px; font-weight: 700; color: #333d4b; }
+.hero .krw { font-size: 27px; font-weight: 800; color: #191f28; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.hero .vnd2 { font-size: 17px; font-weight: 800; color: #f04452; margin-top: 1px; font-variant-numeric: tabular-nums; }
+.hero .meta { font-size: 12px; color: #4e5968; margin-top: 6px; }
+.hero .meta.sub { font-size: 11px; color: #8b95a1; margin-top: 2px; }
+.detail-toggle { width: 100%; min-height: 34px; margin-top: 10px; border: 1px solid #e5e8eb; border-radius: 9px;
+  background: #fff; color: #333d4b; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .btns { padding: 0 14px 14px; display: grid; gap: 8px; }
 .btn { min-height: 42px; border: 0; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
-  background: #ef4a76; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.btn.ghost { background: #fff; color: #453b4d; border: 1px solid #ece7ef; }
+  background: #3182f6; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.btn.ghost { background: #fff; color: #333d4b; border: 1px solid #e5e8eb; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.disc { font-size: 10.5px; color: #766b80; line-height: 1.45; text-align: center; margin-top: -2px; }
+.disc { font-size: 10.5px; color: #4e5968; line-height: 1.45; text-align: center; margin-top: -2px; }
 .track { display: flex; gap: 8px; margin-bottom: 4px; }
-.track button { flex: 1; min-height: 52px; border: 2px solid #ece7ef; background: #fff; border-radius: 11px;
-  font-size: 15px; font-weight: 800; color: #453b4d; cursor: pointer; display: flex; flex-direction: column;
+.track button { flex: 1; min-height: 52px; border: 2px solid #e5e8eb; background: #fff; border-radius: 11px;
+  font-size: 15px; font-weight: 800; color: #333d4b; cursor: pointer; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 2px; }
-.track button small { font-size: 10.5px; font-weight: 600; color: #9a8fa5; }
-.track button[aria-pressed="true"] { background: #ef4a76; border-color: #ef4a76; color: #fff; }
-.track button[aria-pressed="true"] small { color: #ffd9e4; }
+.track button small { font-size: 10.5px; font-weight: 600; color: #8b95a1; }
+.track button[aria-pressed="true"] { background: #3182f6; border-color: #3182f6; color: #fff; }
+.track button[aria-pressed="true"] small { color: #cfe0fc; }
 .err { font-size: 12.5px; color: #b7791f; background: #fff8ef; border-radius: 8px; padding: 10px; line-height: 1.5; }
 .maint { background: #f2f0f7; border: 1px solid #ddd8e6; border-radius: 10px; padding: 14px; text-align: center; }
 .maint .icon { font-size: 28px; display: block; margin-bottom: 8px; }
 .maint h4 { margin: 0 0 6px; font-size: 14px; color: #3b3350; }
 .maint p { margin: 0 0 10px; font-size: 12.5px; color: #5b5470; line-height: 1.55; }
-.maint .when { font-size: 12px; font-weight: 700; color: #453b4d; background: #fff; border-radius: 8px; padding: 8px 10px; }
-.maint .countdown { font-size: 20px; font-weight: 800; color: #ef4a76; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+.maint .when { font-size: 12px; font-weight: 700; color: #333d4b; background: #fff; border-radius: 8px; padding: 8px 10px; }
+.maint .countdown { font-size: 20px; font-weight: 800; color: #3182f6; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
 .banner { background: #fff8ef; border: 1px solid #ffe8cc; border-radius: 9px; padding: 9px 11px;
   font-size: 11.5px; color: #8a5a10; line-height: 1.5; margin-bottom: 10px; }
 `
@@ -254,7 +255,8 @@ const KBPanel = (() => {
         <div class="cap">하노이 도착 총액</div>
         <div class="krw">${esc(state.fmt.krw(q.total))}</div>
         <div class="vnd2">${esc(state.fmt.vnd(q.totalVnd))}</div>
-        <div class="meta">청구무게 ${q.shipping.billableKg}kg · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
+        <div class="meta">실측 추정 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)}</div>
+        <div class="meta sub">${esc(state.ruleText ?? '')} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
       </div>
       ${goodsNote}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
       <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
