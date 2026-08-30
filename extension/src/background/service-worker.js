@@ -255,7 +255,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         await chrome.tabs.create({ url })
         // 신청서로 넘어간 드래프트는 소진 — 다음 결제에 재사용되지 않게.
         await storage.set({ checkoutDraft: [] })
-        return { ok: true }
+        // url 반환 — 완료 화면의 [신청서 다시 열기]가 같은 신청서를 재사용합니다.
+        return { ok: true, url }
       }
       case 'quoteCart': {
         // 금액 미리보기 — 호출자가 준 items(지금 화면) 우선, 서버 견적으로 일치 보장.

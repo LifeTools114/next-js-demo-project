@@ -95,10 +95,66 @@
   }
 
   /**
-   * 결제와 동시에 배송요청 — 완료 화면을 감지하면 견적함의 배송대행
-   * 상품 + 방금 쿠팡 주문번호로 배송비 결제(체크아웃)를 자동으로 엽니다.
+   * 결제와 동시에 배송요청 — 완료 화면을 감지하면 먼저 "배송대행 결제창으로
+   * 연결됩니다"를 깜박이며 예고한 뒤(3초), 신청서를 **새 탭**에 엽니다.
+   * 쿠팡 완료 화면은 사라지지 않고 그대로 남으며, 그 위의 안내 카드가
+   * "열렸습니다 + [신청서 다시 열기]"로 바뀝니다 — 예고 없이 화면이 바로
+   * 덮여 "쿠팡 화면이 사라졌다"고 느끼는 혼란을 막습니다.
    * 견적함이 비어 있으면 자동으로 열 수 없으므로 안내 카드로 대신합니다.
    */
+  const FORWARD_NOTICE_MS = 3000
+
+  function showForwardNotice() {
+    document.getElementById('kb-fwd-notice')?.remove()
+    if (!document.getElementById('kb-blink-style')) {
+      const style = document.createElement('style')
+      style.id = 'kb-blink-style'
+      style.dataset.kbUi = '1'
+      style.textContent = '@keyframes kbBlink{0%,100%{opacity:1}50%{opacity:.25}}'
+      document.head.appendChild(style)
+    }
+    const card = document.createElement('div')
+    card.id = 'kb-fwd-notice'
+    card.dataset.kbUi = '1'
+    card.style.cssText =
+      'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:300px;background:#fff;' +
+      'border:2px solid #3182f6;border-radius:14px;box-shadow:0 10px 32px rgba(0,0,0,.25);' +
+      'padding:16px;font:13px/1.6 sans-serif;color:#191f28'
+    card.innerHTML =
+      '<b style="font-size:14px">✅ 쿠팡 결제 완료</b>' +
+      '<div id="kb-fwd-msg" style="margin-top:8px;padding:10px;border-radius:10px;background:#e8f1ff;' +
+      'font-weight:800;color:#1b64da;animation:kbBlink .9s ease-in-out infinite">' +
+      '🇻🇳 배송대행 결제창으로 연결됩니다…</div>' +
+      '<div style="margin-top:8px;font-size:11.5px;color:#4e5968">이 쿠팡 화면은 사라지지 않고 그대로 유지됩니다.</div>'
+    document.body.appendChild(card)
+    return card
+  }
+
+  /** 새 탭이 열린 뒤 — 깜박임을 멈추고, 돌아온 고객이 다시 열 수 있게 합니다. */
+  function forwardNoticeDone(card, checkoutUrl, coupangOrderNo) {
+    if (!card?.isConnected) return
+    const msg = card.querySelector('#kb-fwd-msg')
+    if (msg) {
+      msg.style.animation = 'none'
+      msg.textContent = '🇻🇳 배송대행 결제창이 새 탭에 열렸습니다'
+    }
+    if (card.querySelector('#kb-fwd-reopen')) return
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'margin-top:10px;display:grid;gap:6px'
+    wrap.innerHTML =
+      '<button id="kb-fwd-reopen" style="min-height:36px;border:0;border-radius:9px;background:#3182f6;' +
+      'color:#fff;font-weight:700;cursor:pointer">신청서 다시 열기</button>' +
+      '<button id="kb-fwd-close" style="min-height:28px;border:0;border-radius:8px;background:#f9fafb;' +
+      'color:#8b95a1;cursor:pointer">닫기</button>'
+    card.appendChild(wrap)
+    wrap.querySelector('#kb-fwd-reopen').addEventListener('click', () => {
+      // 같은 신청서 URL 재사용 — 드래프트가 소진돼도 다시 열립니다.
+      if (checkoutUrl) window.open(checkoutUrl, '_blank')
+      else send('openCheckout', { coupangOrderNo })
+    })
+    wrap.querySelector('#kb-fwd-close').addEventListener('click', () => card.remove())
+  }
+
   async function autoForward(coupangOrderNo) {
     const guard = `kb-fwd-${coupangOrderNo}`
     try {
@@ -106,10 +162,16 @@
       sessionStorage.setItem(guard, '1')
     } catch { /* 가드 불가 환경이면 카드 중복 정도만 감수합니다 */ }
 
+    // 1) 완료 화면 위에 예고를 먼저 깜박입니다 — 전환의 이유를 알린 뒤 엽니다.
+    const notice = showForwardNotice()
+    await new Promise((resolve) => setTimeout(resolve, FORWARD_NOTICE_MS))
+
+    // 2) 신청서는 새 탭 — 이 쿠팡 완료 화면은 그대로 남습니다.
     const res = await send('openCheckout', { coupangOrderNo })
     if (res?.ok) {
-      toast('🇻🇳 하노이 배송 신청서를 새 탭에 열었습니다 — 수령인 정보만 입력하면 끝!', true)
+      forwardNoticeDone(notice, res.url, coupangOrderNo)
     } else {
+      notice.remove()
       offerForwarding(coupangOrderNo)
     }
   }
