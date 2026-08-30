@@ -346,10 +346,22 @@ const KBPanel = (() => {
     if (state.view !== 'quote') return ''
     const label = state.track === 'forwarding' ? '견적함에 담기' : '구매대행 견적함에 담기'
 
+    /**
+     * 제휴 버튼 — 배송대행(고객 본인 결제) 전용.
+     * 파트너스 규정: 사용자 클릭으로만 이동 + 고지 문구를 버튼 옆에 항상 표시.
+     * 구매대행은 본인 구매(self-referral)라 절대 붙이지 않습니다 (운영자 확정 26-08-30).
+     */
+    const affiliateBlock = state.track === 'forwarding'
+      ? `<button class="btn ghost" data-act="affiliate">🔗 제휴 링크로 열고 구매 진행</button>
+        <div class="disc">이 버튼은 쿠팡 파트너스 제휴 링크로 연결됩니다. 이를 통해 구매하시면
+        저희가 일정액의 수수료를 받으며, 고객님이 지불하시는 금액은 동일합니다.</div>`
+      : ''
+
     // 담기 전 — 담기 버튼 하나. 견적함에 이미 담긴 게 있으면 개수만 살짝.
     if (!state.added) {
       return `<div class="btns">
         <button class="btn" data-act="add">${label}</button>
+        ${affiliateBlock}
         ${state.cartCount > 0 ? `<div class="disc">🧺 견적함에 ${state.cartCount}개 담겨 있어요</div>` : ''}
       </div>`
     }
@@ -359,6 +371,7 @@ const KBPanel = (() => {
       <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
       <button class="btn" data-act="checkout">주문서 바로 작성 →</button>
       <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
+      ${affiliateBlock}
       <div class="disc">담긴 상품은 브라우저 오른쪽 위 확장 아이콘(🇻🇳, 숫자 배지)에서 언제든 볼 수 있어요.</div>
     </div>`
   }
@@ -407,6 +420,9 @@ const KBPanel = (() => {
     )
     wrap.querySelectorAll('[data-act="checkout"]').forEach((b) =>
       b.addEventListener('click', () => handlers.onCheckout?.()),
+    )
+    wrap.querySelectorAll('[data-act="affiliate"]').forEach((b) =>
+      b.addEventListener('click', () => handlers.onAffiliate?.()),
     )
   }
 

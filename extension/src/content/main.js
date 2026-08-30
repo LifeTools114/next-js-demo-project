@@ -69,6 +69,15 @@
       if (items.length === 0) return
       await send('openCheckout', { track, items })
     },
+    onAffiliate: async () => {
+      /**
+       * 제휴 링크 열기 — 배송대행 전용 + 사용자 클릭 전용.
+       * 구매대행은 본인 구매(self-referral)라 여기서도, 백그라운드와 서버에서도
+       * 3중으로 막습니다 (운영자 확정 26-08-30: "구매대행은 절대 태우면 안 됨").
+       */
+      if (track !== 'forwarding') return
+      await send('openAffiliate', { url: location.href, track })
+    },
   })
 
   // ── 2~4. 추출 → 판정 → 계산 ──
