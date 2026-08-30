@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1200px; height: 630px; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
+  .cover {
+    width: 1200px; height: 630px; padding: 70px 80px;
+    background: linear-gradient(135deg, #fff1f5 0%, #ffffff 55%, #fff8fa 100%);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .deco { position: absolute; border-radius: 50%; background: #ffe3ea; opacity: .7; }
+  .brand { font-size: 30px; font-weight: 800; color: #1b1220; letter-spacing: -1px; }
+  .brand span { color: #ef4a76; }
+  h1 { margin-top: 22px; font-size: 68px; font-weight: 900; letter-spacing: -2.5px; color: #1b1220; line-height: 1.22; }
+  h1 .hl { color: #ef4a76; }
+  .flags { font-size: 54px; margin-top: 6px; letter-spacing: 6px; }
+  .pills { display: flex; gap: 14px; margin-top: 36px; }
+  .pill {
+    background: #fff; border: 2px solid #ffd3de; border-radius: 999px;
+    padding: 14px 26px; font-size: 25px; font-weight: 800; color: #453b4d;
+    box-shadow: 0 4px 14px rgba(239, 74, 118, .10);
+  }
+  .pill b { color: #ef4a76; }
+  .disc { margin-top: 44px; font-size: 17px; color: #766b80; }
+</style>
+</head>
+<body>
+  <div class="cover">
+    <div class="deco" style="width:420px;height:420px;right:-140px;top:-160px"></div>
+    <div class="deco" style="width:230px;height:230px;right:120px;bottom:-110px;opacity:.5"></div>
+    <div class="brand">쿠팡 <span>하노이</span> 직구 도우미</div>
+    <h1>쿠팡에서 바로,<br><span class="hl">하노이 도착 가격</span>을 확인하세요</h1>
+    <div class="flags">🇰🇷 ✈️ 🇻🇳</div>
+    <div class="pills">
+      <div class="pill">국제배송 <b>$9/kg</b></div>
+      <div class="pill">하노이 도착 <b>3~6영업일</b></div>
+      <div class="pill">실측 무게 <b>투명 정산</b></div>
+    </div>
+    <div class="disc">본 채널은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받을 수 있습니다.</div>
+  </div>
+</body>
+</html>
