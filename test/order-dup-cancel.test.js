@@ -213,10 +213,12 @@ test('취소 기본값: customerFault 없이는 전액 환불 그대로다', asy
   assert.equal(s.balanceKrw, 0)
 })
 
-test('반송비 추정: 1kg 기본 + kg 올림 초과분', async () => {
+test('반송비: S1 확정 요율 — 하노이 2kg까지 $18, 초과 kg당 $9 올림', async () => {
   const { estimateReturnShippingUsd, RETURN_SHIPPING } = await import('../config/shipping.js')
-  assert.equal(estimateReturnShippingUsd(1), RETURN_SHIPPING.baseUsd)
-  assert.equal(estimateReturnShippingUsd(0.5), RETURN_SHIPPING.baseUsd, '최소 1kg 취급')
-  assert.equal(estimateReturnShippingUsd(2), RETURN_SHIPPING.baseUsd + RETURN_SHIPPING.perKgUsd)
-  assert.equal(estimateReturnShippingUsd(2.2), RETURN_SHIPPING.baseUsd + 2 * RETURN_SHIPPING.perKgUsd, '올림')
+  assert.equal(RETURN_SHIPPING.assumed, false, 'S1 견적서 26.08.28 로 확정된 값입니다')
+  assert.equal(estimateReturnShippingUsd(1), 18)
+  assert.equal(estimateReturnShippingUsd(2), 18, '기본 구간(2kg)까지는 $18')
+  assert.equal(estimateReturnShippingUsd(2.2), 27, '초과분은 kg 올림')
+  assert.equal(estimateReturnShippingUsd(5), 18 + 3 * 9)
+  assert.equal(estimateReturnShippingUsd(0.5), 18, '최소 기본 구간 취급')
 })

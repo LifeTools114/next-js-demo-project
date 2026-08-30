@@ -476,6 +476,11 @@ export default function OrderPage() {
                   )}
                 </>
               )}
+              <br />
+              <small style={{ color: '#c92a2a', fontWeight: 700 }}>
+                ⚠️ {RETURN_SHIPPING.blockedNote} — 해당 품목은 교환·반품 불가.
+              </small>{' '}
+              <small>{RETURN_SHIPPING.customsNote}.</small>
             </p>
           </div>
         )

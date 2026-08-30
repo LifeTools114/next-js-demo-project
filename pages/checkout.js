@@ -308,6 +308,11 @@ export default function Checkout() {
                     </b>
                   </>
                 )}
+                <br />
+                <small style={{ color: '#c92a2a', fontWeight: 700 }}>
+                  ⚠️ {RETURN_SHIPPING.blockedNote} — 해당 품목은 교환·반품이 불가합니다.
+                </small>{' '}
+                <small>{RETURN_SHIPPING.customsNote}.</small>
               </div>
             )}
           </div>

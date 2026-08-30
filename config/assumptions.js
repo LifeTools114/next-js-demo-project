@@ -101,12 +101,12 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'return-shipping',
-    label: '하노이→한국 반송 요율 — 1kg $15 + kg당 $8 (교환·반품 실익 안내용)',
+    label: '하노이→한국 반송 — 하노이 2kg까지 $18 + 초과 kg당 $9 (사전 접수 필수)',
     where: 'config/shipping.js · RETURN_SHIPPING',
-    status: 'assumed',
-    source: '국제 특송 통상 수준 추정 — 운영자가 요율표를 주면 교체 (assumed: false 로)',
-    risk: '실제 반송비가 더 싸면 반품을 과하게 말리고, 더 비싸면 고객이 손해를 보고 보냅니다.',
-    askBroker: '하노이→한국 반송(개인 발송) 요율표: 구간별 금액, 접수 방법, 리드타임',
+    status: 'confirmed',
+    source: 'S1 EXPRESS 견적서 26.08.28 「하노이 > 인천 (Outbound)」 — 박닌권 $23 · 타이응우옌/하이즈엉 $28, 한국 내 택배 전달 1~10kg $7 / 11~20kg $14',
+    risk: '액체·배터리·현금·신용카드·대량물품은 베→한 발송 불가 (화장품 액체류는 반품 자체가 불가). $150 이상 신고 시 관부가세.',
+    askBroker: '견적서의 4번째 반송 구간(33$) 지역명 확인, 반송 리드타임',
   },
   {
     id: 'refund-policy',
