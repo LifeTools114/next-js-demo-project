@@ -104,9 +104,9 @@ export const ASSUMPTIONS = [
     label: '하노이→한국 반송 — 하노이 2kg까지 $18 + 초과 kg당 $9 (사전 접수 필수)',
     where: 'config/shipping.js · RETURN_SHIPPING',
     status: 'confirmed',
-    source: 'S1 EXPRESS 견적서 26.08.28 「하노이 > 인천 (Outbound)」 — 박닌권 $23 · 타이응우옌/하이즈엉 $28, 한국 내 택배 전달 1~10kg $7 / 11~20kg $14',
+    source: 'S1 EXPRESS 견적서 26.08.28 「하노이 > 인천 (Outbound)」 — 박닌/박장/빈푹 $23 · 타이응우옌/하이즈엉 $33 (운영자 확인 26-08-30), 한국 내 택배 전달 1~10kg $7 / 11~20kg $14',
     risk: '액체·배터리·현금·신용카드·대량물품은 베→한 발송 불가 (화장품 액체류는 반품 자체가 불가). $150 이상 신고 시 관부가세.',
-    askBroker: '견적서의 4번째 반송 구간(33$) 지역명 확인, 반송 리드타임',
+    askBroker: '반송 리드타임 · 견적서에 보이는 $28 구간의 지역명(중간 구간으로 추정)',
   },
   {
     id: 'refund-policy',
