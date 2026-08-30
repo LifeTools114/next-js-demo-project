@@ -71,7 +71,6 @@ const MUST_BLOCK = [
   ['상추 씨앗 모종 세트', 'quarantine-plant'],
   ['LG 트롬 건조기 20kg', 'oversize'],
   ['삼성 비스포크 냉장고', 'oversize'],
-  ['캘러웨이 골프채 아이언 세트', 'sct'],
 ]
 
 test('정상 상품을 차단하지 않는다 (오탐 0)', () => {
@@ -118,6 +117,12 @@ test('고액 주문은 차단하지 않고 견적 문의로 보낸다', () => {
   const dyson = checkEligibility(p('다이슨 에어랩 멀티 스타일러', { price: 590000, quantity: 1 }))
   assert.equal(dyson.autoQuote, false)
   assert.equal(dyson.ruleId, 'appliance')
+
+  // 골프채는 배송 가능하되 장척 화물이라 견적 문의 (운영자 확정 26-08-30).
+  const golf = checkEligibility(p('캘러웨이 골프채 아이언 세트', { price: 800000, quantity: 1 }))
+  assert.equal(golf.shippable, true)
+  assert.equal(golf.verdict, VERDICT.MANUAL_QUOTE)
+  assert.equal(golf.ruleId, 'oversize')
 })
 
 test('다량 주문은 자동 견적을 유지하되 경고한다', () => {

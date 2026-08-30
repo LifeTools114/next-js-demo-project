@@ -254,7 +254,7 @@ export default function RatesPage() {
               <p className="note" style={{ marginTop: 12 }}>
                 추가 비용 품목: 전자기기(휴대폰·태블릿·노트북·PC·모니터) ${ITEM_SURCHARGES.device.usd}/대 ·
                 파손주의 ${ITEM_SURCHARGES.fragile.usd}/개 · 대형({ITEM_SURCHARGES.bulky.thresholdKg}kg↑) ${ITEM_SURCHARGES.bulky.usd}/건 ·
-                스키·캐리어 등 장척은 견적 문의. 할증은 견적 내역에 자동 표시됩니다.
+                골프채·스키·캐리어 등 장척은 견적 문의. 할증은 견적 내역에 자동 표시됩니다.
               </p>
               {/* 세금 문구 — 관세·VAT 를 걷는 정책일 때만 (현재 미징수, config/taxes.js) */}
               {TAXES.collect && (

@@ -89,12 +89,12 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
             <span className="row__value">${ITEM_SURCHARGES.bulky.usd}/건</span>
           </div>
           <div className="row">
-            <span className="row__label">🎿 장척·특수 <small style={{ color: 'var(--ink-500)' }}>스키·낚싯대·캐리어 등</small></span>
+            <span className="row__label">🏌️ 장척·특수 <small style={{ color: 'var(--ink-500)' }}>골프채·스키·낚싯대·캐리어 등</small></span>
             <span className="row__value">견적 문의</span>
           </div>
           <p className="note" style={{ marginTop: 12 }}>
             할증은 견적과 신청서 내역에 자동으로 표시됩니다. 전자기기는 한국 기기 특성상
-            베트남 A/S 가 어렵습니다. 골프채는 베트남 특별소비세 품목이라 접수하지 않습니다.
+            베트남 A/S 가 어렵습니다. 골프채 등 장척 화물은 접수 후 정확한 요금을 안내드립니다.
           </p>
         </div>
       </section>
