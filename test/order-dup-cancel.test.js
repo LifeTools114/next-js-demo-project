@@ -174,3 +174,49 @@ test('셀프 취소: 이미 취소된 주문의 재취소는 오류가 아니다
 test('셀프 취소 가능 상태는 입금 전 두 단계뿐이다', () => {
   assert.deepEqual(CUSTOMER_CANCELLABLE_STATES, ['REQUESTED', 'AWAITING_PAYMENT'])
 })
+
+// ─────────── 변심 취소 실비 차감 (RETURN_POLICY) ───────────
+
+test('변심 취소: 구매대행은 대행수수료만 남기고 환불한다', async () => {
+  const { cancelOrder } = await import('../lib/order/store.js')
+  const o = make()
+  confirmPayment(o.id, { confirmedBy: 'admin' })
+  const cancelled = cancelOrder(o.id, { reason: '고객 변심', by: 'admin', customerFault: true })
+  const s = summarize(cancelled.ledger, cancelled.fx.effectiveRate)
+  const fee = cancelled.quote.agency.fee
+  assert.ok(fee >= 5000, `수수료가 동결 견적에 있어야 합니다 (${fee})`)
+  assert.equal(s.netReceivedKrw, fee, '남는 돈 = 대행수수료')
+  assert.equal(s.balanceKrw, 0, '잔액은 0으로 끝나야 합니다 (유령 환불 예정 금지)')
+  const refund = cancelled.ledger.customer.find((e) => e.type === 'REFUND')
+  assert.equal(refund.amountKrw, cancelled.quote.total - fee)
+  assert.match(refund.memo, /구매대행 수수료/)
+})
+
+test('변심 취소: 배송대행은 $1 만 차감한다', async () => {
+  const { cancelOrder } = await import('../lib/order/store.js')
+  const o = createOrder({ items: ITEMS, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER })
+  confirmPayment(o.id, { confirmedBy: 'admin' })
+  const cancelled = cancelOrder(o.id, { reason: '고객 변심', by: 'admin', customerFault: true })
+  const s = summarize(cancelled.ledger, cancelled.fx.effectiveRate)
+  const feeKrw = Math.round(1 * cancelled.fx.usdToKrw)
+  assert.equal(s.netReceivedKrw, feeKrw, '남는 돈 = $1 환산액')
+  assert.equal(s.balanceKrw, 0)
+})
+
+test('취소 기본값: customerFault 없이는 전액 환불 그대로다', async () => {
+  const { cancelOrder } = await import('../lib/order/store.js')
+  const o = make()
+  confirmPayment(o.id, { confirmedBy: 'admin' })
+  const cancelled = cancelOrder(o.id, { reason: '품절 — 당사 사유', by: 'admin' })
+  const s = summarize(cancelled.ledger, cancelled.fx.effectiveRate)
+  assert.equal(s.netReceivedKrw, 0, '전액 환불')
+  assert.equal(s.balanceKrw, 0)
+})
+
+test('반송비 추정: 1kg 기본 + kg 올림 초과분', async () => {
+  const { estimateReturnShippingUsd, RETURN_SHIPPING } = await import('../config/shipping.js')
+  assert.equal(estimateReturnShippingUsd(1), RETURN_SHIPPING.baseUsd)
+  assert.equal(estimateReturnShippingUsd(0.5), RETURN_SHIPPING.baseUsd, '최소 1kg 취급')
+  assert.equal(estimateReturnShippingUsd(2), RETURN_SHIPPING.baseUsd + RETURN_SHIPPING.perKgUsd)
+  assert.equal(estimateReturnShippingUsd(2.2), RETURN_SHIPPING.baseUsd + 2 * RETURN_SHIPPING.perKgUsd, '올림')
+})

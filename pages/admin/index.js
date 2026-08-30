@@ -26,7 +26,10 @@ const ACTIONS_BY_STATE = {
   ],
   PAID: [
     { action: 'startPurchase', label: '매입 착수', primary: true },
-    { action: 'cancelOrder', label: '주문 취소 (전액 환불)' },
+    // 당사 사유(품절·가격 인상 등)는 전액 환불 — 화면 약속 그대로
+    { action: 'cancelOrder', label: '주문 취소 (당사 사유 — 전액 환불)' },
+    // 고객 변심은 실비 차감: 구매대행 수수료 / 배송대행 $1 (RETURN_POLICY)
+    { action: 'cancelOrder', label: '고객 변심 취소 (수수료 차감 환불)', payload: { customerFault: true } },
   ],
   PURCHASING: [{ action: 'recordPurchase', label: '매입 완료 기록', primary: true, form: 'purchase' }],
   PURCHASED: [{ action: 'recordWeighing', label: '입고·실측 등록', primary: true, form: 'weighing' }],
@@ -426,7 +429,7 @@ export default function AdminConsole() {
 
               <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
                 {actions.map((a) => (
-                  <button key={a.action}
+                  <button key={a.label}
                     className={`btn ${a.primary ? '' : 'btn--ghost'}`}
                     onClick={() => {
                       const payload =
@@ -443,7 +446,7 @@ export default function AdminConsole() {
                               }
                             : a.form === 'shipping'
                               ? { trackingNo: f.trackingNo }
-                              : {}
+                              : (a.payload ?? {})
                       run(o.orderNo, a.action, payload)
                     }}>
                     {a.label}

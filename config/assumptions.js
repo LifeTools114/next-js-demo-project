@@ -100,6 +100,22 @@ export const ASSUMPTIONS = [
     source: '운영자 확정 (26-08-30) — 모두 영업일 기준(주말·공휴일 제외)',
   },
   {
+    id: 'return-shipping',
+    label: '하노이→한국 반송 요율 — 1kg $15 + kg당 $8 (교환·반품 실익 안내용)',
+    where: 'config/shipping.js · RETURN_SHIPPING',
+    status: 'assumed',
+    source: '국제 특송 통상 수준 추정 — 운영자가 요율표를 주면 교체 (assumed: false 로)',
+    risk: '실제 반송비가 더 싸면 반품을 과하게 말리고, 더 비싸면 고객이 손해를 보고 보냅니다.',
+    askBroker: '하노이→한국 반송(개인 발송) 요율표: 구간별 금액, 접수 방법, 리드타임',
+  },
+  {
+    id: 'refund-policy',
+    label: '환불 영업일 3~7일 · 변심 취소: 구매대행 수수료 제외 / 배송대행 $1 차감 · 반품 비용 전액 구매자 부담',
+    where: 'config/payment.js · REFUND_DAYS / RETURN_POLICY',
+    status: 'confirmed',
+    source: '운영자 확정 (26-08-30) — 당사 사유(품절·가격 인상) 취소는 전액 환불 유지',
+  },
+  {
     id: 'maintenance-window',
     label: '점검 시간 03:00~03:30 KST',
     where: 'config/maintenance.js',

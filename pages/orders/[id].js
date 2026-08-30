@@ -4,6 +4,9 @@ import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import { PROGRESS_ORDER, ORDER_STATES } from '../../lib/order/states'
 import { krw, vnd, weight, formatDateTime } from '../../lib/format'
+import { REFUND_DAYS, RETURN_POLICY } from '../../config/payment'
+import { RETURN_SHIPPING, estimateReturnShippingUsd } from '../../config/shipping'
+import { FX } from '../../config/fx'
 
 /**
  * 고객용 주문 조회.
@@ -292,7 +295,8 @@ export default function OrderPage() {
               <span className="row__value">{vnd(Math.abs(order.balance.vnd))}</span>
             </div>
             <p className="note" style={{ marginTop: 10 }}>
-              실측 무게가 예상보다 가벼워 차액을 환불해 드립니다.
+              실측 무게가 예상보다 가벼워 차액을 환불해 드립니다. 환불은{' '}
+              <b>영업일 기준 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내 지급됩니다.
             </p>
           </div>
         </section>
@@ -429,15 +433,53 @@ export default function OrderPage() {
         </div>
       )}
 
-      {/* 입금 후 ~ 매입 전 — 셀프 취소는 닫히지만 아직 전액 환불 취소가 가능한 구간 */}
+      {/* 입금 후 ~ 매입 전 — 셀프 취소는 닫히지만 아직 취소가 가능한 구간 */}
       {order.state === 'PAID' && (
         <div className="section" style={{ paddingBottom: 0 }}>
           <p className="note" style={{ fontSize: 12 }}>
-            취소가 필요하시면 <b>빠르게 연락 주세요</b> — 쿠팡 매입을 시작하기 전에는{' '}
-            <b style={{ color: '#17916b' }}>전액 환불</b>로 취소해 드립니다.
+            취소가 필요하시면 <b>빠르게 연락 주세요</b> — 쿠팡 매입 시작 전에는 취소할 수 있습니다.
+            품절·가격 인상 등 당사 사유는 <b style={{ color: '#17916b' }}>전액 환불</b>, 단순 변심은{' '}
+            {order.track === 'agent' ? '대행수수료 제외' : `처리 수수료 $${RETURN_POLICY.forwardingRefundFeeUsd} 차감`} 후
+            환불되며, 지급은 영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일입니다.
           </p>
         </div>
       )}
+
+      {/* 환불·교환·반품 정책 + 이 주문 기준 비용 미리보기 (운영자 확정 26-08-30) */}
+      {!cancelled && (() => {
+        const goodsKrw = order.items.reduce(
+          (s, i) => s + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1), 0,
+        )
+        const billableKg = order.quote?.shipping?.billableKg ?? 1
+        const backUsd = estimateReturnShippingUsd(billableKg)
+        const backKrw = Math.round(backUsd * FX.usdToKrw)
+        const freightKrw = order.quote?.breakdown?.find((r) => r.key === 'freight')?.krw ?? 0
+        const agencyKrw = order.track === 'agent' ? (order.quote?.agency?.fee ?? 0) : 0
+        const roundTripKrw = backKrw + freightKrw + agencyKrw
+        return (
+          <div className="section" style={{ paddingBottom: 0 }}>
+            <p className="note" style={{ fontSize: 12, lineHeight: 1.75 }}>
+              💳 환불은 <b>영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내 지급 · ⛔ 반품·변심 취소는{' '}
+              {order.track === 'agent' ? '대행수수료 제외 후' : `처리 수수료 $${RETURN_POLICY.forwardingRefundFeeUsd} 차감 후`} 환불
+              (당사 사유 취소는 전액 환불)
+              <br />
+              ↩️ 하노이 도착 후 교환·반품 시{' '}
+              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)·쿠팡 반품비 전액 구매자 부담</b>
+              {freightKrw > 0 && (
+                <>
+                  <br />
+                  ↔️ 이 주문 기준: 보낼 때 약 <b>{krw(backKrw)}</b>
+                  {RETURN_SHIPPING.assumed ? '(예상)' : ''} + 다시 받을 때 <b>{krw(freightKrw + agencyKrw)}</b> =
+                  교환 왕복 약 <b style={{ color: '#d9480f' }}>{krw(roundTripKrw)}</b>
+                  {goodsKrw > 0 && roundTripKrw >= goodsKrw && (
+                    <b style={{ color: '#c92a2a' }}> — 상품가({krw(goodsKrw)})보다 커서 실익이 없습니다</b>
+                  )}
+                </>
+              )}
+            </p>
+          </div>
+        )
+      })()}
 
       <div className="section" style={{ display: 'grid', gap: 10 }}>
         {/* 쇼핑은 쿠팡에서 — 확장 패널이 다시 견적을 띄워줍니다 */}

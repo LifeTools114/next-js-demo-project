@@ -141,3 +141,27 @@ export const CONSOLIDATION = {
   /** 합배송 취급 수수료 (USD) — 고객 청구 */
   handlingFeeUsd: 2,
 }
+
+/**
+ * 하노이→한국 반송 요율 — 교환·반품 실익 안내용.
+ *
+ * ⚠️ assumed: 확정 요율표를 아직 받지 못해 국제 특송 통상 수준의 추정값입니다.
+ * 저렴한 상품은 반송비가 상품가를 넘어 반품 실익이 없으므로, 고객이 보내기
+ * 전에 이 비용을 미리 보고 판단하게 하는 것이 목적입니다 (운영자 지시 26-08-30).
+ * 실제 요율을 받으면 이 숫자만 바꾸면 신청서·주문 페이지 안내가 함께 바뀝니다.
+ */
+export const RETURN_SHIPPING = {
+  assumed: true,
+  /** 첫 구간: baseKg 까지 baseUsd */
+  baseUsd: 15,
+  baseKg: 1,
+  /** 이후 kg 당 (올림) */
+  perKgUsd: 8,
+}
+
+/** 반송비 추정 (USD) — 교환은 여기에 재배송비(정방향 국제배송비)가 더해집니다. */
+export function estimateReturnShippingUsd(billableKg = 1) {
+  const kg = Number(billableKg) > 0 ? Number(billableKg) : 1
+  const extra = Math.max(0, Math.ceil(kg - RETURN_SHIPPING.baseKg))
+  return RETURN_SHIPPING.baseUsd + extra * RETURN_SHIPPING.perKgUsd
+}

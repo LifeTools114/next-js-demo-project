@@ -616,7 +616,13 @@
         bdRows(quotes.agent) +
         '<div style="margin-top:7px;padding:7px 9px;border-radius:9px;background:#fff8e6;color:#d9480f;' +
         'font-size:10.5px;font-weight:700;line-height:1.6">📦 배송 기간은 모두 영업일 기준(주말·공휴일 제외) · ' +
-        '해외직구 상품은 한국창고 도착까지 +2~3영업일</div>'
+        '해외직구 상품은 한국창고 도착까지 +2~3영업일</div>' +
+        // 환불·교환·반품 — 최종 결제 전 인지 (운영자 확정 26-08-30)
+        '<div style="margin-top:7px;padding:7px 9px;border-radius:9px;background:#fff0f0;color:#c92a2a;' +
+        'font-size:10.5px;font-weight:700;line-height:1.6">💳 환불은 영업일 3~7일 내 지급 · ' +
+        '반품·변심 취소는 구매대행 수수료 제외 / 배송대행 $1 차감 후 환불 (당사 사유는 전액 환불)<br>' +
+        '↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국)·쿠팡 반품비는 전액 구매자 부담 — ' +
+        '예상 1kg $15·이후 kg당 $8. 교환은 반송비 + 재배송비(위 국제배송비)를 상품가와 비교해 판단하세요</div>'
 
     const cartLine = priceBlock + ctaBlock +
       (cart.length > 0

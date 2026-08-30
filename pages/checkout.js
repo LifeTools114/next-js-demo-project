@@ -3,8 +3,9 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import CostBreakdown from '../components/CostBreakdown'
-import { SHIPPING } from '../config/shipping'
-import { PAYMENT } from '../config/payment'
+import { SHIPPING, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
+import { PAYMENT, REFUND_DAYS, RETURN_POLICY } from '../config/payment'
+import { FX } from '../config/fx'
 import { krw, vnd } from '../lib/format'
 import { rememberMyOrder } from '../lib/my-orders'
 
@@ -263,6 +264,55 @@ export default function Checkout() {
           </p>
         </div>
       )}
+
+      {/* 환불·교환·반품 정책 — 최종 결제 전 반드시 인지 (운영자 확정 26-08-30) */}
+      {(() => {
+        const goodsKrw = items.reduce((s, i) => s + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1), 0)
+        const billableKg = quote?.shipping?.billableKg ?? 1
+        const backUsd = estimateReturnShippingUsd(billableKg)
+        const backKrw = Math.round(backUsd * FX.usdToKrw)
+        const freightKrw = quote?.breakdown?.find((r) => r.key === 'freight')?.krw ?? 0
+        const agencyKrw = track === 'agent' ? (quote?.agency?.fee ?? 0) : 0
+        const resendKrw = freightKrw + agencyKrw
+        const roundTripKrw = backKrw + resendKrw
+        return (
+          <div className="section" style={{ paddingTop: 0 }}>
+            <p className="note" style={{ fontSize: 12.5, lineHeight: 1.8 }}>
+              💳 환불은 <b style={{ color: '#3182f6' }}>영업일 기준 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내
+              지급됩니다 (계좌 입금·카드결제 취소 동일).
+              <br />
+              ⛔ 반품·변심 취소 환불: <b>구매대행은 대행수수료를 제외한 나머지</b>를 환불하고,{' '}
+              <b>배송대행은 처리 수수료 {'$' + RETURN_POLICY.forwardingRefundFeeUsd} 차감</b> 후 환불합니다.
+              품절·가격 인상 등 당사 사유 취소는 <b style={{ color: '#17916b' }}>전액 환불</b>.
+              <br />
+              ↩️ 하노이 도착 후 교환·반품 시{' '}
+              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)와 쿠팡 반품비는 전액 구매자 부담</b>입니다.
+            </p>
+            {quote && freightKrw > 0 && (
+              <div className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.8, marginTop: 8 }}>
+                <b>↔️ 이 주문 기준 교환·반품 비용 미리보기</b>{' '}
+                <small>({billableKg}kg 기준{RETURN_SHIPPING.assumed ? ' · 반송비는 요율 확정 전 예상' : ''})</small>
+                <br />
+                보낼 때(하노이→한국) 약 <b style={{ color: '#c92a2a' }}>{krw(backKrw)}</b>
+                {' '}· 다시 받을 때(한국→하노이) <b style={{ color: '#c92a2a' }}>{krw(resendKrw)}</b>
+                {agencyKrw > 0 ? ' (배송비+수수료)' : ' (배송비)'}
+                <br />
+                🔁 교환 왕복 합계 약{' '}
+                <b style={{ color: '#d9480f', fontSize: 13.5 }}>{krw(roundTripKrw)}</b>
+                {goodsKrw > 0 && roundTripKrw >= goodsKrw && (
+                  <>
+                    <br />
+                    <b style={{ color: '#c92a2a' }}>
+                      ⚠️ 상품가 합계({krw(goodsKrw)})보다 큽니다 — 교환·반품 실익이 없으니 저렴한 상품은
+                      그대로 받으시길 권합니다.
+                    </b>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {overLimit && (
         <div className="section" style={{ paddingTop: 0 }}>
