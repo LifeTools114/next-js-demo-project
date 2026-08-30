@@ -22,7 +22,6 @@
   --danger: #c53030;
   --radius: 14px;
   --shadow: 0 2px 12px rgba(27, 18, 32, 0.07);
-  --nav-h: 60px;
   --header-h: 56px;
 }
 
@@ -50,7 +49,8 @@ img { max-width: 100%; display: block; }
   margin: 0 auto;
   background: var(--bg);
   min-height: 100vh;
-  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px);
+  /* 내비가 상단 고정으로 올라가 하단 여백은 안전영역만 남깁니다 */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
 }
 
 .header {
@@ -262,29 +262,37 @@ img { max-width: 100%; display: block; }
 .qty button { width: 44px; height: 44px; background: var(--bg); border: 0; font-size: 17px; color: var(--ink-700); }
 .qty span { min-width: 34px; text-align: center; font-size: 13px; font-weight: 700; }
 
-/* ---------- 하단 내비 ---------- */
-.bottom-nav {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-  height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: rgba(255,255,255,.96);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid var(--line);
+/* ---------- 상단 고정 내비 (헤더 안, 스크롤해도 항상 보임) ---------- */
+.top-nav {
   display: flex;
+  gap: 8px;
+  padding: 0 10px 10px;
 }
-.bottom-nav__inner { max-width: 720px; margin: 0 auto; width: 100%; display: flex; }
-.bottom-nav a {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; font-size: 10.5px; font-weight: 600; color: var(--ink-500);
+.top-nav__item {
+  flex: 1;
+  min-height: 46px; /* 터치 타깃 44px 이상 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-700);
+  background: var(--pink-50);
+  border: 1.5px solid var(--pink-100);
+  border-radius: 12px;
+  letter-spacing: -0.3px;
+  transition: background .15s, color .15s, box-shadow .15s;
 }
-.bottom-nav a[data-active='true'] { color: var(--pink-500); }
-.bottom-nav__icon { font-size: 19px; line-height: 1; position: relative; }
-.bottom-nav__badge {
-  position: absolute; top: -5px; right: -10px;
-  background: var(--pink-500); color: #fff;
-  font-size: 9px; font-weight: 800; min-width: 15px; height: 15px;
-  border-radius: 999px; display: grid; place-items: center; padding: 0 3px;
+.top-nav__item:active { background: var(--pink-100); }
+/* 현재 화면 = 진한 핑크로 확실하게 채움 */
+.top-nav__item[data-active='true'] {
+  background: linear-gradient(135deg, var(--pink-500), var(--pink-600));
+  border-color: var(--pink-600);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(239, 74, 118, 0.35);
 }
+.top-nav__icon { font-size: 24px; line-height: 1; }
 
 /* ---------- 기타 ---------- */
 .empty { text-align: center; padding: 48px 20px; color: var(--ink-500); }

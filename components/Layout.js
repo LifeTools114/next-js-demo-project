@@ -4,8 +4,8 @@ import { useRouter } from 'next/router'
 
 const NAV = [
   { href: '/', icon: '🏠', label: '홈' },
-  { href: '/rates', icon: '📦', label: '요금·계산기' },
-  { href: '/orders', icon: '🧾', label: '주문조회' },
+  { href: '/rates', icon: '🧮', label: '요금·계산기' },
+  { href: '/orders', icon: '📋', label: '주문조회' },
 ]
 
 export default function Layout({ children, title, badge }) {
@@ -26,6 +26,8 @@ export default function Layout({ children, title, badge }) {
       </Head>
 
       <div className="app">
+        {/* 상단 고정 — 브랜드 바 + 큰 탭 3개. 스크롤을 내려도 항상 붙어 있어
+            어느 화면에서든 한 번의 탭으로 이동할 수 있습니다. */}
         <header className="header">
           <div className="header__bar">
             <Link href="/" className="header__logo">
@@ -34,25 +36,22 @@ export default function Layout({ children, title, badge }) {
             <div className="header__spacer" />
             {badge && <span className="source-badge source-badge--live"><span className="source-badge__dot" />{badge}</span>}
           </div>
+          <nav className="top-nav" aria-label="주요 메뉴">
+            {NAV.map((item) => {
+              const active =
+                item.href === '/' ? router.pathname === '/' : router.pathname.startsWith(item.href)
+              return (
+                <Link key={item.href} href={item.href} data-active={active} className="top-nav__item">
+                  <span className="top-nav__icon" aria-hidden="true">{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
         </header>
 
         <main>{children}</main>
       </div>
-
-      <nav className="bottom-nav">
-        <div className="bottom-nav__inner">
-          {NAV.map((item) => {
-            const active =
-              item.href === '/' ? router.pathname === '/' : router.pathname.startsWith(item.href)
-            return (
-              <Link key={item.href} href={item.href} data-active={active}>
-                <span className="bottom-nav__icon">{item.icon}</span>
-                {item.label}
-              </Link>
-            )
-          })}
-        </div>
-      </nav>
     </>
   )
 }
