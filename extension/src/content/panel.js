@@ -150,6 +150,14 @@ const KBPanel = (() => {
       <br><small>결제 화면에서 주소 복사 버튼이 다시 안내됩니다. 결제하면 배송 신청서가 자동으로 열립니다.</small></div>`
   }
 
+  /** 구매대행 1회 접수 한도 초과 — 신청이 거절되므로 항상 보이는 경고. */
+  function agentLimitNote(q) {
+    const al = q?.agentLimit
+    if (!al?.exceeded) return ''
+    return `<div class="note warn">🚫 구매대행은 1회 상품가 합계 <b>${esc(state.fmt.krw(al.maxGoodsKrw))}</b>까지
+      접수합니다 — 나눠서 신청해 주세요.</div>`
+  }
+
   /** 최소 주문 금액 미달 안내 — 담기는 막지 않습니다 (견적함에 모아 채울 수 있으므로). */
   function minOrderNote(q) {
     const mo = q?.minOrder
@@ -281,7 +289,7 @@ const KBPanel = (() => {
         ${priceRow('agent', '구매대행', '총액 · 결제까지 맡김', qs.agent ?? (state.track === 'agent' ? q : null))}
       </div>
       <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
-      ${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
+      ${agentLimitNote(q)}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
       <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
       ${state.detailOpen
         ? `<div style="margin-top:8px">${rows}</div>

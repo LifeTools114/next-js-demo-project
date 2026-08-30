@@ -284,6 +284,7 @@
         chargeableG: q.weight?.chargeableG,
         billableKg: q.shipping?.billableKg,
         breakdown: (q.breakdown ?? []).map((l) => ({ label: l.label, krw: l.krw })),
+        agentLimit: q.agentLimit ?? null,
         local: true,
       }
     } catch { return null }
@@ -450,7 +451,11 @@
     // ── 선택한 방식의 다음 행동 — 카드가 결제/신청으로 유도합니다 ──
     const ctaBlock = cart.length === 0
       ? ''
-      : helperTrack === 'agent'
+      : helperTrack === 'agent' && quotes.agent?.agentLimit?.exceeded
+        ? '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff0f0;color:#c92a2a;' +
+          'font-size:11.5px;font-weight:700">구매대행은 1회 상품가 합계 ' +
+          `${won(quotes.agent.agentLimit.maxGoodsKrw)}까지 접수합니다 — 나눠서 신청해 주세요.</div>`
+        : helperTrack === 'agent'
         ? '<style>@keyframes kbPulse{0%,100%{box-shadow:0 0 0 0 rgba(49,130,246,.55)}50%{box-shadow:0 0 0 7px rgba(49,130,246,0)}}</style>' +
           '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:40px;border:0;border-radius:9px;' +
           'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;' +
@@ -497,6 +502,7 @@
           `④ 하노이 도착 ${lt.min}~${lt.max}일`) +
         steps('와우회원가는 되도록 반영합니다. <b>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>, ' +
           '타임세일·마감임박 등 기간 한정 할인가는 발주 시점에 끝나면 반영되지 않을 수 있습니다.') +
+        steps(`1회 접수 한도: 상품가 합계 ${won(quotes.agent?.agentLimit?.maxGoodsKrw ?? 1_000_000)} (초과 시 나눠서 신청).`) +
         bdRows(quotes.agent)
 
     const cartLine = priceBlock + ctaBlock +

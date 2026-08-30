@@ -78,3 +78,19 @@ test('주문 엑셀 API: 전체 CSV, 상태 필터, 빈 목록 404, POST 405', (
   assert.equal(call('GET', { state: 'SHIPPED' }).statusCode, 404)
   assert.equal(call('POST').statusCode, 405)
 })
+
+test('구매대행 접수 한도: 초과 주문은 생성 자체가 거절된다', () => {
+  assert.throws(
+    () => createOrder({
+      items: [{ productId: '1', productName: '수분크림 50ml', productPrice: 550000, quantity: 2 }],
+      zone: 'hanoi', track: 'agent', customer: { name: 'A', phone: '1', address: 'HN' },
+    }),
+    /나눠서 신청/,
+  )
+  // 배송대행은 상품값을 받지 않으므로 같은 금액이어도 접수됩니다.
+  const fw = createOrder({
+    items: [{ productId: '1', productName: '수분크림 50ml', productPrice: 550000, quantity: 2 }],
+    zone: 'hanoi', track: 'forwarding', customer: { name: 'A', phone: '1', address: 'HN' },
+  })
+  assert.ok(fw.orderNo)
+})

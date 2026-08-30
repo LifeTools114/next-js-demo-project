@@ -150,6 +150,7 @@ export default function Checkout() {
 
   const valid = form.name.trim() && form.phone.trim() && form.address.trim()
   const blocked = quote && !quote.eligibility.shippable
+  const overLimit = Boolean(quote?.agentLimit?.exceeded)
 
   return (
     <Layout title="주문서">
@@ -174,6 +175,16 @@ export default function Checkout() {
             <br />
             발주 시점에 <b>가격 인상·품절·마감</b>이 확인되면 임의로 구매하지 않고
             연락드리며, 취소 시 입금액은 전액 환불됩니다.
+            1회 접수 한도는 상품가 합계 {krw(quote?.agentLimit?.maxGoodsKrw ?? 1_000_000)}입니다.
+          </p>
+        </div>
+      )}
+
+      {overLimit && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <p className="note note--danger">
+            🚫 구매대행은 1회 상품가 합계{' '}
+            <b>{krw(quote.agentLimit.maxGoodsKrw)}</b>까지 접수합니다. 나눠서 신청해 주세요.
           </p>
         </div>
       )}
@@ -290,8 +301,11 @@ export default function Checkout() {
         )}
 
         <div className="section" style={{ paddingTop: 0 }}>
-          <button className="btn" type="submit" disabled={!valid || !quote || blocked || submitting || methods.length === 0}>
-            {submitting ? '주문 생성 중…' : blocked ? '배송 불가 상품 포함' : quote ? `${krw(quote.total)} 주문하기` : '견적 계산 중…'}
+          <button className="btn" type="submit" disabled={!valid || !quote || blocked || overLimit || submitting || methods.length === 0}>
+            {submitting ? '주문 생성 중…'
+              : blocked ? '배송 불가 상품 포함'
+              : overLimit ? '접수 한도 초과 — 나눠서 신청해 주세요'
+              : quote ? `${krw(quote.total)} 주문하기` : '견적 계산 중…'}
           </button>
           {quote && !blocked && (
             <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-500)', marginTop: 8 }}>

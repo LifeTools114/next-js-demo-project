@@ -282,6 +282,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             chargeableG: q?.weight?.chargeableG,
             billableKg: q?.shipping?.billableKg,
             breakdown: (q?.breakdown ?? []).slice(0, 10).map((l) => ({ label: l?.label, krw: l?.krw })),
+            agentLimit: q?.agentLimit ?? null,
           }
         } catch (error) {
           return { ok: false, error: error.message }

@@ -351,3 +351,14 @@ test('견적: 배지를 넘기면 해외직구가 판별된다', () => {
   assert.equal(overseas.sourcing.hasOverseas, true)
   assert.equal(overseas.sourcing.schedule.toWarehouseDays.max, 21)
 })
+
+test('구매대행 접수 한도: 견적에 플래그가 실리고 배송대행은 무관하다', () => {
+  const over = quote([{ productName: '수분크림 50ml', productPrice: 550000, quantity: 2 }], { track: TRACK.AGENT })
+  assert.equal(over.agentLimit.exceeded, true)
+  assert.equal(over.agentLimit.maxGoodsKrw, FEES.agentMaxGoodsKrw)
+  const under = quote([{ productName: '수분크림 50ml', productPrice: 400000, quantity: 2 }], { track: TRACK.AGENT })
+  assert.equal(under.agentLimit.exceeded, false)
+  // 배송대행은 상품값을 받지 않으므로 한도 자체가 없습니다.
+  const fw = quote([{ productName: '수분크림 50ml', productPrice: 550000, quantity: 2 }], { track: TRACK.FORWARDING })
+  assert.equal(fw.agentLimit, null)
+})

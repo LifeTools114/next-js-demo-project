@@ -52,13 +52,14 @@ export default async function handler(req, res) {
     })
   }
 
+  const trackKey = track === 'forwarding' ? 'forwarding' : 'agent'
   const zoneKey = Object.hasOwn(SHIPPING.zones, zone) ? zone : SHIPPING.defaultZone
 
   try {
     const order = createOrder({
       items: sanitized,
       zone: zoneKey,
-      track: track === 'forwarding' ? 'forwarding' : 'agent',
+      track: trackKey,
       customer: {
         name: String(customer.name).slice(0, 100),
         phone: String(customer.phone).slice(0, 40),
