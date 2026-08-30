@@ -98,5 +98,46 @@
     return items
   }
 
-  globalThis.KBPageParse = { NOT_A_NAME, extractItemsFromText }
+  /**
+   * 장바구니 상품 블록 한 칸의 "구매대행 기준 줄합계" (수량 곱해진 값).
+   *
+   * 실사고: 할인 상품은 판매가 줄이 "77% 14,800원"처럼 할인율과 붙어 있어
+   * "숫자원" 단독 줄만 보던 예전 로직이 취소선 정가(65,000원)만 후보로 잡아
+   * 구매대행 상품가가 정가 기준으로 부풀었습니다.
+   *
+   * 규칙:
+   *   1) "NN% 금액원" 줄이 있으면 그중 최솟값 — 할인율이 붙은 줄은
+   *      정의상 현재 판매가이고, 취소선 정가는 % 없이 단독으로 섭니다.
+   *   2) 없으면 취소선(struck) 금액을 뺀 단독 "금액원" 줄의 최솟값.
+   *   3) 그래도 없으면 전체 최솟값 (0원이 되진 않게).
+   *   + "N원 쿠폰할인 적용됨"의 개인 쿠폰은 대리 구매자가 쓸 수 없으므로
+   *     판매가로 되돌립니다 (결제창 파서와 같은 정책).
+   */
+  function cartLineTotal(lines, { struck = [], rowText = '' } = {}) {
+    const toN = (s) => Number(String(s).replace(/[^\d]/g, ''))
+    const sale = []
+    const plain = []
+    for (const l of lines) {
+      const m = String(l).trim().match(/^(?:(\d{1,3})%\s*)?([\d,]{3,})원$/)
+      if (!m) continue
+      const n = toN(m[2])
+      if (!(n > 0)) continue
+      ;(m[1] ? sale : plain).push(n)
+    }
+    const struckSet = new Set(struck.map(toN))
+    const usable = plain.filter((n) => !struckSet.has(n))
+    const base = sale.length > 0 ? Math.min(...sale)
+      : usable.length > 0 ? Math.min(...usable)
+        : plain.length > 0 ? Math.min(...plain) : 0
+    if (!(base > 0)) return 0
+
+    let coupon = 0
+    const flat = String(rowText).replace(/\s+/g, '')
+    const re = /([\d,]{3,})원쿠폰할인/g
+    let m
+    while ((m = re.exec(flat))) coupon += toN(m[1])
+    return base + coupon
+  }
+
+  globalThis.KBPageParse = { NOT_A_NAME, extractItemsFromText, cartLineTotal }
 })()

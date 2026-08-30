@@ -229,12 +229,25 @@
         ? stepper
         : Number(lines.find((l) => /^\d{1,2}$/.test(l))) || 1
 
-      // "(100ml당 N원)" 단가 줄은 '('로 시작해 자연 제외 — 남는 금액 중 최솟값이 판매가.
-      const prices = lines
-        .filter((l) => /^[\d,]{3,}원$/.test(l))
-        .map((l) => Number(l.replace(/[^\d]/g, '')))
-        .filter((n) => n > 0)
-      const lineTotal = prices.length > 0 ? Math.min(...prices) : 0
+      /**
+       * 줄합계 산정은 KBPageParse.cartLineTotal (순수 함수, 노드 테스트 대상):
+       *   "77% 14,800원" 할인가 줄 우선 → 취소선 정가(65,000원) 배제,
+       *   개인 쿠폰("30,000원 쿠폰할인 적용됨")은 판매가로 되돌림.
+       * 취소선 금액은 DOM 태그(del/s)에서 모아 후보 제외에 씁니다.
+       */
+      const struck = []
+      for (const el of root.querySelectorAll('del, s, strike, [class*="strike" i], [style*="line-through"]')) {
+        for (const pm of (el.textContent ?? '').matchAll(/([\d,]{3,})원/g)) struck.push(pm[1])
+      }
+      const lineTotal = globalThis.KBPageParse?.cartLineTotal
+        ? globalThis.KBPageParse.cartLineTotal(lines, { struck, rowText: textAll })
+        : (() => {
+            const prices = lines
+              .filter((l) => /^[\d,]{3,}원$/.test(l))
+              .map((l) => Number(l.replace(/[^\d]/g, '')))
+              .filter((n) => n > 0)
+            return prices.length > 0 ? Math.min(...prices) : 0
+          })()
 
       entries.push({
         root,
