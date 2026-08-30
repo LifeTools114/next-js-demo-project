@@ -335,8 +335,40 @@
     }
   }
 
+  /**
+   * 카드 닫기 기록 — "이 결제 화면(경로)"에서만 유효합니다.
+   * 예전에는 전역 키 하나였는데, 한 번 닫으면 sessionStorage 가 살아있는
+   * 내내(탭을 닫기 전까지) 모든 결제창에서 카드가 사라졌습니다.
+   * "배송대행 하러 왔는데 화면이 안 뜬다"의 원인이 이것이었습니다.
+   */
+  const closedKey = () => `kb-helper-closed:${location.host}${location.pathname}`
+
+  /** 닫아도 길을 남깁니다 — 작은 🇻🇳 버튼을 누르면 카드가 다시 열립니다. */
+  function renderReopenChip() {
+    if (document.getElementById('kb-helper-chip') || document.getElementById('kb-checkout-helper')) return
+    const chip = document.createElement('button')
+    chip.id = 'kb-helper-chip'
+    chip.dataset.kbUi = '1'
+    chip.textContent = '🇻🇳'
+    chip.title = '하노이 배송 도우미 다시 열기'
+    chip.style.cssText =
+      'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:46px;height:46px;' +
+      'border:1px solid #dbe4f0;border-radius:50%;background:#fff;font-size:21px;cursor:pointer;' +
+      'box-shadow:0 4px 14px rgba(0,0,0,.2)'
+    chip.addEventListener('click', () => {
+      try { sessionStorage.removeItem(closedKey()) } catch { /* 무시 */ }
+      chip.remove()
+      renderCheckoutHelper()
+    })
+    document.body.appendChild(chip)
+  }
+
   async function renderCheckoutHelper() {
-    try { if (sessionStorage.getItem('kb-helper-closed')) return } catch { /* 무시 */ }
+    try {
+      // 옛 전역 닫기 기록은 지웁니다 — 이미 걸려 있는 탭도 이 업데이트로 풀립니다.
+      sessionStorage.removeItem('kb-helper-closed')
+      if (sessionStorage.getItem(closedKey())) return renderReopenChip()
+    } catch { /* 무시 */ }
 
     const cfg = await send('getConfig')
     const w = cfg?.config?.warehouse ?? {}
@@ -587,7 +619,9 @@
     )
     card.querySelector('#kb-helper-x').addEventListener('click', () => {
       card.remove()
-      try { sessionStorage.setItem('kb-helper-closed', '1') } catch { /* 무시 */ }
+      // 이 결제 화면에서만 닫힘 — 다른 결제·장바구니에는 그대로 나타납니다.
+      try { sessionStorage.setItem(closedKey(), '1') } catch { /* 무시 */ }
+      renderReopenChip()
     })
     card.querySelector('#kb-agent-go')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget
