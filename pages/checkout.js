@@ -165,17 +165,53 @@ export default function Checkout() {
 
       {track === 'agent' && (
         <div className="section" style={{ paddingTop: 0 }}>
-          <p className="note" style={{ fontSize: 12.5 }}>
-            🛒 <b>와우회원가 기준, 화면에 표시된 가격 그대로</b> 대리 주문합니다
-            (일부 상품은 와우가가 적용되지 않을 수 있습니다).
+          <p className="note" style={{ fontSize: 12.5, lineHeight: 1.75 }}>
+            🛒 <b style={{ color: '#3182f6' }}>와우회원가 기준, 화면에 표시된 가격 그대로</b> 대리
+            주문합니다 (일부 상품은 와우가 미적용 가능).
             <br />
-            고객님 계정의 <b>쿠폰·신규가입 할인 등 개인 혜택은 구매대행에 사용할 수
-            없고</b>, 타임세일·마감임박 등 <b>기간 한정 할인가는 발주 시점에 종료되면
-            반영되지 않을 수 있습니다.</b>
+            💰 수수료 <b style={{ color: '#3182f6' }}>기본 5,000원</b> — 대리 주문·검수·발주 처리
+            실비입니다. 상품가 <b>10만원·5종류까지는 5,000원 고정</b>, 넘는 경우에만 10만원
+            초과분의 5%와 5종 초과 종류당 1,000원이 더해집니다.
             <br />
-            발주 시점에 <b>가격 인상·품절·마감</b>이 확인되면 임의로 구매하지 않고
-            연락드리며, 취소 시 입금액은 전액 환불됩니다.
-            1회 접수 한도는 상품가 합계 {krw(quote?.agentLimit?.maxGoodsKrw ?? 1_000_000)}입니다.
+            <b style={{ color: '#c92a2a' }}>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>,
+            타임세일·마감임박 등{' '}
+            <b style={{ color: '#c92a2a' }}>기간 한정 할인가는 발주 시점에 종료되면 반영되지 않을 수
+            있습니다.</b>
+            <br />
+            가격 인상·품절·마감이 확인되면 임의로 구매하지 않고 연락드리며, 취소 시{' '}
+            <b style={{ color: '#17916b' }}>전액 환불</b>됩니다. 1회 접수 한도{' '}
+            <b style={{ color: '#d9480f' }}>{krw(quote?.agentLimit?.maxGoodsKrw ?? 1_000_000)}</b>.
+          </p>
+        </div>
+      )}
+
+      {quote?.sourcing?.schedule && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <p className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.75 }}>
+            📦 하노이 도착 예상{' '}
+            <b style={{ color: '#d9480f', fontSize: 14 }}>
+              {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
+            </b>
+            <br />
+            쿠팡→한국창고{' '}
+            <b>
+              {quote.sourcing.schedule.toWarehouseDays.min}~
+              {quote.sourcing.schedule.toWarehouseDays.max}영업일
+            </b>{' '}
+            + 한국창고→하노이{' '}
+            <b>
+              {quote.sourcing.schedule.toHanoiDays.min}~{quote.sourcing.schedule.toHanoiDays.max}영업일
+            </b>
+            <br />
+            <b style={{ color: '#d9480f' }}>모두 영업일 기준(주말·공휴일 제외)</b>
+            {quote.sourcing.hasOverseas && (
+              <>
+                <br />
+                <b style={{ color: '#c92a2a' }}>
+                  🌏 해외직구 상품 포함 — 한국창고 도착까지 +2~3영업일 더 걸립니다
+                </b>
+              </>
+            )}
           </p>
         </div>
       )}

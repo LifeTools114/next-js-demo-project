@@ -288,18 +288,21 @@ const KBPanel = (() => {
         ${priceRow('forwarding', '배송대행', '배송비 · 쿠팡 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
         ${priceRow('agent', '구매대행', '총액 · 결제까지 맡김', qs.agent ?? (state.track === 'agent' ? q : null))}
       </div>
-      <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}일</div>
+      <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}<b style="color:#d9480f">영업일</b></div>
       ${agentLimitNote(q)}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
       <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
       ${state.detailOpen
         ? `<div style="margin-top:8px">${rows}</div>
            ${state.track === 'agent'
-             ? '<div class="note">와우회원가는 되도록 반영합니다. 쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고, 타임세일·마감임박 등 기간 한정 할인가는 발주 시점에 끝나면 반영되지 않을 수 있습니다.</div>'
+             ? '<div class="note">수수료: <b>기본 5,000원</b>(상품가 10만원·5종까지) — 대리 주문·검수·발주 실비. 초과분은 10만원 초과금액의 5% + 5종 초과 종류당 1,000원.</div>' +
+               '<div class="note">와우회원가는 되도록 반영합니다. 쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고, 타임세일·마감임박 등 기간 한정 할인가는 발주 시점에 끝나면 반영되지 않을 수 있습니다.</div>'
              : '<div class="note">본인 결제라 쿠폰·회원 할인을 모두 그대로 쓸 수 있습니다.</div>'}
            <div class="note">무게 기준: ${esc(state.ruleText ?? '')} · 입고 후 실측으로 정산합니다.</div>
            ${headroomNote(q)}${warehouseNote()}
-           <div class="note">📦 쿠팡→한국창고 ${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}일 +
-             한국창고→하노이 ${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}일</div>
+           <div class="note">📦 쿠팡→한국창고 <b>${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}영업일</b> +
+             한국창고→하노이 <b>${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}영업일</b>
+             <br><b style="color:#d9480f">모두 영업일 기준(주말·공휴일 제외)</b> ·
+             해외직구 상품은 창고 도착까지 <b style="color:#d9480f">+2~3영업일</b></div>
            <div class="note">표시 금액은 상품명 기반 추정 무게로 계산한 예상 견적입니다.
            한국 창고 입고 후 실측하여 차액을 정산합니다.</div>`
         : ''}

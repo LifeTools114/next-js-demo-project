@@ -21,10 +21,10 @@ export const SOURCING = {
   rocketGlobal: {
     id: 'rocket-global',
     label: '로켓직구',
-    /** 쿠팡이 해외에서 직접 수입 — 비교적 예측 가능 */
-    toWarehouseDays: { min: 4, max: 8 },
+    /** 쿠팡이 해외에서 직접 수입 — 국내 상품보다 +2~3영업일 (운영자 확정) */
+    toWarehouseDays: { min: 3, max: 6 },
     warnings: [
-      '쿠팡 로켓직구 상품입니다. 한국 창고 도착까지 시간이 더 걸립니다.',
+      '해외직구(로켓직구) 상품입니다 — 한국 창고 도착까지 +2~3영업일이 더 걸립니다.',
       '해외직구 상품은 쿠팡에서 반품·교환이 제한될 수 있습니다.',
     ],
   },

@@ -493,17 +493,23 @@
             '주문 단계로 가면 배송지(한국 창고) 입력을 도와드립니다.</div>'
           : '') +
         detailHead('배송대행 — 결제는 내가, 배송만 맡김') +
-        steps(`쿠팡 결제 후 <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ③ 하노이 도착 ${lt.min}~${lt.max}일`) +
+        steps('쿠팡 결제 후 <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ' +
+          `③ 한국창고 도착 <b>1~3영업일</b> → ④ 하노이 도착 <b>+${lt.min}~${lt.max}영업일</b>`) +
         steps('본인 결제라 <b>쿠폰·회원 할인을 모두 그대로</b> 쓸 수 있습니다.') +
         steps('무게 기준: 1kg까지 기본요금 · 이후 kg 단위(0.5 이하 버림·초과 올림)') +
         bdRows(quotes.fwd) +
         detailHead('구매대행 — 결제까지 맡김') +
         steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 입금 → ③ 저희가 대신 주문 → ' +
-          `④ 하노이 도착 ${lt.min}~${lt.max}일`) +
+          `④ 한국창고 <b>1~3영업일</b> → ⑤ 하노이 <b>+${lt.min}~${lt.max}영업일</b>`) +
+        steps('수수료: <b>기본 5,000원</b>(상품가 10만원·5종까지) — 대리 주문·검수·발주 실비. ' +
+          '초과분은 10만원 초과금액의 5% + 종류 초과 종당 1,000원.') +
         steps('와우회원가는 되도록 반영합니다. <b>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>, ' +
           '타임세일·마감임박 등 기간 한정 할인가는 발주 시점에 끝나면 반영되지 않을 수 있습니다.') +
         steps(`1회 접수 한도: 상품가 합계 ${won(quotes.agent?.agentLimit?.maxGoodsKrw ?? 1_000_000)} (초과 시 나눠서 신청).`) +
-        bdRows(quotes.agent)
+        bdRows(quotes.agent) +
+        '<div style="margin-top:7px;padding:7px 9px;border-radius:9px;background:#fff8e6;color:#d9480f;' +
+        'font-size:10.5px;font-weight:700;line-height:1.6">📦 배송 기간은 모두 영업일 기준(주말·공휴일 제외) · ' +
+        '해외직구 상품은 한국창고 도착까지 +2~3영업일</div>'
 
     const cartLine = priceBlock + ctaBlock +
       (cart.length > 0

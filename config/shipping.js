@@ -70,7 +70,8 @@ export const SHIPPING = {
   serviceAreaNotice:
     '현재 하노이 시내만 배송합니다. 다른 지역은 물류사 연결에 따라 순차적으로 확대됩니다.',
 
-  leadTimeDays: { min: 5, max: 9 },
+  /** 한국창고 → 하노이 (영업일) — 운영자 확정 (26-08-30): 2~3영업일 */
+  leadTimeDays: { min: 2, max: 3 },
 }
 
 /**

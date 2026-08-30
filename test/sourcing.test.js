@@ -24,9 +24,10 @@ test('판매자 해외배송이 로켓직구보다 우선 판별된다', () => {
 })
 
 test('일정은 쿠팡→창고 + 창고→하노이 두 구간을 합산한다', () => {
+  // 운영자 확정 (26-08-30): 국내 1~3영업일 + 창고→하노이 2~3영업일
   const domestic = estimateSchedule([detectSourcing({ productName: '세럼', badges: ['로켓배송'] })])
-  assert.equal(domestic.totalDays.min, 1 + 5)
-  assert.equal(domestic.totalDays.max, 3 + 9)
+  assert.equal(domestic.totalDays.min, 1 + 2)
+  assert.equal(domestic.totalDays.max, 3 + 3)
   assert.equal(domestic.hasOverseas, false)
 })
 
@@ -38,7 +39,7 @@ test('해외직구가 섞이면 전체 일정이 크게 늘어난다', () => {
   assert.equal(a.hasOverseas, true)
   // 가장 늦게 도착하는 상품이 전체 일정을 결정합니다.
   assert.equal(a.schedule.toWarehouseDays.max, 21)
-  assert.equal(a.schedule.totalDays.max, 21 + 9)
+  assert.equal(a.schedule.totalDays.max, 21 + 3)
   assert.ok(a.warnings.length > 0)
   assert.equal(a.requiresRecheck, true)
 })

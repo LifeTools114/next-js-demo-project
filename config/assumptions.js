@@ -94,11 +94,10 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'lead-time',
-    label: '하노이 도착 5~9영업일',
-    where: 'config/shipping.js · leadTimeDays',
-    status: 'assumed',
-    source: '임시 설정값',
-    askBroker: '실제 리드타임과 지연 시 보상 기준',
+    label: '리드타임 — 창고→하노이 2~3영업일 · 국내 쿠팡→창고 1~3영업일 · 해외직구 +2~3영업일',
+    where: 'config/shipping.js · leadTimeDays / config/sourcing.js',
+    status: 'confirmed',
+    source: '운영자 확정 (26-08-30) — 모두 영업일 기준(주말·공휴일 제외)',
   },
   {
     id: 'maintenance-window',
