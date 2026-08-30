@@ -334,6 +334,8 @@
   let quoteCache = { key: null, fwd: null, agent: null }
   // [이용 방법 보기] 펼침 상태 — 카드는 가격만 먼저, 설명은 클릭해야 보입니다.
   let helperDetailOpen = false
+  // 내역 줄 비용 안내(ⓘ) 펼침 상태 — 눌린 줄의 key(없으면 라벨)
+  let helperRowInfoKey = null
   // 카드에서 고객이 고른 진행 방식 — 행을 눌러 선택하고, 그에 맞는 다음 행동을 안내합니다.
   let helperTrack = 'forwarding'
 
@@ -495,7 +497,9 @@
       card.style.cssText =
         'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:280px;background:#fff;' +
         'border:1px solid #dbe4f0;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);' +
-        'padding:13px;font:12.5px/1.55 sans-serif;color:#191f28'
+        'padding:13px;font:12.5px/1.55 sans-serif;color:#191f28;' +
+        // 상세·비용 안내를 펼치면 카드가 화면보다 길어질 수 있어 내부 스크롤로 감쌉니다.
+        'max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain'
       document.body.appendChild(card)
     }
 
@@ -584,13 +588,36 @@
       `<div style="margin-top:9px;font-size:11.5px;font-weight:800;color:#333d4b">${text}</div>`
 
     // 금액 내역 줄들 — 견적 응답의 근거(배송비·관세·VAT·수수료)를 그대로 보여줍니다.
+    // 할증 줄에는 ⓘ — 올리면(title) 또는 누르면 왜 붙는 비용인지 보여줍니다.
+    const rowInfoText = (l) => {
+      const k = l.key ?? ''
+      const t = l.label ?? ''
+      if (k === 'surcharge-device' || t.includes('기기 취급')) {
+        return '물류사 항공특송의 전자·가전 특수 취급비 — 기기당 $40, 대수만큼 부과됩니다. ' +
+          '파손 위험 화물 검수·별도 포장 비용이며, 한국 기기는 베트남에서 A/S 가 어렵습니다.'
+      }
+      if (k === 'surcharge-fragile' || t.includes('파손주의')) return '유리·도자기 등 파손 위험 품목의 완충 보강 포장비 — 개당 $2.'
+      if (k === 'surcharge-bulky' || t.includes('대형 화물')) return '청구무게 10kg 이상 대형 화물 취급비 — 건당 $5.'
+      return null
+    }
     const bdRows = (q) => !q?.breakdown?.length
       ? ''
       : '<div style="margin-top:5px;border-top:1px dashed #e5e8eb;padding-top:5px">' +
-        q.breakdown.map((l) =>
-          `<div style="display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:#4e5968;line-height:1.8">` +
-          `<span>${esc(l.label)}</span><b style="white-space:nowrap">${won(l.krw) ?? ''}</b></div>`,
-        ).join('') +
+        q.breakdown.map((l) => {
+          const info = rowInfoText(l)
+          const id = l.key ?? l.label
+          const btn = info
+            ? `<button data-kb-rowinfo="${esc(id)}" title="${esc(info)}" aria-label="비용 안내" ` +
+              'style="border:0;background:#eef4fb;color:#3182f6;border-radius:50%;width:15px;height:15px;' +
+              'font-size:10px;line-height:1;cursor:pointer;padding:0;margin-left:4px;vertical-align:1px">ⓘ</button>'
+            : ''
+          const note = info && helperRowInfoKey === id
+            ? '<div style="margin:1px 0 4px;padding:6px 8px;border-radius:8px;background:#f2f6fb;color:#4e5968;' +
+              `font-size:10px;line-height:1.6">${esc(info)}</div>`
+            : ''
+          return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:#4e5968;line-height:1.8">` +
+            `<span>${esc(l.label)}${btn}</span><b style="white-space:nowrap">${won(l.krw) ?? ''}</b></div>${note}`
+        }).join('') +
         '</div>'
 
     const detailBlock = !helperDetailOpen || cart.length === 0
@@ -740,6 +767,13 @@
       card.dataset.kbHtml = ''
       renderCheckoutHelper()
     })
+    card.querySelectorAll('[data-kb-rowinfo]').forEach((b) =>
+      b.addEventListener('click', () => {
+        helperRowInfoKey = helperRowInfoKey === b.dataset.kbRowinfo ? null : b.dataset.kbRowinfo
+        card.dataset.kbHtml = ''
+        renderCheckoutHelper()
+      }),
+    )
   }
 
   const MONEY_HOSTS = ['checkout.coupang.com', 'cart.coupang.com']

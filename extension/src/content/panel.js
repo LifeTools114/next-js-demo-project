@@ -27,6 +27,9 @@ const KBPanel = (() => {
 .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
 .row + .row { border-top: 1px dashed #e5e8eb; }
 .row .l { color: #333d4b; flex: 1; min-width: 0; }
+.row-info { border: 0; background: #eef4fb; color: #3182f6; border-radius: 50%; width: 16px; height: 16px;
+  font-size: 10.5px; line-height: 1; cursor: pointer; padding: 0; margin-left: 4px; vertical-align: 1px; }
+.row-info:hover { background: #3182f6; color: #fff; }
 .row .v { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .total { border-top: 2px solid #191f28; margin-top: 8px; padding-top: 10px; font-size: 14px; }
 .total .v { font-size: 17px; }
@@ -225,8 +228,33 @@ const KBPanel = (() => {
     }
 
     const q = state.quote
+    /**
+     * 할증 줄 비용 안내 — ⓘ에 마우스를 올리면(title) 또는 누르면
+     * 왜 붙는 비용인지 보여줍니다. key 가 없으면(서버 요약 응답) 라벨로 매칭.
+     */
+    const rowInfo = (r) => {
+      const k = r.key ?? ''
+      const l = r.label ?? ''
+      if (k === 'surcharge-device' || l.includes('기기 취급')) {
+        return '물류사 항공특송의 전자·가전 특수 취급비 — 기기당 $40, 대수만큼 부과됩니다. ' +
+          '파손 위험 화물 검수·별도 포장 비용이며, 한국 기기는 베트남에서 A/S 가 어렵습니다.'
+      }
+      if (k === 'surcharge-fragile' || l.includes('파손주의')) return '유리·도자기 등 파손 위험 품목의 완충 보강 포장비 — 개당 $2.'
+      if (k === 'surcharge-bulky' || l.includes('대형 화물')) return '청구무게 10kg 이상 대형 화물 취급비 — 건당 $5.'
+      return null
+    }
     const rows = q.breakdown
-      .map((r) => `<div class="row"><span class="l">${esc(r.label)}</span><span class="v">${esc(state.fmt.krw(r.krw))}</span></div>`)
+      .map((r) => {
+        const info = rowInfo(r)
+        const id = r.key ?? r.label
+        const btn = info
+          ? `<button class="row-info" data-act="rowinfo" data-key="${esc(id)}" title="${esc(info)}" aria-label="비용 안내">ⓘ</button>`
+          : ''
+        const note = info && state.rowInfoKey === id
+          ? `<div class="note" style="margin:2px 0 6px">${esc(info)}</div>`
+          : ''
+        return `<div class="row"><span class="l">${esc(r.label)}${btn}</span><span class="v">${esc(state.fmt.krw(r.krw))}</span></div>${note}`
+      })
       .join('')
 
     const warn = q.eligibility.warnings.length
@@ -368,6 +396,12 @@ const KBPanel = (() => {
     wrap.querySelectorAll('[data-act="detail"]').forEach((b) =>
       b.addEventListener('click', () => {
         state.detailOpen = !state.detailOpen
+        render()
+      }),
+    )
+    wrap.querySelectorAll('[data-act="rowinfo"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        state.rowInfoKey = state.rowInfoKey === b.dataset.key ? null : b.dataset.key
         render()
       }),
     )

@@ -282,7 +282,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             totalVnd: q?.totalVnd,
             chargeableG: q?.weight?.chargeableG,
             billableKg: q?.shipping?.billableKg,
-            breakdown: (q?.breakdown ?? []).slice(0, 10).map((l) => ({ label: l?.label, krw: l?.krw })),
+            // key 는 화면의 비용 안내(ⓘ) 매칭에 씁니다 (예: surcharge-device)
+            breakdown: (q?.breakdown ?? []).slice(0, 10).map((l) => ({ key: l?.key, label: l?.label, krw: l?.krw })),
             agentLimit: q?.agentLimit ?? null,
           }
         } catch (error) {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { krw, vnd, kg } from '../lib/format'
 import { SETTLEMENT } from '../config/fees'
 
@@ -6,7 +7,21 @@ import { SETTLEMENT } from '../config/fees'
  * 베트남은 2025-02-18 부터 소액 면세가 폐지되어 관세·VAT가 항상 붙으므로
  * 이를 감춘 견적은 실제 청구액과 어긋납니다.
  */
+
+/** 할증 줄 비용 안내 — ⓘ에 올리면(title) 또는 누르면 왜 붙는 비용인지 보여줍니다. */
+const rowInfoText = (row) => {
+  const k = row.key ?? ''
+  const l = row.label ?? ''
+  if (k === 'surcharge-device' || l.includes('기기 취급')) {
+    return '물류사 항공특송의 전자·가전 특수 취급비 — 기기당 $40, 대수만큼 부과됩니다. 파손 위험 화물 검수·별도 포장 비용이며, 한국 기기는 베트남에서 A/S 가 어렵습니다.'
+  }
+  if (k === 'surcharge-fragile' || l.includes('파손주의')) return '유리·도자기 등 파손 위험 품목의 완충 보강 포장비 — 개당 $2.'
+  if (k === 'surcharge-bulky' || l.includes('대형 화물')) return '청구무게 10kg 이상 대형 화물 취급비 — 건당 $5.'
+  return null
+}
+
 export default function CostBreakdown({ quote }) {
+  const [infoKey, setInfoKey] = useState(null)
   if (!quote) return null
   const hasRange = quote.range && quote.range.high > quote.range.low
 
@@ -17,12 +32,32 @@ export default function CostBreakdown({ quote }) {
         <span className="tag tag--weight">청구무게 {kg(quote.shipping.billableKg)}</span>
       </div>
       <div className="panel__body">
-        {quote.breakdown.map((row) => (
-          <div className="row" key={row.key}>
-            <span className="row__label">{row.label}</span>
-            <span className="row__value">{krw(row.krw)}</span>
-          </div>
-        ))}
+        {quote.breakdown.map((row) => {
+          const info = rowInfoText(row)
+          return (
+            <div key={row.key}>
+              <div className="row">
+                <span className="row__label">
+                  {row.label}
+                  {info && (
+                    <button type="button" title={info} aria-label="비용 안내"
+                      onClick={() => setInfoKey(infoKey === row.key ? null : row.key)}
+                      style={{
+                        border: 0, background: infoKey === row.key ? '#3182f6' : '#eef4fb',
+                        color: infoKey === row.key ? '#fff' : '#3182f6',
+                        borderRadius: '50%', width: 17, height: 17, fontSize: 11,
+                        lineHeight: 1, cursor: 'pointer', padding: 0, marginLeft: 5, verticalAlign: 1,
+                      }}>ⓘ</button>
+                  )}
+                </span>
+                <span className="row__value">{krw(row.krw)}</span>
+              </div>
+              {info && infoKey === row.key && (
+                <p className="note" style={{ margin: '2px 0 8px', fontSize: 12 }}>{info}</p>
+              )}
+            </div>
+          )
+        })}
 
         <div className="row row--total">
           <span className="row__label">총 예상 결제액</span>
