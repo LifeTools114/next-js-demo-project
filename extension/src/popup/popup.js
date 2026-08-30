@@ -62,7 +62,7 @@ async function init() {
   $('policy').innerHTML = `
     국제배송 <b>$${policy.ratePerKgUsd}/kg</b> · 최소 ${policy.minBillableKg}kg<br>
     <span style="opacity:.75">청구무게 올림: ${esc(policy.roundingRuleText)}</span><br>
-    구매대행 수수료 <b>${Math.round(policy.agencyRate * 100)}%</b> · VAT ${Math.round(policy.vatRate * 100)}% · 관세 품목별<br>
+    구매대행 수수료 <b>기본 ${(policy.agencyBaseKrw ?? 5000).toLocaleString('ko-KR')}원</b> (상품가 ${((policy.agencyBaseMaxGoodsKrw ?? 100000) / 10000)}만원·${policy.agencyBaseMaxItems ?? 5}종까지) · 관세·VAT 없음<br>
     환율 $1 = ${policy.usdToKrw.toLocaleString('ko-KR')}원 = ${Math.round(policy.usdToKrw * policy.krwToVnd).toLocaleString('en-US')}₫<br>
     합배송 무료 보관 ${policy.consolidation.freeStorageDays}일`
   $('disclosure').textContent = policy.affiliateDisclosure

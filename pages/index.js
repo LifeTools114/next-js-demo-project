@@ -7,7 +7,7 @@ import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
 import { krw, usd } from '../lib/format'
 import { usdToKrw, roundingRuleText } from '../lib/pricing/shipping'
 
-export default function Home({ ratePerKgUsd, agencyRate, blockedCategories, roundingRule }) {
+export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, roundingRule }) {
   return (
     <Layout badge="베트남 하노이">
       <div className="hero">
@@ -36,7 +36,7 @@ export default function Home({ ratePerKgUsd, agencyRate, blockedCategories, roun
               <small style={{ color: 'var(--ink-500)' }}>한국 카드가 없어도 결제까지 대신</small>
             </span>
             <span className="row__value">
-              ${ratePerKgUsd}/kg + {Math.round(agencyRate * 100)}%
+              ${ratePerKgUsd}/kg + 수수료 {krw(agencyBaseKrw)}~
             </span>
           </div>
           <p className="note" style={{ marginTop: 12 }}>
@@ -100,7 +100,7 @@ export async function getStaticProps() {
   return {
     props: {
       ratePerKgUsd: SHIPPING.ratePerKgUsd,
-      agencyRate: FEES.agencyRate,
+      agencyBaseKrw: FEES.agencyBaseKrw,
       blockedCategories: BLOCK_RULES.length,
       roundingRule: roundingRuleText(),
     },

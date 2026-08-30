@@ -120,16 +120,20 @@ test('요금표: 모든 구간이 양수다', () => {
   assert.ok(table.every((r) => r.usd > 0 && r.krw > 0))
 })
 
-test('대행 수수료: 구매대행에만 붙고 10%다', () => {
-  assert.equal(calculateAgencyFee(100000, TRACK.AGENT).fee, 10000)
+test('대행 수수료: 기본 5,000원 + 10만원 초과분 5% + 5종 초과 종당 1,000원', () => {
+  // 배송대행에는 없음
   assert.equal(calculateAgencyFee(100000, TRACK.FORWARDING).fee, 0)
   assert.equal(calculateAgencyFee(100000, TRACK.FORWARDING).applicable, false)
-  // 최소 수수료
-  assert.equal(calculateAgencyFee(10000, TRACK.AGENT).fee, FEES.agencyMinKrw)
-  // 금액별 면제·상한 없음 — 50만원 경계에서도 10% 그대로 (역전 방지)
-  assert.equal(calculateAgencyFee(499000, TRACK.AGENT).fee, 49900)
-  assert.equal(calculateAgencyFee(500000, TRACK.AGENT).fee, 50000)
-  assert.equal(calculateAgencyFee(900000, TRACK.AGENT).fee, 90000)
+  // 기본 구간 — 상품가 10만원·5종까지는 금액과 무관하게 5,000원
+  assert.equal(calculateAgencyFee(10000, TRACK.AGENT, 1).fee, 5000)
+  assert.equal(calculateAgencyFee(100000, TRACK.AGENT, 5).fee, 5000)
+  // 초과분에만 5% — 경계에서 역전 없이 이어집니다
+  assert.equal(calculateAgencyFee(100001, TRACK.AGENT, 1).fee, 5000)   // 초과 1원 × 5% → 반올림 0
+  assert.equal(calculateAgencyFee(250000, TRACK.AGENT, 2).fee, 12500)  // 5,000 + 150,000×5%
+  assert.equal(calculateAgencyFee(500000, TRACK.AGENT, 1).fee, 25000)  // 5,000 + 400,000×5%
+  // 종류 초과 — 노동 보상
+  assert.equal(calculateAgencyFee(80000, TRACK.AGENT, 8).fee, 8000)    // 5,000 + 3종×1,000
+  assert.equal(calculateAgencyFee(250000, TRACK.AGENT, 7).fee, 14500)  // 5,000 + 7,500 + 2,000
 })
 
 test('최소 주문 금액: 기본은 폐지(0) — 소액도 통과, 안내 없음', () => {
