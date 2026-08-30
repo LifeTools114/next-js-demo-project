@@ -33,6 +33,29 @@ export default function OrderPage() {
   const [linkForm, setLinkForm] = useState({ coupangOrderNo: '', trackingNo: '' })
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState(null)
+
+  /** 고객 셀프 취소 — 입금 확인 전(주문 접수·입금 대기)에만 서버가 허용합니다. */
+  const cancelNow = async () => {
+    if (!window.confirm('이 주문을 취소할까요?\n입금 전이라 비용 없이 바로 취소되며, 같은 상품을 다시 주문할 수 있습니다.')) return
+    setCancelling(true)
+    setCancelError(null)
+    try {
+      const res = await fetch(`/api/orders/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setOrder(d.order)
+    } catch (err) {
+      setCancelError(err.message)
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   const submitLink = async (e) => {
     e.preventDefault()
@@ -280,7 +303,10 @@ export default function OrderPage() {
         <div className="panel__head">진행 상황</div>
         <div className="panel__body">
           {cancelled ? (
-            <p className="note note--danger">이 주문은 취소되었습니다.</p>
+            <p className="note note--danger">
+              이 주문은 취소되었습니다. 같은 상품이 필요하시면 쿠팡 화면에서 다시 접수해
+              주세요 — 취소된 주문은 중복으로 잡히지 않습니다.
+            </p>
           ) : (
             PROGRESS_ORDER.map((state, i) => {
               const done = i <= currentIndex
@@ -387,6 +413,30 @@ export default function OrderPage() {
             </div>
           </div>
         </section>
+      )}
+
+      {/* 입금 확인 전에는 고객이 직접 취소할 수 있습니다 (중복 접수 정리 포함) */}
+      {['REQUESTED', 'AWAITING_PAYMENT'].includes(order.state) && (
+        <div className="section" style={{ paddingBottom: 0 }}>
+          {cancelError && <p className="note note--danger">{cancelError}</p>}
+          <button type="button" className="btn btn--ghost" disabled={cancelling} onClick={cancelNow}
+            style={{ color: '#c92a2a', borderColor: '#ffc9c9', width: '100%' }}>
+            {cancelling ? '취소 중…' : '이 주문 취소하기'}
+          </button>
+          <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-500)', marginTop: 6 }}>
+            입금 전에는 비용 없이 바로 취소됩니다 · 실수로 두 번 접수한 주문도 여기서 정리하세요
+          </p>
+        </div>
+      )}
+
+      {/* 입금 후 ~ 매입 전 — 셀프 취소는 닫히지만 아직 전액 환불 취소가 가능한 구간 */}
+      {order.state === 'PAID' && (
+        <div className="section" style={{ paddingBottom: 0 }}>
+          <p className="note" style={{ fontSize: 12 }}>
+            취소가 필요하시면 <b>빠르게 연락 주세요</b> — 쿠팡 매입을 시작하기 전에는{' '}
+            <b style={{ color: '#17916b' }}>전액 환불</b>로 취소해 드립니다.
+          </p>
+        </div>
       )}
 
       <div className="section" style={{ display: 'grid', gap: 10 }}>

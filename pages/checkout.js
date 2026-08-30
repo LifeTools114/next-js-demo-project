@@ -25,6 +25,8 @@ export default function Checkout() {
   const [quote, setQuote] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  // 중복 접수 감지(409) 응답 — 기존 주문 안내 + 취소 후 재접수/재구매 선택지
+  const [duplicate, setDuplicate] = useState(null)
   // 쿠팡 결제 우선 흐름 — 주문완료 화면에서 넘어오면 주문번호가 함께 옵니다.
   const [coupangOrderNo, setCoupangOrderNo] = useState('')
 
@@ -112,19 +114,55 @@ export default function Checkout() {
     refresh()
   }, [refresh])
 
-  const submit = async (e) => {
-    e.preventDefault()
+  const submitOrder = async (force) => {
     setSubmitting(true)
     setError(null)
+    setDuplicate(null)
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, zone, track, customer: form, paymentMethod, coupangOrderNo: coupangOrderNo || undefined }),
+        body: JSON.stringify({
+          items, zone, track, customer: form, paymentMethod,
+          coupangOrderNo: coupangOrderNo || undefined,
+          // 중복 안내를 보고 "일부러 한 번 더 산다"고 확인한 재구매만 true
+          force: force || undefined,
+        }),
       })
       const data = await res.json()
+      // 중복 접수 — 오류가 아니라 선택지(기존 주문 보기/취소 후 재접수/재구매)를 보여줍니다.
+      if (res.status === 409 && data.duplicate) {
+        setDuplicate(data.duplicate)
+        setSubmitting(false)
+        return
+      }
       if (!res.ok) throw new Error(data.error || '주문 생성에 실패했습니다.')
       router.push(`/orders/${data.order.orderNo}`)
+    } catch (err) {
+      setError(err.message)
+      setSubmitting(false)
+    }
+  }
+
+  const submit = (e) => {
+    e.preventDefault()
+    submitOrder(false)
+  }
+
+  /** [기존 주문 취소하고 다시 접수] — 취소가 성공하면 바로 재제출합니다. */
+  const cancelAndResubmit = async () => {
+    if (!duplicate) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/orders/${duplicate.orderNo}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: '중복 접수 — 새 주문으로 다시 접수' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '기존 주문 취소에 실패했습니다.')
+      await submitOrder(true)
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
@@ -329,6 +367,43 @@ export default function Checkout() {
         </section>
 
         {quote && !blocked && <CostBreakdown quote={quote} />}
+
+        {duplicate && (
+          <div className="section" style={{ paddingTop: 0 }}>
+            <div style={{ border: '2px solid #f59f00', background: '#fff8e6', borderRadius: 12, padding: 14 }}>
+              <p style={{ margin: 0, fontWeight: 800, color: '#d9480f' }}>
+                ⚠️ 같은 주문이 이미 접수되어 있어요
+              </p>
+              <p className="note" style={{ margin: '8px 0 10px', background: '#fff', fontSize: 12.5 }}>
+                <b>{duplicate.orderNo}</b> · {duplicate.stateLabel} · {duplicate.minutesAgo}분 전 접수
+                {duplicate.totalKrw ? <> · <b>{krw(duplicate.totalKrw)}</b></> : null}
+              </p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <a className="btn btn--ghost" href={`/orders/${duplicate.orderNo}`} target="_blank" rel="noreferrer">
+                  기존 주문 확인하기 ↗
+                </a>
+                {duplicate.cancellable && (
+                  <button type="button" className="btn" disabled={submitting} onClick={cancelAndResubmit}>
+                    {submitting ? '처리 중…' : '기존 주문 취소하고 이 주문으로 다시 접수'}
+                  </button>
+                )}
+                {duplicate.forceable ? (
+                  <button type="button" className="btn btn--ghost" disabled={submitting}
+                    onClick={() => submitOrder(true)}>
+                    중복 아님 — 같은 상품을 한 번 더 주문합니다
+                  </button>
+                ) : (
+                  <p className="note" style={{ fontSize: 12, margin: 0 }}>
+                    같은 쿠팡 주문번호는 두 번 접수할 수 없습니다.
+                    {duplicate.cancellable
+                      ? ' 기존 주문을 취소하면 다시 접수됩니다.'
+                      : ' 이미 진행 중이면 운영자에게 문의해 주세요.'}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="section" style={{ paddingTop: 0 }}>

@@ -3,7 +3,10 @@
  * GET  /api/orders  주문 목록 (운영자 전용 — 매입 원가·마진 포함)
  */
 
-import { createOrder, listOrders, orderView } from '../../../lib/order/store'
+import {
+  createOrder, listOrders, orderView, findDuplicateOrder, CUSTOMER_CANCELLABLE_STATES,
+} from '../../../lib/order/store'
+import { ORDER_STATES } from '../../../lib/order/states'
 import { requireAdmin, UnauthorizedError } from '../../../lib/auth'
 import { SHIPPING } from '../../../config/shipping'
 import { ORDER_MIN } from '../../../config/fees'
@@ -27,7 +30,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'GET 또는 POST 요청만 지원합니다.' })
   }
 
-  const { items, zone, customer, paymentMethod, track, coupangOrderNo } = req.body ?? {}
+  const { items, zone, customer, paymentMethod, track, coupangOrderNo, force } = req.body ?? {}
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: '주문할 상품이 없습니다.' })
@@ -54,6 +57,41 @@ export default async function handler(req, res) {
 
   const trackKey = track === 'forwarding' ? 'forwarding' : 'agent'
   const zoneKey = Object.hasOwn(SHIPPING.zones, zone) ? zone : SHIPPING.defaultZone
+
+  /**
+   * 중복 접수 감지 — 더블클릭·뒤로가기 재제출로 같은 주문이 두 번 들어가는
+   * 사고를 막습니다. force: true 는 고객이 "같은 상품을 일부러 한 번 더
+   * 산다"고 화면에서 확인한 경우입니다. 같은 쿠팡 주문번호 중복은 의도적
+   * 재구매가 있을 수 없으므로 force 로도 넘을 수 없습니다.
+   */
+  const dup = findDuplicateOrder({
+    track: trackKey,
+    customer,
+    items: sanitized,
+    coupangOrderNo: typeof coupangOrderNo === 'string' ? coupangOrderNo : undefined,
+  })
+  if (dup && (dup.kind === 'coupang-order-no' || force !== true)) {
+    const o = dup.order
+    const minutesAgo = Math.max(0, Math.round((Date.now() - Date.parse(o.createdAt)) / 60000))
+    return res.status(409).json({
+      error: dup.kind === 'coupang-order-no'
+        ? `이 쿠팡 주문번호는 이미 접수된 주문 ${o.orderNo} 에 연결되어 있습니다.`
+        : `같은 상품 구성의 주문 ${o.orderNo} 이(가) ${minutesAgo}분 전에 이미 접수되어 있습니다.`,
+      duplicate: {
+        kind: dup.kind,
+        orderNo: o.orderNo,
+        state: o.state,
+        stateLabel: ORDER_STATES[o.state]?.label ?? o.state,
+        createdAt: o.createdAt,
+        minutesAgo,
+        totalKrw: o.invoice?.amountKrw ?? o.quote?.total ?? null,
+        // 입금 전이면 고객이 기존 주문을 직접 취소하고 새로 접수할 수 있습니다.
+        cancellable: CUSTOMER_CANCELLABLE_STATES.includes(o.state),
+        // 재구매 의사 확인(force) 으로 그대로 진행할 수 있는지
+        forceable: dup.kind !== 'coupang-order-no',
+      },
+    })
+  }
 
   try {
     const order = createOrder({
