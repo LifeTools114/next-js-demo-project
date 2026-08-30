@@ -73,13 +73,18 @@ export default async function handler(req, res) {
   if (dup && (dup.kind === 'coupang-order-no' || force !== true)) {
     const o = dup.order
     const minutesAgo = Math.max(0, Math.round((Date.now() - Date.parse(o.createdAt)) / 60000))
+    const openOrderNos = dup.openOrderNos ?? [o.orderNo]
     return res.status(409).json({
       error: dup.kind === 'coupang-order-no'
         ? `이 쿠팡 주문번호는 이미 접수된 주문 ${o.orderNo} 에 연결되어 있습니다.`
-        : `같은 상품 구성의 주문 ${o.orderNo} 이(가) ${minutesAgo}분 전에 이미 접수되어 있습니다.`,
+        : openOrderNos.length > 1
+          ? `같은 상품 구성의 미결제 주문이 ${openOrderNos.length}건 남아 있습니다 (${openOrderNos.join(', ')}).`
+          : `같은 상품 구성의 주문 ${o.orderNo} 이(가) ${minutesAgo}분 전에 이미 접수되어 있습니다.`,
       duplicate: {
         kind: dup.kind,
         orderNo: o.orderNo,
+        // 같은 구성으로 열려 있는 주문 전부 — 화면이 한 번에 모두 취소할 수 있게
+        openOrderNos,
         state: o.state,
         stateLabel: ORDER_STATES[o.state]?.label ?? o.state,
         createdAt: o.createdAt,

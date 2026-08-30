@@ -6,6 +6,7 @@ import CostBreakdown from '../components/CostBreakdown'
 import { SHIPPING } from '../config/shipping'
 import { PAYMENT } from '../config/payment'
 import { krw, vnd } from '../lib/format'
+import { rememberMyOrder } from '../lib/my-orders'
 
 /**
  * 주문서 — 확장프로그램의 견적함에서 넘어옵니다.
@@ -137,6 +138,7 @@ export default function Checkout() {
         return
       }
       if (!res.ok) throw new Error(data.error || '주문 생성에 실패했습니다.')
+      rememberMyOrder(data.order.orderNo)
       router.push(`/orders/${data.order.orderNo}`)
     } catch (err) {
       setError(err.message)
@@ -149,19 +151,27 @@ export default function Checkout() {
     submitOrder(false)
   }
 
-  /** [기존 주문 취소하고 다시 접수] — 취소가 성공하면 바로 재제출합니다. */
+  /**
+   * [기존 주문 모두 취소하고 다시 접수] — 같은 구성으로 열려 있는 주문
+   * **전부**를 취소한 뒤 재제출합니다. 한 건만 취소하면 남은 다른 건이
+   * 다시 중복으로 잡혀 "취소했는데 또 중복" 혼란이 생깁니다.
+   * (이미 취소된 건은 서버가 성공으로 받아줍니다 — 멱등)
+   */
   const cancelAndResubmit = async () => {
     if (!duplicate) return
     setSubmitting(true)
     setError(null)
     try {
-      const res = await fetch(`/api/orders/${duplicate.orderNo}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: '중복 접수 — 새 주문으로 다시 접수' }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || '기존 주문 취소에 실패했습니다.')
+      const targets = duplicate.openOrderNos?.length ? duplicate.openOrderNos : [duplicate.orderNo]
+      for (const no of targets) {
+        const res = await fetch(`/api/orders/${no}/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: '중복 접수 — 새 주문으로 다시 접수' }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(`${no} 취소 실패 — ${data.error || '취소에 실패했습니다.'}`)
+      }
       await submitOrder(true)
     } catch (err) {
       setError(err.message)
@@ -368,15 +378,25 @@ export default function Checkout() {
 
         {quote && !blocked && <CostBreakdown quote={quote} />}
 
-        {duplicate && (
+        {duplicate && (() => {
+          const openNos = duplicate.openOrderNos?.length ? duplicate.openOrderNos : [duplicate.orderNo]
+          return (
           <div className="section" style={{ paddingTop: 0 }}>
             <div style={{ border: '2px solid #f59f00', background: '#fff8e6', borderRadius: 12, padding: 14 }}>
               <p style={{ margin: 0, fontWeight: 800, color: '#d9480f' }}>
-                ⚠️ 같은 주문이 이미 접수되어 있어요
+                ⚠️ 같은 주문이 {openNos.length > 1 ? `${openNos.length}건 ` : ''}이미 접수되어 있어요
               </p>
               <p className="note" style={{ margin: '8px 0 10px', background: '#fff', fontSize: 12.5 }}>
                 <b>{duplicate.orderNo}</b> · {duplicate.stateLabel} · {duplicate.minutesAgo}분 전 접수
                 {duplicate.totalKrw ? <> · <b>{krw(duplicate.totalKrw)}</b></> : null}
+                {openNos.length > 1 && (
+                  <>
+                    <br />
+                    <b style={{ color: '#d9480f' }}>미결제 {openNos.length}건 전부</b>: {openNos.join(' · ')}
+                    <br />
+                    <small>한 건만 취소하면 남은 건이 다시 중복으로 잡힙니다 — 아래 버튼이 모두 정리합니다.</small>
+                  </>
+                )}
               </p>
               <div style={{ display: 'grid', gap: 8 }}>
                 <a className="btn btn--ghost" href={`/orders/${duplicate.orderNo}`} target="_blank" rel="noreferrer">
@@ -384,7 +404,10 @@ export default function Checkout() {
                 </a>
                 {duplicate.cancellable && (
                   <button type="button" className="btn" disabled={submitting} onClick={cancelAndResubmit}>
-                    {submitting ? '처리 중…' : '기존 주문 취소하고 이 주문으로 다시 접수'}
+                    {submitting ? '처리 중…'
+                      : openNos.length > 1
+                        ? `기존 주문 ${openNos.length}건 모두 취소하고 이 주문으로 다시 접수`
+                        : '기존 주문 취소하고 이 주문으로 다시 접수'}
                   </button>
                 )}
                 {duplicate.forceable ? (
@@ -403,7 +426,8 @@ export default function Checkout() {
               </div>
             </div>
           </div>
-        )}
+          )
+        })()}
 
         {error && (
           <div className="section" style={{ paddingTop: 0 }}>

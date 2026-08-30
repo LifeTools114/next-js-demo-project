@@ -82,6 +82,22 @@ test('중복 아님: 30분이 지난 미결제 주문은 잡지 않는다', () =
   assert.equal(findDuplicateOrder({ track: 'agent', customer: CUSTOMER, items: ITEMS }), null)
 })
 
+test('중복: 여러 건이 열려 있으면 전부 알려준다 — 하나만 취소하면 또 잡히므로', () => {
+  // 실사고 재현: "한 번 더 주문"으로 2건을 만든 뒤 1건만 취소하고 재접수하면
+  // 남은 건이 다시 중복으로 잡힙니다. 화면이 전부 정리하려면 목록이 필요합니다.
+  const first = make()
+  const second = make()
+  const dup = findDuplicateOrder({ track: 'agent', customer: CUSTOMER, items: ITEMS })
+  assert.deepEqual(dup.openOrderNos, [second.orderNo, first.orderNo], '최신순 전체 목록')
+
+  customerCancelOrder(second.orderNo)
+  const remain = findDuplicateOrder({ track: 'agent', customer: CUSTOMER, items: ITEMS })
+  assert.deepEqual(remain.openOrderNos, [first.orderNo], '남은 한 건은 계속 잡힙니다')
+
+  customerCancelOrder(first.orderNo)
+  assert.equal(findDuplicateOrder({ track: 'agent', customer: CUSTOMER, items: ITEMS }), null)
+})
+
 // ─────────────── 중복 감지: 쿠팡 주문번호 ───────────────
 
 test('중복: 같은 쿠팡 주문번호는 상품·연락처가 달라도 언제나 잡힌다', () => {
@@ -141,6 +157,18 @@ test('셀프 취소: 입금이 확인된 주문은 거부한다 (운영자 경�
   const o = make()
   confirmPayment(o.id, { confirmedBy: 'admin' })
   assert.throws(() => customerCancelOrder(o.id), /입금 확인 전/)
+})
+
+test('셀프 취소: 이미 취소된 주문의 재취소는 오류가 아니다 (멱등)', () => {
+  // 다른 탭에서 먼저 취소했거나 버튼을 두 번 누른 경우 —
+  // 오류를 내면 "취소 후 재접수" 흐름이 멈춰버립니다.
+  const o = make()
+  customerCancelOrder(o.id)
+  const again = customerCancelOrder(o.id)
+  assert.equal(again.state, 'CANCELLED')
+  // 원장이 중복으로 상쇄·환불되지 않아야 합니다 (CANCELLED 이력 1회).
+  assert.equal(again.history.filter((h) => h.state === 'CANCELLED').length, 1)
+  assert.equal(summarize(again.ledger, again.fx.effectiveRate).balanceKrw, 0)
 })
 
 test('셀프 취소 가능 상태는 입금 전 두 단계뿐이다', () => {
