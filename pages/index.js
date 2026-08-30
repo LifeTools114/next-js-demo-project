@@ -77,7 +77,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         <div className="panel__head">추가 비용이 붙는 품목</div>
         <div className="panel__body">
           <div className="row">
-            <span className="row__label">📱 전자기기 <small style={{ color: 'var(--ink-500)' }}>휴대폰·태블릿·노트북·PC·모니터</small></span>
+            <span className="row__label">📱 전자·가전 기기 <small style={{ color: 'var(--ink-500)' }}>휴대폰·노트북·모니터·청소기·드라이기 등</small></span>
             <span className="row__value">${ITEM_SURCHARGES.device.usd}/대</span>
           </div>
           <div className="row">

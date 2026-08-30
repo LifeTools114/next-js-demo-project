@@ -372,3 +372,23 @@ test('전자기기 할증: 기기당 $40, 액세서리는 제외 (운영자 확�
   const acc = quote([{ productName: '아이패드 케이스 투명', productPrice: 20000, quantity: 1 }], { track: TRACK.FORWARDING })
   assert.ok(!acc.itemSurcharges.rows.some((r) => r.id === 'device'))
 })
+
+test('가전 할증: 청소기·드라이기도 기기당 $40, 소모품은 제외', async () => {
+  const { detectItemSurcharges } = await import('../lib/pricing/surcharges.js')
+  const vac = detectItemSurcharges([
+    { productName: 'MIFAN 무선 UV 살균 침대 이불 침구 청소기', quantity: 1 },
+  ])
+  assert.equal(vac.rows.length, 1)
+  assert.equal(vac.rows[0].id, 'device')
+  assert.equal(vac.rows[0].usd, 40)
+
+  const two = detectItemSurcharges([
+    { productName: '보다나 트리플플로우 헤어 드라이기', quantity: 2 },
+  ])
+  assert.equal(two.rows[0].usd, 80, '기기당 과금 — 2대는 $80')
+
+  const filter = detectItemSurcharges([
+    { productName: '청소기 교체용 헤파 필터 3개입', quantity: 1 },
+  ])
+  assert.equal(filter.rows.length, 0, '소모품은 할증 없음')
+})

@@ -113,10 +113,12 @@ test('고액 주문은 차단하지 않고 견적 문의로 보낸다', () => {
   assert.equal(high.autoQuote, false)
   assert.equal(high.ruleId, 'high-value')
 
-  // 가전(에어랩 등)은 고액 임계값 아래여도 가전 규칙으로 견적 문의.
+  // 가전(에어랩 등)은 이제 견적 문의가 아니라 기기당 $40 할증으로 자동 견적
+  // (운영자 확정 26-08-30). 고액 게이트(100만원↑)는 그대로 잡습니다.
   const dyson = checkEligibility(p('다이슨 에어랩 멀티 스타일러', { price: 590000, quantity: 1 }))
-  assert.equal(dyson.autoQuote, false)
-  assert.equal(dyson.ruleId, 'appliance')
+  assert.equal(dyson.verdict, VERDICT.OK, '가전은 자동 견적')
+  assert.equal(dyson.autoQuote, true)
+  assert.ok(dyson.warnings.some((w) => w.id === 'device-care'), '$40 취급비·A/S 경고는 남습니다')
 
   // 골프채는 배송 가능하되 장척 화물이라 견적 문의 (운영자 확정 26-08-30).
   const golf = checkEligibility(p('캘러웨이 골프채 아이언 세트', { price: 800000, quantity: 1 }))
@@ -252,4 +254,17 @@ test('장바구니 판정에 무게를 넘기면 상한이 적용된다', () => 
 
   // 무게를 안 넘기면 무게 규칙이 동작하지 않습니다 (호출부 실수 방지용 문서화)
   assert.equal(checkCartEligibility(items).shippable, true)
+})
+
+test('가전 본체: 자동 견적 + 취급비 경고, 소모품은 할증 없음 (운영자 확정 26-08-30)', () => {
+  // 실사례 — MIFAN 무선 UV 살균 침구 청소기: 예전엔 견적 문의로 막혔습니다.
+  const vac = checkEligibility(p('MIFAN 무선 UV 살균 침대 이불 침구 청소기', { price: 89000, quantity: 1 }))
+  assert.equal(vac.verdict, VERDICT.OK)
+  assert.equal(vac.autoQuote, true)
+  assert.ok(vac.warnings.some((w) => w.id === 'device-care'))
+
+  // 소모품(필터·브러시 등)은 기기가 아니므로 경고도 할증도 없어야 합니다.
+  const filter = checkEligibility(p('MIFAN 청소기 교체용 헤파 필터 3개입', { price: 12000, quantity: 1 }))
+  assert.equal(filter.verdict, VERDICT.OK)
+  assert.ok(!filter.warnings.some((w) => w.id === 'device-care'), '소모품에 기기 경고 금지')
 })

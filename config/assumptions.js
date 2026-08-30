@@ -32,10 +32,12 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'device-rate',
-    label: '전자기기 취급비 — 고객 $40/EA (원가 S1 $30/EA)',
+    label: '전자·가전 기기 취급비 — 고객 $40/EA (원가 S1 $30/EA, IT기기 기준)',
     where: 'config/shipping.js · ITEM_SURCHARGES.device',
     status: 'confirmed',
-    source: '고객가: 운영자 확정 26-08-30 · 원가: S1 EXPRESS 견적서 26.08.28. 본체는 자동 견적+할증, 고액(100만원↑)·대량은 기존 게이트 유지',
+    source: '고객가: 운영자 확정 26-08-30 (가전도 동일 규정으로 자동 견적+할증 — 견적 문의 폐지) · 원가: S1 EXPRESS 견적서 26.08.28. 고액(100만원↑)·중량(15kg↑)은 기존 게이트 유지',
+    risk: 'S1 원가 $30/EA 는 스마트폰~모니터 IT기기 명시 — 가전(청소기·드라이기 등)도 같은 원가인지 미확인. 다르면 기기당 마진($10)이 달라집니다.',
+    askBroker: '가전·전열 기기(청소기·드라이기·에어랩 등)도 IT기기와 같은 $30/EA 인지, 별도 요율인지',
   },
   {
     id: 'volumetric-divisor',
