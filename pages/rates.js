@@ -252,10 +252,18 @@ export default function RatesPage() {
                 <span className="row__value">{krw(result.shipping.totalKrw)}</span>
               </div>
               <p className="note" style={{ marginTop: 12 }}>
-                배송비 외에 수입관세 {Math.round(result.duty.dutyRate * 100)}%({result.duty.label})와 VAT{' '}
-                {Math.round(TAXES.vatRate * 100)}%가 CIF(상품가+운임) 기준으로 부과됩니다. 2025년 2월 18일부터
-                소액 면세가 폐지되어 금액과 무관하게 과세됩니다.
+                추가 비용 품목: 전자기기(휴대폰·태블릿·노트북·PC·모니터) ${ITEM_SURCHARGES.device.usd}/대 ·
+                파손주의 ${ITEM_SURCHARGES.fragile.usd}/개 · 대형({ITEM_SURCHARGES.bulky.thresholdKg}kg↑) ${ITEM_SURCHARGES.bulky.usd}/건 ·
+                스키·캐리어 등 장척은 견적 문의. 할증은 견적 내역에 자동 표시됩니다.
               </p>
+              {/* 세금 문구 — 관세·VAT 를 걷는 정책일 때만 (현재 미징수, config/taxes.js) */}
+              {TAXES.collect && (
+                <p className="note" style={{ marginTop: 12 }}>
+                  배송비 외에 수입관세 {Math.round(result.duty.dutyRate * 100)}%({result.duty.label})와 VAT{' '}
+                  {Math.round(TAXES.vatRate * 100)}%가 CIF(상품가+운임) 기준으로 부과됩니다. 2025년 2월 18일부터
+                  소액 면세가 폐지되어 금액과 무관하게 과세됩니다.
+                </p>
+              )}
             </div>
           </section>
         </>

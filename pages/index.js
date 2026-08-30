@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import { SHIPPING, CONSOLIDATION } from '../config/shipping'
+import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
 import { FEES } from '../config/fees'
 import { TAXES } from '../config/taxes'
 import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
@@ -13,8 +13,8 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
       <div className="hero">
         <h1 className="hero__title">쿠팡에서 바로, 하노이 도착 가격 🇰🇷 → 🇻🇳</h1>
         <p className="hero__desc">
-          크롬 확장프로그램을 설치하면 <strong>쿠팡 상품 페이지에서 바로</strong> 무게·국제배송비·
-          관세·VAT를 합친 도착 가격이 뜹니다. 통관이 막히는 상품은 주문 전에 알려드립니다.
+          크롬 확장프로그램을 설치하면 <strong>쿠팡 상품 페이지에서 바로</strong> 무게와
+          국제배송비를 계산한 하노이 도착 가격이 뜹니다. 통관이 막히는 상품은 주문 전에 알려드립니다.
         </p>
       </div>
 
@@ -56,7 +56,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
           </div>
           <div className="row">
             <span className="row__label">🧾 도착 가격 계산</span>
-            <span className="row__value">배송비 + 관세 + VAT</span>
+            <span className="row__value">무게 기반 국제배송비</span>
           </div>
           <div className="row">
             <span className="row__label">🚫 통관 불가 사전 경고</span>
@@ -74,15 +74,44 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
       </section>
 
       <section className="panel">
-        <div className="panel__head">세금 안내</div>
+        <div className="panel__head">추가 비용이 붙는 품목</div>
         <div className="panel__body">
-          <p className="note note--warn">
-            ⚠️ {DESTINATION.label}은 2025년 2월 18일부터 소액 면세가 폐지되어{' '}
-            <strong>금액과 관계없이 모든 수입 건에 관세와 VAT가 부과</strong>됩니다. 관세는 품목군마다
-            다르며(신발 30%, 가방 25%, 의류·화장품 20% 등), VAT는 {Math.round(TAXES.vatRate * 100)}%입니다.
+          <div className="row">
+            <span className="row__label">📱 전자기기 <small style={{ color: 'var(--ink-500)' }}>휴대폰·태블릿·노트북·PC·모니터</small></span>
+            <span className="row__value">${ITEM_SURCHARGES.device.usd}/대</span>
+          </div>
+          <div className="row">
+            <span className="row__label">🍷 파손주의 <small style={{ color: 'var(--ink-500)' }}>유리·도자기 식기 등</small></span>
+            <span className="row__value">${ITEM_SURCHARGES.fragile.usd}/개</span>
+          </div>
+          <div className="row">
+            <span className="row__label">📦 대형 화물 <small style={{ color: 'var(--ink-500)' }}>청구무게 {ITEM_SURCHARGES.bulky.thresholdKg}kg 이상</small></span>
+            <span className="row__value">${ITEM_SURCHARGES.bulky.usd}/건</span>
+          </div>
+          <div className="row">
+            <span className="row__label">🎿 장척·특수 <small style={{ color: 'var(--ink-500)' }}>스키·낚싯대·캐리어 등</small></span>
+            <span className="row__value">견적 문의</span>
+          </div>
+          <p className="note" style={{ marginTop: 12 }}>
+            할증은 견적과 신청서 내역에 자동으로 표시됩니다. 전자기기는 한국 기기 특성상
+            베트남 A/S 가 어렵습니다. 골프채는 베트남 특별소비세 품목이라 접수하지 않습니다.
           </p>
         </div>
       </section>
+
+      {/* 세금 안내 — 관세·VAT 를 걷는 정책일 때만 (현재 미징수, config/taxes.js) */}
+      {TAXES.collect && (
+        <section className="panel">
+          <div className="panel__head">세금 안내</div>
+          <div className="panel__body">
+            <p className="note note--warn">
+              ⚠️ {DESTINATION.label}은 2025년 2월 18일부터 소액 면세가 폐지되어{' '}
+              <strong>금액과 관계없이 모든 수입 건에 관세와 VAT가 부과</strong>됩니다. 관세는 품목군마다
+              다르며(신발 30%, 가방 25%, 의류·화장품 20% 등), VAT는 {Math.round(TAXES.vatRate * 100)}%입니다.
+            </p>
+          </div>
+        </section>
+      )}
 
       <div className="section" style={{ display: 'grid', gap: 10 }}>
         <Link href="/rates" className="btn">

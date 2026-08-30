@@ -362,3 +362,13 @@ test('구매대행 접수 한도: 견적에 플래그가 실리고 배송대행�
   const fw = quote([{ productName: '수분크림 50ml', productPrice: 550000, quantity: 2 }], { track: TRACK.FORWARDING })
   assert.equal(fw.agentLimit, null)
 })
+
+test('전자기기 할증: 기기당 $40, 액세서리는 제외 (운영자 확정 26-08-30)', () => {
+  const q = quote([{ productName: '아이패드 프로 13', productPrice: 500000, quantity: 2 }], { track: TRACK.FORWARDING })
+  const row = q.itemSurcharges.rows.find((r) => r.id === 'device')
+  assert.ok(row, '기기 할증이 있어야 합니다')
+  assert.equal(row.usd, 80) // $40 × 2대
+  assert.ok(q.breakdown.some((r) => r.key === 'surcharge-device'))
+  const acc = quote([{ productName: '아이패드 케이스 투명', productPrice: 20000, quantity: 1 }], { track: TRACK.FORWARDING })
+  assert.ok(!acc.itemSurcharges.rows.some((r) => r.id === 'device'))
+})

@@ -32,10 +32,10 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'device-rate',
-    label: '전자기기 추가운임 $30/EA (스마트폰·태블릿·노트북·PC·모니터)',
-    where: 'config/eligibility.js · MANUAL_QUOTE_RULES (수동 견적 유지)',
+    label: '전자기기 취급비 — 고객 $40/EA (원가 S1 $30/EA)',
+    where: 'config/shipping.js · ITEM_SURCHARGES.device',
     status: 'confirmed',
-    source: 'S1 EXPRESS 견적서 26.08.28 — 단 특이건·대량은 사전 협의 필수라 수동 견적 게이트 유지',
+    source: '고객가: 운영자 확정 26-08-30 · 원가: S1 EXPRESS 견적서 26.08.28. 본체는 자동 견적+할증, 고액(100만원↑)·대량은 기존 게이트 유지',
   },
   {
     id: 'volumetric-divisor',

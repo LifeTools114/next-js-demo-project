@@ -127,17 +127,21 @@ test('다량 주문은 자동 견적을 유지하되 경고한다', () => {
   assert.ok(many.warnings.some((w) => w.id === 'commercial-quantity'))
 })
 
-test('전자기기 본체는 견적 문의, 액세서리는 자동 견적', () => {
-  // 리튬배터리 내장 본체는 항공사별 취급 조건이 달라 물류사 견적이 필요합니다.
-  for (const name of ['삼성 갤럭시 S25 울트라 자급제', 'LG 그램 17인치 노트북', '아이패드 프로 13']) {
-    const r = checkEligibility(p(name, { price: 500000, quantity: 1 }))
-    assert.equal(r.verdict, VERDICT.MANUAL_QUOTE, `${name} 은 견적 문의여야 합니다`)
-    assert.equal(r.ruleId, 'device')
-    assert.ok(r.notice, '고객 안내 문구가 있어야 합니다')
-  }
-  // 액세서리는 그대로 자동 견적
+test('전자기기 본체: 자동 견적 + A/S 경고, 고액·액세서리는 각자 규칙대로', () => {
+  // 운영자 확정 (26-08-30): 본체는 기기당 $40 할증으로 자동 견적하고 경고만 남깁니다.
+  const mid = checkEligibility(p('아이패드 프로 13', { price: 500000, quantity: 1 }))
+  assert.equal(mid.verdict, VERDICT.OK)
+  assert.ok(mid.warnings.some((w) => w.id === 'device-care'), 'A/S 경고가 있어야 합니다')
+  // 100만원 이상 본체는 고액 게이트로 수동 견적 유지.
+  const high = checkEligibility(p('LG 그램 17인치 노트북', { price: 1890000, quantity: 1 }))
+  assert.equal(high.verdict, VERDICT.MANUAL_QUOTE)
+  assert.equal(high.ruleId, 'high-value')
+  // 액세서리는 경고 없이 자동 견적.
   const buds = checkEligibility(p('에어팟 프로 3', { price: 359000, quantity: 1 }))
   assert.equal(buds.verdict, VERDICT.OK)
+  assert.ok(!buds.warnings.some((w) => w.id === 'device-care'))
+  const kase = checkEligibility(p('갤럭시탭 케이스 투명', { price: 20000, quantity: 1 }))
+  assert.ok(!kase.warnings.some((w) => w.id === 'device-care'))
 })
 
 test('중고 전자기기는 견적 문의가 아니라 차단이다', () => {
