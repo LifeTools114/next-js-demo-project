@@ -389,8 +389,12 @@ export default function OrderPage() {
         </section>
       )}
 
-      <div className="section">
-        <Link href="/products" className="btn btn--ghost">계속 쇼핑하기</Link>
+      <div className="section" style={{ display: 'grid', gap: 10 }}>
+        {/* 쇼핑은 쿠팡에서 — 확장 패널이 다시 견적을 띄워줍니다 */}
+        <a href="https://www.coupang.com" className="btn" target="_blank" rel="noreferrer">
+          쿠팡에서 계속 쇼핑하기 ↗
+        </a>
+        <Link href="/orders" className="btn btn--ghost">내 주문 목록</Link>
       </div>
     </Layout>
   )
