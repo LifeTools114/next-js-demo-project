@@ -46,6 +46,12 @@
         "src/content/order-capture.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://postcode.map.daum.net/*"],
+      "js": ["src/content/postcode-fill.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
     }
   ],
   "action": {

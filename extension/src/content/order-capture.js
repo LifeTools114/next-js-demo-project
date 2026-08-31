@@ -390,26 +390,59 @@
   }
 
   /**
-   * 배송지 입력창의 연락처 자동 입력 — 빈 칸일 때만, 배송지 다이얼로그
-   * 안에서만 채웁니다. 사용자가 적은 값은 절대 덮어쓰지 않습니다.
+   * 배송지 입력창 자동 입력 — 배송지 다이얼로그 안에서만 채웁니다.
+   * 기본(passive)은 빈 칸만 채워 사용자가 적은 값을 덮지 않고,
+   * [⚡ 자동입력] 버튼(force)은 명시적 클릭이므로 덮어씁니다.
    * (쿠팡은 React 라 네이티브 setter 로 넣어야 값이 인식됩니다)
+   *
+   * 기본주소(도로명)는 쿠팡이 우편번호 검색(다음 위젯, 별도 프레임)을
+   * 강제해 스크립트로 넣을 수 없습니다 — 버튼이 자동 복사 + 안내로 잇습니다.
    */
-  function autofillPhone(phone) {
-    if (!phone) return
-    const inputs = document.querySelectorAll(
-      'input[type="tel"], input[name*="phone" i], input[placeholder*="휴대폰"], input[placeholder*="전화"]',
-    )
-    for (const input of inputs) {
-      if (input.dataset.kbFilled || input.value.trim() !== '' || !input.offsetParent) continue
+  const NAME_KEY = 'kb-recipient-name'
+  const getRecipientName = () => {
+    try { return (localStorage.getItem(NAME_KEY) ?? '').trim() } catch { return '' }
+  }
+
+  function setNativeValue(input, value) {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')?.set
+    if (setter) setter.call(input, value)
+    else input.value = value
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    input.dataset.kbFilled = '1'
+  }
+
+  /** 배송지 다이얼로그 안의 특정 칸을 찾아 채웁니다. @returns 채운 개수 */
+  function fillDialogInputs(selector, value, { force = false } = {}) {
+    if (!value) return 0
+    let filled = 0
+    for (const input of document.querySelectorAll(selector)) {
+      if (!input.offsetParent) continue
       const dialog = input.closest('[role="dialog"], form') ?? input.parentElement?.parentElement
       if (!dialog || !/배송지/.test((dialog.innerText ?? '').slice(0, 2000))) continue
-      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')?.set
-      if (setter) setter.call(input, phone)
-      else input.value = phone
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-      input.dispatchEvent(new Event('change', { bubbles: true }))
-      input.dataset.kbFilled = '1'
+      const current = input.value.trim()
+      if (!force && (input.dataset.kbFilled || current !== '')) continue
+      if (current === value) continue
+      setNativeValue(input, value)
+      filled += 1
     }
+    return filled
+  }
+
+  const DIALOG_FIELDS = {
+    name: 'input[name*="name" i], input[placeholder*="받는"], input[placeholder*="이름"]',
+    phone: 'input[type="tel"], input[name*="phone" i], input[placeholder*="휴대폰"], input[placeholder*="전화"]',
+    detail: 'input[name*="detail" i], input[name*="addr2" i], input[placeholder*="상세"]',
+  }
+
+  /** 받는사람·휴대폰·상세주소를 한 번에. 상세주소는 이름을 알 때만. */
+  function autofillAddressDialog({ code, phone, force = false } = {}) {
+    const name = getRecipientName()
+    let n = 0
+    n += fillDialogInputs(DIALOG_FIELDS.name, code, { force })
+    n += fillDialogInputs(DIALOG_FIELDS.phone, phone, { force })
+    if (name) n += fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force })
+    return n
   }
 
   /**
@@ -454,8 +487,8 @@
     const code = w.code || 'K-ECOM'
     const phone = w.phone || '010-7360-1156'
 
-    // 배송지 다이얼로그가 열려 있으면 연락처를 채워둡니다.
-    autofillPhone(phone)
+    // 배송지 다이얼로그가 열려 있으면 빈 칸을 조용히 채워둡니다 (받는사람·전화·상세주소).
+    autofillAddressDialog({ code, phone })
 
     /**
      * 배송지 검사는 "배송지 섹션"만 봅니다 — 페이지 전체를 보면 주소록
@@ -693,8 +726,15 @@
       '<div style="margin-top:6px;font-size:10.5px;font-weight:700;color:#d9480f;text-align:center;line-height:1.5">' +
       '⭐ 상세주소의 <u>본인 이름</u>으로 소포 주인을 찾습니다 — 꼭 넣어주세요!</div>' +
       '</div>' +
-      `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
-      'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사</button>'
+      // 주소 입력이 어려운 고객용 — 버튼 한 번으로 채울 수 있는 칸은 전부 자동입력.
+      '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:38px;border:0;border-radius:9px;' +
+      'background:#17916b;color:#fff;font-weight:800;cursor:pointer">⚡ 배송지 자동입력 (받는사람·전화·상세주소)</button>' +
+      `<button data-copy="${esc(addr1)}" style="margin-top:6px;width:100%;min-height:32px;border:0;border-radius:9px;` +
+      'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사 — 우편번호 찾기에 붙여넣기</button>' +
+      (getRecipientName()
+        ? `<button id="kb-addr-name" style="margin-top:5px;width:100%;min-height:24px;border:0;background:transparent;` +
+          `color:#8b95a1;font-size:10.5px;cursor:pointer">상세주소 이름: ${esc(getRecipientName())} (누르면 변경)</button>`
+        : '')
 
     // 장바구니 화면에는 배송지가 아직 없으므로 검사하지 않습니다 (안내는 접힌 영역에).
     // 주소가 틀렸을 때의 경고·입력 안내만은 항상 보입니다 — 결제 실패로 직결되므로.
@@ -732,6 +772,79 @@
       // 이 결제 화면에서만 닫힘 — 다른 결제·장바구니에는 그대로 나타납니다.
       try { sessionStorage.setItem(closedKey(), '1') } catch { /* 무시 */ }
       renderReopenChip()
+    })
+    card.querySelector('#kb-addr-name')?.addEventListener('click', () => {
+      const next = window.prompt('상세주소에 넣을 본인 이름 (신청서의 받는 분과 동일하게)', getRecipientName())
+      if (next === null) return
+      try { localStorage.setItem(NAME_KEY, next.trim()) } catch { /* 무시 */ }
+      card.dataset.kbHtml = ''
+      renderCheckoutHelper()
+    })
+    /**
+     * [⚡ 배송지 자동입력] — 주소 입력이 어려운 고객용 원버튼 흐름:
+     *   ① 배송지 입력창이 닫혀 있으면 열기 시도
+     *   ② 받는사람·휴대폰 채움  ③ 우편번호 검색을 자동 실행·선택
+     *   (postcode-fill.js 가 검색 프레임 안에서 창고 주소를 찾아 클릭)
+     *   ④ 선택 후 나타나는 상세주소 칸에 K-ECOM(이름) 자동 입력
+     */
+    card.querySelector('#kb-addr-fill')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget
+      let name = getRecipientName()
+      if (!name) {
+        name = (window.prompt('소포 주인 확인용 — 본인 이름을 입력하세요 (신청서의 받는 분과 동일하게)', '') ?? '').trim()
+        if (name) { try { localStorage.setItem(NAME_KEY, name) } catch { /* 무시 */ } }
+      }
+      btn.disabled = true
+      const orig = btn.textContent
+      btn.textContent = '자동입력 중…'
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const clickByText = (re) => {
+        const el = [...document.querySelectorAll('button, a')].find((x) =>
+          x.offsetParent && !x.closest('[data-kb-ui]') && re.test((x.textContent ?? '').replace(/\s+/g, '')))
+        el?.click()
+        return Boolean(el)
+      }
+      const dialogOpen = () =>
+        [...document.querySelectorAll('input')].some((i) => {
+          if (!i.offsetParent) return false
+          const d = i.closest('[role="dialog"], form')
+          return d && /배송지/.test((d.innerText ?? '').slice(0, 2000))
+        })
+
+      if (!dialogOpen()) {
+        clickByText(/배송지변경/)
+        await sleep(900)
+        clickByText(/배송지추가|신규배송지|새배송지/)
+        await sleep(900)
+      }
+
+      autofillAddressDialog({ code, phone, force: true })
+
+      // 우편번호 검색 자동화 — 프레임 스크립트가 읽을 검색 요청을 남기고 창을 엽니다.
+      try {
+        await chrome.storage.local.set({
+          kbPostcodeQuery: { q: addr1, road: addr1.split(/\s+/).slice(-3).join(' '), at: Date.now() },
+        })
+      } catch { /* 저장 불가 시 수동 검색 폴백 */ }
+      const opened = clickByText(/우편번호찾기|우편번호검색|주소찾기|주소검색/)
+
+      // 주소 선택이 끝나면 상세주소 칸이 생깁니다 — 나타나는 즉시 채웁니다.
+      let detailDone = 0
+      for (let i = 0; i < 20 && !detailDone; i++) {
+        await sleep(700)
+        detailDone = name ? fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force: true }) : 0
+      }
+
+      btn.disabled = false
+      btn.textContent = orig
+      if (detailDone) {
+        toast('✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.', true)
+      } else if (opened) {
+        toast('주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
+      } else {
+        toast('쿠팡 [배송지 변경] 창을 찾지 못했습니다 — 창을 연 상태에서 다시 눌러주세요.', false)
+      }
     })
     card.querySelector('#kb-agent-go')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget
