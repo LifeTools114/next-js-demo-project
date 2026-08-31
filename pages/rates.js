@@ -6,11 +6,13 @@ import { calculateShipping, getRateTable, usdToKrw, roundingRuleText, toBillable
 import { checkEligibility } from '../lib/eligibility'
 import { classifyDuty } from '../lib/pricing/duty'
 import { compareConsolidation } from '../lib/consolidation'
-import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
+import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { MAINTENANCE } from '../config/maintenance'
 import { maintenanceStatus } from '../lib/maintenance'
 import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
 import { TAXES } from '../config/taxes'
+import { FEES } from '../config/fees'
+import { REFUND_DAYS, RETURN_POLICY } from '../config/payment'
 import { krw, usd, weight, kg } from '../lib/format'
 
 /**
@@ -61,6 +63,193 @@ export default function RatesPage() {
           부피무게 중 큰 값을 올려서 계산합니다 ({roundingRule}).
         </p>
       </div>
+
+      {/* ── 전체 요금표 — 모든 경우의 수 한눈에 (운영자 지시 26-08-31) ── */}
+      <section className="panel">
+        <div className="panel__head">
+          <span>배송대행 vs 구매대행 — 내는 돈</span>
+        </div>
+        <div className="panel__body">
+          <div style={{ overflowX: 'auto' }}>
+            <table className="rate-table">
+              <thead>
+                <tr>
+                  <th>항목</th>
+                  <th>배송대행</th>
+                  <th>구매대행</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>쿠팡 상품값</td>
+                  <td>본인이 직접 결제<br /><small>쿠폰·와우 할인 자유</small></td>
+                  <td>상품가 그대로 청구<br /><small>개인 쿠폰 사용 불가</small></td>
+                </tr>
+                <tr>
+                  <td>대행 수수료</td>
+                  <td>없음</td>
+                  <td>기본 {krw(FEES.agencyBaseKrw)}<br />
+                    <small>상품가 {krw(FEES.agencyBaseMaxGoodsKrw)}·{FEES.agencyBaseMaxItems}종까지 —
+                      초과분 {Math.round(FEES.agencyExcessRate * 100)}% + 종당 {krw(FEES.agencyPerExtraItemKrw)}</small></td>
+                </tr>
+                <tr>
+                  <td>국제배송비</td>
+                  <td colSpan={2}>공통 — 청구무게 × ${SHIPPING.ratePerKgUsd}/kg (아래 표)</td>
+                </tr>
+                <tr>
+                  <td>1회 한도</td>
+                  <td>—</td>
+                  <td>상품가 합계 {krw(FEES.agentMaxGoodsKrw)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style={{ overflowX: 'auto', marginTop: 12 }}>
+            <table className="rate-table">
+              <thead>
+                <tr>
+                  <th>예시 총액</th>
+                  <th>배송대행</th>
+                  <th>구매대행</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 5].map((w) => {
+                  const freight = usdToKrw(SHIPPING.ratePerKgUsd * w)
+                  return (
+                    <tr key={w}>
+                      <td>{w}kg 기준</td>
+                      <td>{krw(freight)}</td>
+                      <td>상품가 + {krw(FEES.agencyBaseKrw + freight)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="note" style={{ marginTop: 10 }}>
+            구매대행 예시는 기본 수수료({krw(FEES.agencyBaseKrw)}) 기준이며, 전자·가전 등
+            할증 품목은 아래 추가금액이 더해집니다. 도착은 {SHIPPING.leadTimeDays.min + 1}~
+            {SHIPPING.leadTimeDays.max + 3}영업일(쿠팡→창고 1~3 + 창고→하노이{' '}
+            {SHIPPING.leadTimeDays.min}~{SHIPPING.leadTimeDays.max})입니다.
+          </p>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">
+          <span>교환·반품 요금</span>
+          <span className="tag tag--warn">비용 전액 구매자 부담</span>
+        </div>
+        <div className="panel__body">
+          <div style={{ overflowX: 'auto' }}>
+            <table className="rate-table">
+              <thead>
+                <tr>
+                  <th>구분</th>
+                  <th>금액</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>반송비 (하노이→한국) · {RETURN_SHIPPING.baseKg}kg까지</td>
+                  <td>${RETURN_SHIPPING.baseUsd} ({krw(usdToKrw(RETURN_SHIPPING.baseUsd))})</td>
+                </tr>
+                <tr>
+                  <td>반송비 · {RETURN_SHIPPING.baseKg}kg 초과 kg당</td>
+                  <td>+${RETURN_SHIPPING.perKgUsd} ({krw(usdToKrw(RETURN_SHIPPING.perKgUsd))})</td>
+                </tr>
+                <tr>
+                  <td>반송비 예시 3kg / 5kg</td>
+                  <td>${estimateReturnShippingUsd(3)} / ${estimateReturnShippingUsd(5)}</td>
+                </tr>
+                <tr>
+                  <td>구매대행 반품·교환 처리 기본료</td>
+                  <td>{krw(RETURN_SHIPPING.agentHandlingKrw)}</td>
+                </tr>
+                <tr>
+                  <td>교환 시 재배송(한국→하노이)</td>
+                  <td>국제배송비 재청구<br /><small>구매대행은 수수료 포함</small></td>
+                </tr>
+                <tr>
+                  <td>반품 환불액</td>
+                  <td>낸 금액 − 구매대행 수수료<br />
+                    <small>배송대행은 ${RETURN_POLICY.forwardingRefundFeeUsd} 차감 · 품절 등 당사 사유는 전액 환불</small></td>
+                </tr>
+                <tr>
+                  <td>환불 지급</td>
+                  <td>영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</td>
+                </tr>
+                <tr>
+                  <td>쿠팡 반품배송비</td>
+                  <td>별도 (쿠팡 정책 요율)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="note note--warn" style={{ marginTop: 10, lineHeight: 1.7 }}>
+            ⚠️ {RETURN_SHIPPING.blockedNote} — 해당 품목은 교환·반품이 불가합니다.
+            <br />
+            반송은 <b>사전 접수 필수</b> · {RETURN_SHIPPING.customsNote} · 당일 픽업 시 한국 도착{' '}
+            {RETURN_SHIPPING.leadTime.pickupToKoreaDays.min}~{RETURN_SHIPPING.leadTime.pickupToKoreaDays.max}일.
+            저렴한 상품은 왕복 비용이 상품가를 넘는 경우가 많으니 신청서의{' '}
+            <b>교환·반품 비용 미리보기</b>를 확인하세요.
+          </p>
+        </div>
+      </section>
+
+      {/* ── 예시로 보는 모든 경우 — 실제 계산식 그대로 (운영자 지시 26-08-31) ── */}
+      <section className="panel">
+        <div className="panel__head">📚 예시로 보는 요금 — 모든 경우</div>
+        <div className="panel__body">
+          {(() => {
+            const F = (w) => usdToKrw(SHIPPING.ratePerKgUsd * w) // 국제배송비(원)
+            const U = (u) => usdToKrw(u)
+            const base = FEES.agencyBaseKrw
+            // 예시 4: 상품가 15만·6종 — 기본 + 10만 초과분 5% + 5종 초과 종당 1,000
+            const fee4 = base + Math.round(50000 * FEES.agencyExcessRate) + FEES.agencyPerExtraItemKrw
+            const dev = ITEM_SURCHARGES.device.usd
+            const rows = [
+              ['배송대행 · 화장품 1kg', `배송비 1kg × $${SHIPPING.ratePerKgUsd}`, krw(F(1))],
+              ['배송대행 · 2kg', `2kg × $${SHIPPING.ratePerKgUsd}`, krw(F(2))],
+              ['구매대행 · 상품 50,000원 · 1kg', `상품가 + 수수료 ${krw(base)} + 배송 ${krw(F(1))}`, krw(50000 + base + F(1))],
+              ['구매대행 · 상품 150,000원 · 6종 · 2kg', `수수료 ${krw(fee4)} (기본+초과분 5%+종당 1,000) + 배송 ${krw(F(2))}`, krw(150000 + fee4 + F(2))],
+              ['구매대행 · 무선청소기 89,000원 · 1kg', `+ 기기 취급 $${dev} (${krw(U(dev))})`, krw(89000 + base + F(1) + U(dev))],
+              ['배송대행 · 도자기 그릇 2개 · 2kg', `+ 파손주의 $${ITEM_SURCHARGES.fragile.usd}×2`, krw(F(2) + U(ITEM_SURCHARGES.fragile.usd * 2))],
+              ['배송대행 · 대형 12kg', `12kg × $${SHIPPING.ratePerKgUsd} + 대형 $${ITEM_SURCHARGES.bulky.usd}`, krw(F(12) + U(ITEM_SURCHARGES.bulky.usd))],
+              ['교환 왕복 · 배송대행 1kg', `반송 $${estimateReturnShippingUsd(1)} + 재배송 ${krw(F(1))}`, krw(U(estimateReturnShippingUsd(1)) + F(1))],
+              ['교환 왕복 · 구매대행 1kg', `+ 처리 ${krw(RETURN_SHIPPING.agentHandlingKrw)} + 수수료 ${krw(base)}`,
+                krw(U(estimateReturnShippingUsd(1)) + RETURN_SHIPPING.agentHandlingKrw + F(1) + base)],
+              ['반품 환불 · 구매대행 (67,420원 결제)', `수수료 ${krw(base)} 제외 환불 · 반송비 별도 본인 부담`, krw(67420 - base)],
+              ['반품 환불 · 배송대행 (12,420원 결제)', `$${RETURN_POLICY.forwardingRefundFeeUsd} 차감 · 반송비 별도 → 실익 확인 필요`,
+                krw(12420 - U(RETURN_POLICY.forwardingRefundFeeUsd))],
+            ]
+            return (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="rate-table">
+                  <thead>
+                    <tr><th>사례</th><th>계산</th><th>금액</th></tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(([c, f, total]) => (
+                      <tr key={c}>
+                        <td>{c}</td>
+                        <td><small>{f}</small></td>
+                        <td>{total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })()}
+          <p className="note" style={{ marginTop: 10 }}>
+            골프채·스키 등 장척과 100만원 이상 고액은 <b>견적 문의</b>, 향수·주류 등 금지 품목과{' '}
+            <b>해외직구(로켓직구) 상품은 접수 불가</b>입니다. 무게는 상품명 기반 추정 후 창고
+            실측으로 정산되므로 실제 청구액은 달라질 수 있습니다.
+          </p>
+        </div>
+      </section>
 
       <section className="panel">
         <div className="panel__head">무게별 배송비</div>
@@ -149,6 +338,14 @@ export default function RatesPage() {
               <span className="row__value">+{usd(sc.usd)}</span>
             </div>
           ))}
+          <div className="row">
+            <span className="row__label">
+              장척·특수 (골프채·스키·캐리어 등) / 고액(100만원↑) / 중량(15kg↑)
+              <br />
+              <small style={{ color: 'var(--ink-500)' }}>항공 특수 취급·보험 확인이 필요한 품목</small>
+            </span>
+            <span className="row__value">견적 문의</span>
+          </div>
           <p className="note" style={{ marginTop: 12 }}>
             일반 화장품 유리용기(크림 단지 등)는 표준 완충 포장에 포함되어 할증하지 않습니다.
           </p>
@@ -158,6 +355,17 @@ export default function RatesPage() {
       <section className="panel">
         <div className="panel__head">배송 금지 품목</div>
         <div className="panel__body">
+          {/* 해외직구 차단 — 키워드 규칙이 아니라 배지 판별이라 별도 표기 (26-08-31) */}
+          <div className="row">
+            <span className="row__label">
+              해외직구 상품 (로켓직구·판매자 해외배송)
+              <br />
+              <small style={{ color: 'var(--ink-500)' }}>
+                중국 등 해외에서 발송되는 직구 상품은 접수하지 않습니다 — 한국 내 발송 상품만
+              </small>
+            </span>
+            <span className="row__value">🚫</span>
+          </div>
           {BLOCK_RULES.map((r) => (
             <div className="row" key={r.id}>
               <span className="row__label">
