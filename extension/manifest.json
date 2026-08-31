@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "쿠팡 하노이 직구 도우미",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "쿠팡 상품의 하노이 도착 가격을 바로 계산합니다. 무게 추정, 국제배송비, 배송 가능 여부 확인.",
   "default_locale": "ko",
   "permissions": [

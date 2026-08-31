@@ -336,6 +336,9 @@
   let helperDetailOpen = false
   // 수동 입력 안내(칸별 따라 적기)는 접어둡니다 — ⚡ 자동입력이 기본 경로.
   let helperAddrHelpOpen = false
+  // 배송지 자동 등록 진행/실패 상태 — 실패 시에만 수동 방법 버튼을 보여줍니다.
+  let helperAddrBusy = false
+  let helperAddrFailed = false
   // 내역 줄 비용 안내(ⓘ) 펼침 상태 — 눌린 줄의 key(없으면 라벨)
   let helperRowInfoKey = null
   // 카드에서 고객이 고른 진행 방식 — 행을 눌러 선택하고, 그에 맞는 다음 행동을 안내합니다.
@@ -487,9 +490,18 @@
     payGuard.armed = true
     document.addEventListener('click', (e) => {
       if (!payGuard.warn) return
-      const t = e.target instanceof Element ? e.target.closest('button, a') : null
-      if (!t || t.closest('[data-kb-ui]')) return
-      if (!/결제하기/.test((t.textContent ?? '').replace(/\s+/g, ''))) return
+      // [결제하기]가 <button>이 아니라 스타일 입힌 <div>인 화면도 있어 태그
+      // 대신 "짧은 문구로 끝나는 가장 가까운 조상"으로 판정합니다.
+      let node = e.target instanceof Element ? e.target : null
+      let hit = null
+      for (let up = 0; node && up < 5; up++) {
+        if (!node.closest('[data-kb-ui]')) {
+          const t = (node.textContent ?? '').replace(/\s+/g, '')
+          if (t.length <= 20 && /결제하기$/.test(t)) { hit = node; break }
+        }
+        node = node.parentElement
+      }
+      if (!hit) return
       if (!window.confirm(payGuard.warn)) {
         e.preventDefault()
         e.stopImmediatePropagation()
@@ -580,7 +592,7 @@
         '⚠️ 하노이 배송 경고\n\n' +
         `배송지가 한국 창고(${code})로 설정되어 있지 않습니다.\n` +
         '이대로 결제하면 상품이 하노이가 아니라 현재 배송지로 갑니다.\n\n' +
-        '· 하노이로 보내려면 → [취소] 누른 뒤 카드의 [⚡ 배송지 자동입력]\n' +
+        '· 하노이로 보내려면 → [취소] 누른 뒤 카드의 [⚡ 배송지 자동 등록]\n' +
         '· 집으로 받는 일반 주문이면 → [확인]'
     } else {
       payGuard.warn =
@@ -591,22 +603,152 @@
         '· 그래도 진행하려면 [확인] — 신청서의 이름·연락처로 찾아 처리합니다.'
     }
 
+    /**
+     * 배송지 자동 등록 — [배송대행]을 누르면 실행되는 핵심 흐름.
+     * 쿠팡 결제창의 [배송지 변경]·[선택]·[우편번호 찾기]가 <button>이 아니라
+     * 스타일 입힌 <div>/<span>인 화면이 있어, 태그와 무관하게 "짧고 정확한
+     * 문구"로 찾고 실제 클릭처럼 pointer→mouse→click 이벤트를 흘려보냅니다.
+     * 실패하면 단계별 원인 + 도우미 버전을 토스트로 알려 원격 진단이 되게.
+     */
+    async function runAddrAutofill() {
+      if (helperAddrBusy) return
+      helperAddrBusy = true
+      helperAddrFailed = false
+      card.dataset.kbHtml = ''
+      renderCheckoutHelper() // "등록 중…" 표시
+
+      let name = getRecipientName()
+      if (!name) {
+        name = (window.prompt('소포 주인 확인용 — 본인 이름을 입력하세요 (신청서의 받는 분과 동일하게)', '') ?? '').trim()
+        if (name) { try { localStorage.setItem(NAME_KEY, name) } catch { /* 무시 */ } }
+      }
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const ver = (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })()
+      const fireClick = (el) => {
+        const opts = { bubbles: true, cancelable: true, view: window }
+        for (const t of ['pointerover', 'pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
+          try {
+            el.dispatchEvent(t.startsWith('pointer') ? new PointerEvent(t, opts) : new MouseEvent(t, opts))
+          } catch { /* PointerEvent 미지원 무시 */ }
+        }
+        el.click()
+      }
+      // 짧은 정확 문구로 클릭 대상 찾기 — 겹겹이 매치되면(버튼>스팬) 가장
+      // 안쪽을 눌러야 위임된 실제 핸들러까지 이벤트가 닿습니다.
+      const findExact = (re, max = 12) => {
+        const hits = [...document.querySelectorAll('button, a, [role="button"], label, span, div')]
+          .filter((x) => {
+            if (!x.offsetParent || x.closest('[data-kb-ui]')) return false
+            const t = (x.textContent ?? '').replace(/\s+/g, '')
+            return t.length > 0 && t.length <= max && re.test(t)
+          })
+        return hits.find((h) => !hits.some((o) => o !== h && h.contains(o))) ?? hits[0] ?? null
+      }
+      const clickExact = (re, max) => { const el = findExact(re, max); if (el) fireClick(el); return Boolean(el) }
+      /**
+       * 주소록에 창고 배송지가 이미 있으면 새로 만들지 않고 그 행의 [선택]을
+       * 누릅니다 — 두 번째 이용부터는 이게 정답 경로이고 중복 등록도 막습니다.
+       * 코드(K-ECOM)가 적힌 가장 작은 행 컨테이너 안의 [선택]만 인정합니다.
+       */
+      const findSavedSelect = () => {
+        const rows = [...document.querySelectorAll('li, div, section, article')]
+          .filter((el) => {
+            if (!el.offsetParent || el.closest('[data-kb-ui]')) return false
+            const t = el.innerText ?? ''
+            return t.includes(code) && t.length < 800
+          })
+          .sort((a, b) => (a.innerText ?? '').length - (b.innerText ?? '').length)
+        for (const row of rows) {
+          const sels = [...row.querySelectorAll('button, a, [role="button"], label, span, div')]
+            .filter((b) => b.offsetParent && /^선택(하기)?$/.test((b.textContent ?? '').replace(/\s+/g, '')))
+          const sel = sels.find((h) => !sels.some((o) => o !== h && h.contains(o))) ?? sels[0]
+          if (sel) return sel
+        }
+        return null
+      }
+
+      const ZIP_RE = /우편번호찾기|우편번호검색|주소찾기|주소검색/
+      const ADD_RE = /배송지추가|신규배송지|새배송지/
+      const OPEN_RE = /배송지변경|배송지선택/
+
+      // 화면 전환을 따라가는 단계 탐색 (최대 10초): 저장된 창고 주소 → [선택],
+      // 새 주소 입력폼(우편번호 버튼) → 작성. 아직이면 [추가]→[변경] 순으로 열기.
+      let mode = ''
+      let addClicked = false
+      let openClicked = false
+      const until = Date.now() + 10_000
+      while (Date.now() < until && !mode) {
+        const saved = findSavedSelect()
+        if (saved) { fireClick(saved); mode = 'select'; break }
+        if (findExact(ZIP_RE, 16)) { mode = 'form'; break }
+        if (!addClicked && clickExact(ADD_RE, 12)) addClicked = true
+        else if (!openClicked && !addClicked && clickExact(OPEN_RE, 12)) openClicked = true
+        await sleep(400)
+      }
+
+      const finish = (failed, msg, good) => {
+        helperAddrBusy = false
+        helperAddrFailed = failed
+        if (failed) helperAddrHelpOpen = true // 실패하면 수동 방법을 바로 보여줍니다
+        toast(msg, good)
+        card.dataset.kbHtml = ''
+        renderCheckoutHelper()
+      }
+
+      if (mode === 'select') {
+        return finish(false, `✓ 저장된 ${code} 배송지를 선택했습니다 — 새로 입력할 필요 없습니다.`, true)
+      }
+      if (mode !== 'form') {
+        return finish(true,
+          !openClicked && !addClicked
+            ? `쿠팡 [배송지 변경] 버튼을 찾지 못했습니다 — [배송지 변경]을 직접 눌러 창을 연 뒤 다시 시도해주세요. (도우미 v${ver})`
+            : `쿠팡 배송지 창이 반응하지 않습니다 — [배송지 변경]을 직접 눌러 창이 보이는 상태에서 다시 시도해주세요. (도우미 v${ver})`,
+          false)
+      }
+
+      // 입력폼 도착 — 받는사람·휴대폰 채우고 우편번호 검색 자동 실행
+      autofillAddressDialog({ code, phone, force: true })
+      try {
+        await chrome.storage.local.set({
+          kbPostcodeQuery: { q: addr1, road: addr1.split(/\s+/).slice(-3).join(' '), at: Date.now() },
+        })
+      } catch { /* 저장 불가 시 수동 검색 폴백 */ }
+      const zipEl = findExact(ZIP_RE, 16)
+      if (!zipEl) {
+        // 받는사람·전화는 넣었고 검색 요청도 저장됨 — 검색 창만 열어주면 나머지는 자동.
+        return finish(true,
+          `받는사람·전화는 입력했습니다. [우편번호 찾기]만 직접 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 이어집니다. (도우미 v${ver})`,
+          false)
+      }
+      fireClick(zipEl)
+
+      // 주소 선택이 끝나면 상세주소 칸이 생깁니다 — 나타나는 즉시 채웁니다.
+      let detailDone = 0
+      for (let i = 0; i < 20 && !detailDone; i++) {
+        await sleep(700)
+        detailDone = name ? fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force: true }) : 0
+      }
+      if (detailDone) return finish(false, '✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.', true)
+      return finish(false, '주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
+    }
+
     // ── 가격 두 줄이 카드의 전부 — 행을 눌러 진행 방식을 고릅니다 ──
     // 선택된 행은 파란 배경 + 흰 글씨 + ✓ 로 누가 봐도 "선택됨"이게.
     const priceRow = (id, label, sub, q) => {
       const sel = helperTrack === id
       return (
         `<button data-kb-sel="${id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;` +
-        'width:100%;padding:9px 11px;border:0;cursor:pointer;text-align:left;font:inherit;' +
+        'width:100%;padding:13px 13px;border:0;cursor:pointer;text-align:left;font:inherit;' +
         `background:${sel ? '#3182f6' : '#fff'}">` +
-        `<span><span style="display:block;font-weight:800;font-size:13px;color:${sel ? '#fff' : '#191f28'}">` +
+        `<span><span style="display:block;font-weight:800;font-size:15.5px;color:${sel ? '#fff' : '#191f28'}">` +
         `${sel ? '✓ ' : ''}${label}</span>` +
-        `<span style="font-size:10.5px;color:${sel ? '#cfe0fc' : '#8b95a1'}">${sub}</span></span>` +
+        `<span style="font-size:11px;color:${sel ? '#cfe0fc' : '#8b95a1'}">${sub}</span></span>` +
         (q && won(q.total)
           ? '<span style="text-align:right">' +
-            `<span style="display:block;font-weight:800;font-size:17px;color:${sel ? '#fff' : '#3182f6'};white-space:nowrap">${won(q.total)}</span>` +
+            `<span style="display:block;font-weight:800;font-size:19px;color:${sel ? '#fff' : '#3182f6'};white-space:nowrap">${won(q.total)}</span>` +
             (dong(q.totalVnd)
-              ? `<span style="display:block;font-size:11px;font-weight:700;color:${sel ? '#ffd9d9' : '#f04452'};white-space:nowrap">≈ ${dong(q.totalVnd)}</span>`
+              ? `<span style="display:block;font-size:11.5px;font-weight:700;color:${sel ? '#ffd9d9' : '#f04452'};white-space:nowrap">≈ ${dong(q.totalVnd)}</span>`
               : '') +
             '</span>'
           : `<span style="font-size:11px;color:${sel ? '#cfe0fc' : '#8b95a1'}">계산 중…</span>`) +
@@ -634,14 +776,11 @@
     const priceBlock = cart.length === 0
       ? '<div style="margin-top:8px;color:#4e5968;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
         '금액 계산과 자동 신청이 가능합니다.</div>'
-      : '<div style="margin-top:7px;border:1px solid #e5e8eb;border-radius:10px;overflow:hidden;background:#fff">' +
-        priceRow('forwarding', '배송대행', '배송비 · 쿠팡 결제는 내가', quotes.fwd) +
+      : '<div style="margin-top:8px;border:1.5px solid #dbe4f0;border-radius:12px;overflow:hidden;background:#fff">' +
+        priceRow('forwarding', '배송대행', '쿠팡 결제는 직접 · 배송만 맡김', quotes.fwd) +
         '<div style="border-top:1px solid #f2f4f6"></div>' +
-        priceRow('agent', '구매대행', '총액 · 결제까지 맡김', quotes.agent) +
-        '</div>' +
-        (autoAdded
-          ? `<div style="margin-top:5px;font-size:10.5px;color:#17916b">🛒 이 화면의 상품 ${cart.length}개 기준</div>`
-          : '')
+        priceRow('agent', '구매대행', '결제까지 맡김 · 쿠팡 결제 없음', quotes.agent) +
+        '</div>'
 
     // ── 선택한 방식의 다음 행동 — 카드가 결제/신청으로 유도합니다 ──
     const ctaBlock = cart.length === 0
@@ -652,18 +791,19 @@
           `${won(quotes.agent.agentLimit.maxGoodsKrw)}까지 접수합니다 — 나눠서 신청해 주세요.</div>`
         : helperTrack === 'agent'
         ? '<style>@keyframes kbPulse{0%,100%{box-shadow:0 0 0 0 rgba(49,130,246,.55)}50%{box-shadow:0 0 0 7px rgba(49,130,246,0)}}</style>' +
-          '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:40px;border:0;border-radius:9px;' +
-          'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;' +
+          '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:46px;border:0;border-radius:10px;' +
+          'background:#3182f6;color:#fff;font-weight:800;font-size:15px;cursor:pointer;' +
           'animation:kbPulse 1.5s ease-in-out infinite">구매대행 신청서 작성 →</button>' +
           '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">' +
-          '쿠팡 결제 없이 원화/동화 입금 · 쿠폰·가입혜택 등 개인 할인은 사용 불가 (와우회원가는 반영)</div>'
+          '쿠팡 결제 없이 입금 · 개인 쿠폰 사용 불가</div>'
         : onCart
-          ? '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
-            'font-size:11.5px;font-weight:700">다음: [주문하기]로 이동해 쿠팡 결제를 진행하세요 — ' +
-            '결제가 끝나면 배송 신청서가 자동으로 열립니다.</div>'
-          : '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
-            'font-size:11.5px;font-weight:700">다음: 아래 쿠팡 [결제하기]를 누르세요 — ' +
-            '결제가 끝나면 배송 신청서가 자동으로 열립니다.</div>'
+          ? '<div style="margin-top:8px;padding:10px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
+            'font-size:12.5px;font-weight:800;text-align:center">다음: [주문하기]로 이동하세요</div>'
+          : ok
+            ? '<div style="margin-top:8px;padding:10px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
+              'font-size:12.5px;font-weight:800;text-align:center">이제 쿠팡 [결제하기]를 누르세요<br>' +
+              '<span style="font-weight:700;font-size:10.5px">결제 후 배송 신청서가 자동으로 열립니다</span></div>'
+            : ''
 
     // ── 접힌 설명 영역 — 단계 안내와 구매대행 신청 버튼 ──
     const steps = (text) =>
@@ -710,6 +850,9 @@
           ? '<div style="margin-top:8px;padding:7px 9px;border-radius:9px;background:#eef4fb;color:#2b5e9e;font-size:11px">' +
             '주문 단계로 가면 배송지(한국 창고) 입력을 도와드립니다.</div>'
           : '') +
+        (autoAdded
+          ? `<div style="margin-top:6px;font-size:10.5px;color:#17916b">🛒 이 화면의 상품 ${cart.length}개 기준</div>`
+          : '') +
         weightLine +
         detailHead('배송대행 — 결제는 내가, 배송만 맡김') +
         steps('쿠팡 결제 후 <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ' +
@@ -738,14 +881,6 @@
         '교환은 반송비 + 재배송비(위 국제배송비)를 상품가와 비교하세요<br>' +
         '⚠️ 액체(스킨·세럼 등)·배터리 내장 제품·현금·대량 화물은 반송 불가 — 교환·반품이 불가합니다</div>'
 
-    const cartLine = priceBlock + ctaBlock +
-      (cart.length > 0
-        ? '<button id="kb-detail" style="margin-top:7px;width:100%;min-height:30px;border:1px solid #e5e8eb;' +
-          'border-radius:8px;background:#fff;color:#4e5968;font-weight:700;font-size:11.5px;cursor:pointer">' +
-          (helperDetailOpen ? '접기 ▴' : '이용 방법 자세히 ▾') + '</button>'
-        : '') +
-      detailBlock
-
     /**
      * 쿠팡 「배송지 선택」 창의 실제 생김새·칸 순서 그대로 흉내낸 안내 —
      * 받는 사람 → 우편번호 찾기 → 휴대폰 번호 → 상세주소.
@@ -769,9 +904,9 @@
       '</div>'
 
     /**
-     * 주소 도움 — ⚡ 자동입력 버튼만 크게, 칸별 따라 적기 안내(수동 폴백)는
-     * "누르면 펼쳐지는" 접이로. 운영자 피드백: 내용이 많아 정작 중요한
-     * 주소입력·배송/구매대행 버튼이 눈에 안 들어온다 (26-09-01).
+     * 주소 자동 등록 CTA — 운영자 정리(26-09-01): 카드는 배송대행/구매대행
+     * 두 버튼이 중심. 배송대행을 누르면 주소를 확인해 자동 등록하고,
+     * 실패했을 때만 [직접 입력 방법] 버튼과 칸별 안내를 보여줍니다.
      */
     const addrHelpBody =
       '<div style="margin-top:6px;padding:10px 9px;border-radius:12px;background:#f9fafb;border:1px solid #e5e8eb">' +
@@ -782,32 +917,46 @@
       dlgRow('🏠', '상세주소 — 주소 선택 후 나타나는 칸', `${code} 본인이름`, { hot: true, badge: '중요' }) +
       '<div style="margin-top:6px;font-size:10.5px;font-weight:700;color:#d9480f;text-align:center;line-height:1.5">' +
       '⭐ 상세주소의 <u>본인 이름</u>으로 소포 주인을 찾습니다 — 꼭 넣어주세요!</div>' +
-      `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:32px;border:0;border-radius:9px;` +
+      `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사 — 우편번호 찾기에 붙여넣기</button>' +
-      '</div>'
-
-    const miniForm =
-      // 주소 입력이 어려운 고객용 — 버튼 한 번으로 저장된 주소 선택 또는 새 주소 자동입력.
-      '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:40px;border:0;border-radius:9px;' +
-      'background:#17916b;color:#fff;font-weight:800;font-size:13px;cursor:pointer">⚡ 배송지 자동입력 — 버튼 한 번이면 끝</button>' +
       (getRecipientName()
         ? `<button id="kb-addr-name" style="margin-top:4px;width:100%;min-height:22px;border:0;background:transparent;` +
           `color:#8b95a1;font-size:10.5px;cursor:pointer">상세주소 이름: ${esc(getRecipientName())} (누르면 변경)</button>`
         : '') +
-      '<button id="kb-addr-help" style="margin-top:4px;width:100%;min-height:26px;border:1px solid #e5e8eb;' +
-      'border-radius:8px;background:#fff;color:#8b95a1;font-size:10.5px;cursor:pointer">' +
-      (helperAddrHelpOpen ? '수동 입력 안내 접기 ▴' : '자동입력이 안 되면? 수동 입력 안내 ▾') + '</button>' +
-      (helperAddrHelpOpen ? addrHelpBody : '')
+      '</div>'
 
-    // 장바구니 화면에는 배송지가 아직 없으므로 검사하지 않습니다 (안내는 접힌 영역에).
-    // 주소가 틀렸을 때의 경고·입력 안내만은 항상 보입니다 — 결제 실패로 직결되므로.
+    const miniForm = onCart || ok || helperTrack !== 'forwarding'
+      ? ''
+      : helperAddrBusy
+        ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
+          'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>'
+        : '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:46px;border:0;border-radius:10px;' +
+          'background:#17916b;color:#fff;font-weight:800;font-size:15px;cursor:pointer">' +
+          (helperAddrFailed ? '⚡ 배송지 자동 등록 — 다시 시도' : '⚡ 배송지 자동 등록') + '</button>' +
+          (helperAddrFailed || helperAddrHelpOpen
+            ? '<button id="kb-addr-help" style="margin-top:5px;width:100%;min-height:30px;border:1px solid #e5e8eb;' +
+              'border-radius:8px;background:#fff;color:#4e5968;font-size:11.5px;font-weight:700;cursor:pointer">' +
+              (helperAddrHelpOpen ? '직접 입력 방법 접기 ▴' : '📖 직접 입력 방법 보기 ▾') + '</button>' +
+              (helperAddrHelpOpen ? addrHelpBody : '')
+            : '')
+
+    // 장바구니 화면에는 배송지가 아직 없으므로 검사하지 않습니다.
+    // 상태는 한 줄 배너로만 — 입력 안내는 자동 등록 실패 시에만 펼쳐집니다.
     const statusBlock = onCart
       ? ''
       : ok
         ? '<div style="margin-top:7px;padding:7px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;font-size:12px">' +
           '<b>✓ 배송지 확인됨</b></div>'
         : '<div style="margin-top:7px;padding:7px 10px;border-radius:9px;background:#fff3e6;color:#a05a12;font-size:12px">' +
-          '<b>⚠️ 배송지가 한국 창고가 아닙니다</b></div>' + miniForm
+          '<b>⚠️ 배송지가 한국 창고가 아닙니다</b></div>'
+
+    const cartLine = priceBlock + miniForm + ctaBlock +
+      (cart.length > 0
+        ? '<button id="kb-detail" style="margin-top:7px;width:100%;min-height:32px;border:1px solid #e5e8eb;' +
+          'border-radius:8px;background:#fff;color:#4e5968;font-weight:700;font-size:12px;cursor:pointer">' +
+          (helperDetailOpen ? '접기 ▴' : '자세히 보기 ▾') + '</button>'
+        : '') +
+      detailBlock
 
     const html =
       '<b>🇻🇳 하노이 배송</b>' + statusBlock +
@@ -848,114 +997,8 @@
       card.dataset.kbHtml = ''
       renderCheckoutHelper()
     })
-    /**
-     * [⚡ 배송지 자동입력] — 주소 입력이 어려운 고객용 원버튼 흐름:
-     *   ① 배송지 입력창이 닫혀 있으면 열기 시도
-     *   ② 받는사람·휴대폰 채움  ③ 우편번호 검색을 자동 실행·선택
-     *   (postcode-fill.js 가 검색 프레임 안에서 창고 주소를 찾아 클릭)
-     *   ④ 선택 후 나타나는 상세주소 칸에 K-ECOM(이름) 자동 입력
-     */
-    card.querySelector('#kb-addr-fill')?.addEventListener('click', async (e) => {
-      const btn = e.currentTarget
-      let name = getRecipientName()
-      if (!name) {
-        name = (window.prompt('소포 주인 확인용 — 본인 이름을 입력하세요 (신청서의 받는 분과 동일하게)', '') ?? '').trim()
-        if (name) { try { localStorage.setItem(NAME_KEY, name) } catch { /* 무시 */ } }
-      }
-      btn.disabled = true
-      const orig = btn.textContent
-      btn.textContent = '자동입력 중…'
-
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-      const buttons = () => [...document.querySelectorAll('button, a')].filter((x) =>
-        x.offsetParent && !x.closest('[data-kb-ui]'))
-      const findByText = (re) => buttons().find((x) => re.test((x.textContent ?? '').replace(/\s+/g, '')))
-      const clickByText = (re) => { const el = findByText(re); el?.click(); return Boolean(el) }
-      /**
-       * 주소록에 창고 배송지가 이미 있으면 새로 만들지 않고 그 행의 [선택]을
-       * 누릅니다 — 두 번째 이용부터는 이게 정답 경로이고, 같은 주소가 중복
-       * 등록되는 것도 막습니다. 목록 전체가 아니라 코드(K-ECOM)가 적힌 가장
-       * 작은 행 컨테이너 안의 [선택]만 인정해 다른 주소의 버튼을 안 누릅니다.
-       */
-      const findSavedSelect = () => {
-        const rows = [...document.querySelectorAll('li, div, section, article')]
-          .filter((el) => {
-            if (!el.offsetParent || el.closest('[data-kb-ui]')) return false
-            const t = el.innerText ?? ''
-            return t.includes(code) && t.length < 400
-          })
-          .sort((a, b) => (a.innerText ?? '').length - (b.innerText ?? '').length)
-        for (const row of rows) {
-          const sel = [...row.querySelectorAll('button, a')].find((b) =>
-            b.offsetParent && /^선택$/.test((b.textContent ?? '').replace(/\s+/g, '')))
-          if (sel) return sel
-        }
-        return null
-      }
-
-      const ZIP_RE = /우편번호찾기|우편번호검색|주소찾기|주소검색/
-      const ADD_RE = /배송지추가|신규배송지|새배송지/
-
-      /**
-       * 화면 전환을 따라가는 단계 탐색 (최대 10초): 저장된 창고 주소가 보이면
-       * [선택], 새 주소 입력폼(우편번호 버튼)이 보이면 작성 모드. 아직이면
-       * [배송지 추가] → [배송지 변경] 순으로 열어보며 계속 살핍니다.
-       * 예전엔 0.9초 고정 대기 후 한 번씩만 눌러서, 주소록이 생긴 뒤에는
-       * 목록→입력폼 전환이 조금만 늦어도 "창을 찾지 못했습니다"로 끝났습니다.
-       */
-      let mode = ''
-      let addClicked = false
-      let openClicked = false
-      const until = Date.now() + 10_000
-      while (Date.now() < until && !mode) {
-        const saved = findSavedSelect()
-        if (saved) { saved.click(); mode = 'select'; break }
-        if (findByText(ZIP_RE)) { mode = 'form'; break }
-        if (!addClicked && clickByText(ADD_RE)) addClicked = true
-        else if (!openClicked && !addClicked && clickByText(/배송지변경|배송지선택/)) openClicked = true
-        await sleep(400)
-      }
-
-      if (mode === 'select') {
-        btn.disabled = false
-        btn.textContent = orig
-        toast(`✓ 저장된 ${code} 배송지를 선택했습니다 — 새로 입력할 필요 없습니다.`, true)
-        return
-      }
-      if (mode !== 'form') {
-        btn.disabled = false
-        btn.textContent = orig
-        toast('쿠팡 [배송지 변경] 창을 찾지 못했습니다 — 창을 연 상태에서 다시 눌러주세요.', false)
-        return
-      }
-
-      autofillAddressDialog({ code, phone, force: true })
-
-      // 우편번호 검색 자동화 — 프레임 스크립트가 읽을 검색 요청을 남기고 창을 엽니다.
-      try {
-        await chrome.storage.local.set({
-          kbPostcodeQuery: { q: addr1, road: addr1.split(/\s+/).slice(-3).join(' '), at: Date.now() },
-        })
-      } catch { /* 저장 불가 시 수동 검색 폴백 */ }
-      const opened = clickByText(/우편번호찾기|우편번호검색|주소찾기|주소검색/)
-
-      // 주소 선택이 끝나면 상세주소 칸이 생깁니다 — 나타나는 즉시 채웁니다.
-      let detailDone = 0
-      for (let i = 0; i < 20 && !detailDone; i++) {
-        await sleep(700)
-        detailDone = name ? fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force: true }) : 0
-      }
-
-      btn.disabled = false
-      btn.textContent = orig
-      if (detailDone) {
-        toast('✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.', true)
-      } else if (opened) {
-        toast('주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
-      } else {
-        toast('쿠팡 [배송지 변경] 창을 찾지 못했습니다 — 창을 연 상태에서 다시 눌러주세요.', false)
-      }
-    })
+    // [⚡ 배송지 자동 등록] — 실제 흐름은 runAddrAutofill (위) 하나로 통일.
+    card.querySelector('#kb-addr-fill')?.addEventListener('click', () => { runAddrAutofill() })
     card.querySelector('#kb-agent-go')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget
       /**
@@ -984,6 +1027,9 @@
         helperTrack = b.dataset.kbSel === 'agent' ? 'agent' : 'forwarding'
         card.dataset.kbHtml = ''
         renderCheckoutHelper()
+        // 운영자 정리(26-09-01): [배송대행]을 누르면 주소를 확인하고,
+        // 창고 주소가 아니면 바로 자동 등록을 시작합니다.
+        if (helperTrack === 'forwarding' && !ok && !onCart) runAddrAutofill()
       }),
     )
     card.querySelector('#kb-detail')?.addEventListener('click', () => {
