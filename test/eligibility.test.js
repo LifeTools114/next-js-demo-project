@@ -268,3 +268,17 @@ test('가전 본체: 자동 견적 + 취급비 경고, 소모품은 할증 없�
   assert.equal(filter.verdict, VERDICT.OK)
   assert.ok(!filter.warnings.some((w) => w.id === 'device-care'), '소모품에 기기 경고 금지')
 })
+
+test('해외직구(타국 발송) 상품은 접수하지 않는다 (운영자 확정 26-08-31)', () => {
+  // 로켓직구 배지
+  const rocket = checkEligibility(p('나이키 에어맥스', { badges: ['로켓직구'], price: 120000, quantity: 1 }))
+  assert.equal(rocket.verdict, VERDICT.BLOCKED)
+  assert.equal(rocket.ruleId, 'overseas-sourced')
+  // 판매자 해외배송 문구
+  const seller = checkEligibility(p('샤오미 공기청정기 필터', { shippingText: '해외배송 · 통관번호 필요' }))
+  assert.equal(seller.verdict, VERDICT.BLOCKED)
+  assert.equal(seller.ruleId, 'overseas-sourced')
+  // 국내 로켓배송은 정상
+  const domestic = checkEligibility(p('토리든 세럼 50ml', { badges: ['로켓배송'] }))
+  assert.equal(domestic.verdict, VERDICT.OK)
+})

@@ -451,8 +451,10 @@ export default function OrderPage() {
           (s, i) => s + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1), 0,
         )
         const billableKg = order.quote?.shipping?.billableKg ?? 1
+        // 구매대행 반품·교환은 반송 접수·확인 대행 처리 기본료가 붙습니다.
+        const handlingKrw = order.track === 'agent' ? (RETURN_SHIPPING.agentHandlingKrw ?? 0) : 0
         const backUsd = estimateReturnShippingUsd(billableKg)
-        const backKrw = Math.round(backUsd * FX.usdToKrw)
+        const backKrw = Math.round(backUsd * FX.usdToKrw) + handlingKrw
         const freightKrw = order.quote?.breakdown?.find((r) => r.key === 'freight')?.krw ?? 0
         const agencyKrw = order.track === 'agent' ? (order.quote?.agency?.fee ?? 0) : 0
         const roundTripKrw = backKrw + freightKrw + agencyKrw

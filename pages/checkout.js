@@ -269,8 +269,10 @@ export default function Checkout() {
       {(() => {
         const goodsKrw = items.reduce((s, i) => s + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1), 0)
         const billableKg = quote?.shipping?.billableKg ?? 1
+        // 구매대행 반품·교환은 반송 접수·확인을 대행하므로 처리 기본료가 붙습니다.
+        const handlingKrw = track === 'agent' ? (RETURN_SHIPPING.agentHandlingKrw ?? 0) : 0
         const backUsd = estimateReturnShippingUsd(billableKg)
-        const backKrw = Math.round(backUsd * FX.usdToKrw)
+        const backKrw = Math.round(backUsd * FX.usdToKrw) + handlingKrw
         const freightKrw = quote?.breakdown?.find((r) => r.key === 'freight')?.krw ?? 0
         const agencyKrw = track === 'agent' ? (quote?.agency?.fee ?? 0) : 0
         const resendKrw = freightKrw + agencyKrw
@@ -294,6 +296,7 @@ export default function Checkout() {
                 <small>({billableKg}kg 기준{RETURN_SHIPPING.assumed ? ' · 반송비는 요율 확정 전 예상' : ''})</small>
                 <br />
                 보낼 때(하노이→한국) 약 <b style={{ color: '#c92a2a' }}>{krw(backKrw)}</b>
+                {handlingKrw > 0 ? ' (처리 기본료 포함)' : ''}
                 {' '}· 다시 받을 때(한국→하노이) <b style={{ color: '#c92a2a' }}>{krw(resendKrw)}</b>
                 {agencyKrw > 0 ? ' (배송비+수수료)' : ' (배송비)'}
                 <br />

@@ -168,15 +168,23 @@ export const CONSOLIDATION = {
  */
 export const RETURN_SHIPPING = {
   assumed: false,
-  /** 하노이 픽업 기준: baseKg 까지 baseUsd */
-  baseUsd: 18,
+  /**
+   * 아래는 고객 안내가 — 운영자 확정 26-08-31: 원가의 모든 금액에 +$2
+   * (하노이 기본 $18→$20, 초과 kg당 $9→$11). 반송에도 최소 마진을 남깁니다.
+   */
+  /** 하노이 픽업 기준: baseKg 까지 baseUsd (고객가) */
+  baseUsd: 20,
   baseKg: 2,
-  /** 이후 kg 당 (올림) */
-  perKgUsd: 9,
+  /** 이후 kg 당 (올림, 고객가) */
+  perKgUsd: 11,
+  /** 구매대행 반품·교환 처리 기본 수수료 (원) — 반송 접수·확인을 대행하는 실비 */
+  agentHandlingKrw: 5_000,
   /** 반송 자체가 불가한 품목 — 교환·반품이 성립하지 않습니다 */
   blockedNote: '액체(스킨·세럼·원액 등)·배터리 내장 제품·현금·신용카드·대량 화물은 하노이→한국 반송 불가',
   /** 통관·접수 조건 */
   customsNote: '반송은 사전 접수 필수 · $150 이상 신고 시 한국 관부가세 발생 가능',
+  /** 반송 리드타임 (운영자 확인 26-08-31): 당일 픽업 시 한국 도착 1~2일 + 한국 내 배송 1~2일 */
+  leadTime: { pickupToKoreaDays: { min: 1, max: 2 }, koreaDomesticDays: { min: 1, max: 2 } },
 }
 
 /** 반송비 추정 (USD) — 교환은 여기에 재배송비(정방향 국제배송비)가 더해집니다. */

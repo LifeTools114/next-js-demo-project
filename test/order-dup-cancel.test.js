@@ -213,12 +213,28 @@ test('취소 기본값: customerFault 없이는 전액 환불 그대로다', asy
   assert.equal(s.balanceKrw, 0)
 })
 
-test('반송비: S1 확정 요율 — 하노이 2kg까지 $18, 초과 kg당 $9 올림', async () => {
+test('반송비 고객가: 원가 전 구간 +$2 — 하노이 2kg까지 $20, 초과 kg당 $11', async () => {
+  // 운영자 확정 26-08-31: S1 원가($18/+$9)의 모든 금액에 $2 마진.
   const { estimateReturnShippingUsd, RETURN_SHIPPING } = await import('../config/shipping.js')
-  assert.equal(RETURN_SHIPPING.assumed, false, 'S1 견적서 26.08.28 로 확정된 값입니다')
-  assert.equal(estimateReturnShippingUsd(1), 18)
-  assert.equal(estimateReturnShippingUsd(2), 18, '기본 구간(2kg)까지는 $18')
-  assert.equal(estimateReturnShippingUsd(2.2), 27, '초과분은 kg 올림')
-  assert.equal(estimateReturnShippingUsd(5), 18 + 3 * 9)
-  assert.equal(estimateReturnShippingUsd(0.5), 18, '최소 기본 구간 취급')
+  assert.equal(RETURN_SHIPPING.assumed, false)
+  assert.equal(RETURN_SHIPPING.agentHandlingKrw, 5000, '구매대행 반품·교환 처리 기본료')
+  assert.equal(estimateReturnShippingUsd(1), 20)
+  assert.equal(estimateReturnShippingUsd(2), 20, '기본 구간(2kg)까지는 $20')
+  assert.equal(estimateReturnShippingUsd(2.2), 31, '초과분은 kg 올림 +$11')
+  assert.equal(estimateReturnShippingUsd(5), 20 + 3 * 11)
+  assert.equal(estimateReturnShippingUsd(0.5), 20, '최소 기본 구간 취급')
+})
+
+test('서버 최종 거절: 배송 불가 상품은 주문 생성 자체가 막힌다', async () => {
+  // 화면 검증을 우회한 직접 API 호출 대비 — 해외직구·금지 품목 공통 가드.
+  const overseas = [{ productName: '나이키 에어맥스', productPrice: 120000, quantity: 1, badges: ['로켓직구'] }]
+  assert.throws(
+    () => createOrder({ items: overseas, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER }),
+    /배송할 수 없는 상품/,
+  )
+  const banned = [{ productName: '샤넬 오드퍼퓸 50ml', productPrice: 200000, quantity: 1 }]
+  assert.throws(
+    () => createOrder({ items: banned, zone: 'hanoi', track: 'agent', customer: CUSTOMER }),
+    /배송할 수 없는 상품/,
+  )
 })

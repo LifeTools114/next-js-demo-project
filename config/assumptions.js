@@ -103,12 +103,26 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'return-shipping',
-    label: '하노이→한국 반송 — 하노이 2kg까지 $18 + 초과 kg당 $9 (사전 접수 필수)',
+    label: '하노이→한국 반송 고객가 — 2kg까지 $20 + 초과 kg당 $11 (원가+$2, 구매대행 처리 5,000원 추가)',
     where: 'config/shipping.js · RETURN_SHIPPING',
     status: 'confirmed',
     source: 'S1 EXPRESS 견적서 수정본 26.08.31 — 박닌/박장/빈푹 $23 · 타이응우옌/하이즈엉 $28 · 하이퐁/하남/푸터/닌빈 $33, 한국 내 택배 전달 1~10kg $7 / 11~20kg $14. 베트남 행정구역 개편 예정(하이퐁 직할시·닌빈성·푸터성·타이응우옌성 통합) 참고.',
     risk: '액체·배터리·현금·신용카드·대량물품은 베→한 발송 불가 (화장품 액체류는 반품 자체가 불가). $150 이상 신고 시 관부가세.',
-    askBroker: '반송 리드타임(하노이 픽업→한국 창고 도착 소요일)',
+  },
+  {
+    id: 'return-leadtime',
+    label: '반송 리드타임 — 당일 픽업 시 한국 도착 1~2일 + 한국 내 배송 1~2일',
+    where: 'config/shipping.js · RETURN_SHIPPING.leadTime',
+    status: 'confirmed',
+    source: '운영자 확인 26-08-31 (S1)',
+  },
+  {
+    id: 'overseas-sourcing-block',
+    label: '해외직구(중국 등 타국 발송) 상품 접수 중단',
+    where: 'lib/eligibility.js · overseas-sourced 차단 + lib/order/store.js 서버 거절',
+    status: 'confirmed',
+    source: '운영자 확정 26-08-31 — 한국 내 발송 상품만 접수. 로켓직구·판매자 해외배송 배지로 판별',
+    risk: '판별은 배지·배송문구 기반 — 배지가 없는 해외 발송 상품은 창고 입고 시 확인 후 반송 처리 필요.',
   },
   {
     id: 'refund-policy',

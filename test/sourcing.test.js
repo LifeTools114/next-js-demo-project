@@ -61,13 +61,23 @@ test('국내 상품만 있으면 재점검이 필요 없다', () => {
 
 // ─────────── 입고 재점검 ───────────
 
-const overseasOrder = () =>
-  createOrder({
-    items: [{ productName: '해외직구 비타민 D3', productPrice: 45000, quantity: 1, badges: ['해외직구'] }],
+/**
+ * 26-08-31 부터 해외직구 상품은 접수 자체가 차단됩니다 (eligibility +
+ * createOrder 서버 거절). 재점검 장치는 정책 변경 전 접수된 **기존 주문**을
+ * 위해 유지되므로, 레거시 주문을 재현하기 위해 국내 상품으로 생성한 뒤
+ * items 에 해외직구 배지를 덧붙입니다 (당시 저장된 주문과 같은 모양).
+ */
+const overseasOrder = () => {
+  const o = createOrder({
+    items: [{ productName: '비타민 D3', productPrice: 45000, quantity: 1 }],
     zone: 'hanoi',
     track: 'agent',
     customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
+  o.items[0].productName = '해외직구 비타민 D3'
+  o.items[0].badges = ['해외직구']
+  return o
+}
 
 const advanceToWarehouse = (o) => {
   confirmPayment(o.id, { confirmedBy: 'admin' })
