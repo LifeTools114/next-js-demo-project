@@ -346,3 +346,12 @@
 발행 주체(상호·담당자)는 `config/quote.js` 의 `issuer` 에서 바꿉니다.
 env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
 현재 담당자 표기는 KIM YOUNG SEO 입니다.
+
+### 고객 문의 채널 (26-09-01)
+
+카카오톡 오픈채팅 한 곳으로 받습니다 — https://open.kakao.com/o/sbjQwALi
+
+- 설정: `config/contact.js` (env `KAKAO_OPEN_CHAT` 로 교체 가능)
+- 노출 위치: 견적서 머리글(주소·URL·QR), 사이트 하단 전체
+- QR 이미지 `public/kakao-openchat-qr.png` 는 그 주소로 생성해 두었고,
+  디코딩으로 주소 일치를 확인했습니다. 채널을 바꾸면 QR도 다시 만드세요.

@@ -59,7 +59,18 @@ export default function QuotePage() {
           </div>
           <div style={{ textAlign: 'right', fontSize: 11, color: '#4e5968' }}>
             <div>담당 : {doc.issuer.pic}</div>
-            {doc.issuer.contact ? <div>연락처 : {doc.issuer.contact}</div> : null}
+            {doc.contact ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, justifyContent: 'flex-end' }}>
+                <div>
+                  <div>문의 : {doc.contact.label}</div>
+                  <a href={doc.contact.url} style={{ color: '#3182f6', fontSize: 10.5 }}>{doc.contact.url}</a>
+                </div>
+                {/* 인쇄본에서 바로 스캔할 수 있게 — 이미지가 없으면 자동으로 숨깁니다 */}
+                <img src={doc.contact.qrPath} alt="" width={74} height={74}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  style={{ border: '1px solid #e5e8eb', borderRadius: 6 }} />
+              </div>
+            ) : null}
           </div>
         </div>
 
