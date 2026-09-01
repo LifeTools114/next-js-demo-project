@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { parseProductSpec } from '../lib/weight/parse.js'
 import { detectForm } from '../lib/weight/density.js'
 import { estimateItemWeight, estimateShipmentWeight } from '../lib/weight/estimate.js'
+import { checkEligibility } from '../lib/eligibility.js'
+import { WEIGHT_SAMPLES } from './fixtures/weight-samples.js'
 
 test('파서: 용량·중량·매수·구성수량을 추출한다', () => {
   assert.equal(parseProductSpec('토리든 세럼 50ml').volumeMl, 50)
@@ -64,8 +66,14 @@ test('무게 추정: 수량과 구성수량이 함께 곱해진다', () => {
   const double = estimateItemWeight({ productName: '토리든 세럼 50ml' }, 2)
   assert.ok(Math.abs(double.actualG - single.actualG * 2) < 0.5)
 
+  /**
+   * 묶음(2개입)은 낱개 2개를 따로 부치는 것보다 가볍습니다 — 내용물·용기는
+   * 두 배지만 완충재를 한 번만 넣기 때문입니다. 내용물+용기는 정확히 2배.
+   */
   const bundled = estimateItemWeight({ productName: '토리든 세럼 50ml 2개' }, 1)
-  assert.ok(Math.abs(bundled.actualG - single.actualG * 2) < 0.5)
+  assert.ok(Math.abs((bundled.netG + bundled.tareG) - (single.netG + single.tareG) * 2) < 0.5)
+  assert.ok(bundled.actualG < single.actualG * 2)
+  assert.ok(bundled.actualG > single.actualG * 1.8)
 })
 
 test('무게 추정: 신뢰도가 정보량에 따라 낮아진다', () => {
@@ -175,4 +183,22 @@ test('기기 액세서리는 본체 무게로 잡히지 않는다', () => {
   assert.notEqual(detectForm('모니터 거치대 암').form.id, 'monitor')
   // 본체는 그대로 본체.
   assert.equal(detectForm('갤럭시s25 자급제 스마트폰').form.id, 'phone')
+})
+
+test('표본 300종의 청구무게가 상식 범위에 들어온다 (운영자 스윕 26-09-01)', () => {
+  const off = []
+  for (const [productName, min, max, categoryName] of WEIGHT_SAMPLES) {
+    const kg = estimateItemWeight({ productName, categoryName }, 1).chargeableG / 1000
+    if (kg < min || kg > max) off.push(`${productName} → ${kg.toFixed(2)}kg (기대 ${min}~${max})`)
+  }
+  assert.deepEqual(off, [], `범위를 벗어난 상품 ${off.length}건:\n${off.join('\n')}`)
+})
+
+test('표본 300종 중 정상 상품이 접수 차단되지 않는다', () => {
+  const blocked = WEIGHT_SAMPLES
+    .map(([productName, , , categoryName]) =>
+      ({ productName, res: checkEligibility({ productName, categoryName, price: 30000, quantity: 1 }) }))
+    .filter((x) => x.res.status === 'BLOCKED')
+    .map((x) => `${x.productName} — ${x.res.reasons?.[0] ?? ''}`)
+  assert.deepEqual(blocked, [], `잘못 차단된 상품:\n${blocked.join('\n')}`)
 })
