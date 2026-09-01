@@ -6,8 +6,10 @@
  * 채널이 바뀌면 여기만 고치면 됩니다. env 로도 교체 가능합니다.
  */
 export const CONTACT = {
+  /** 카카오톡 아이디로 검색해 1:1 문의도 가능합니다 */
+  kakaoId: process.env.KAKAO_ID || 'vietnam911',
   kakaoOpenChat: process.env.KAKAO_OPEN_CHAT || 'https://open.kakao.com/o/sbjQwALi',
-  label: '카카오톡 오픈채팅',
+  label: '카카오톡',
   /**
    * 인쇄된 견적서에서는 링크를 누를 수 없는 경우가 있어 QR 이미지를 함께
    * 싣습니다. public/ 에 파일을 넣으면 자동으로 표시됩니다. (없으면 생략)

@@ -16,15 +16,17 @@
 export const QUOTE = {
   /**
    * 발행 주체 — 고객에게 보이는 당사 정보 (env 로 교체 가능).
-   * 주소와 법인명은 넣지 않습니다 — 운영자 지시(26-09-01)로 견적서에서
-   * 당사 주소·고객 배송지·법인명을 모두 뺐습니다. 배송지는 주문 화면과
-   * 배송 안내로 전달합니다.
+   * 고객 배송지는 견적서에 싣지 않습니다 — 견적서는 금액 문서이고
+   * 배송지는 주문 화면·배송 안내로 전달합니다 (운영자 지시 26-09-01).
    */
   issuer: {
-    // 법인명은 표기하지 않습니다 (운영자 지시 26-09-01) — 브랜드명만.
-    name: process.env.COMPANY_NAME || 'YS-ECOM 하노이 직구',
+    /** 고객이 먼저 보는 브랜드명 */
+    brand: process.env.COMPANY_BRAND || 'YS-ECOM 하노이 직구',
+    /** 사업자 상호 — 견적서 머리글에 함께 표기 */
+    name: process.env.COMPANY_NAME || 'SS TRADING COMPANY LIMITED',
+    address: process.env.COMPANY_ADDRESS
+      || '59, Gwangyeo-ro, Gonjiam-eup, Gwangju-si, Gyeonggi-do, Republic of Korea',
     pic: process.env.COMPANY_PIC || 'KIM YOUNG SEO',
-    contact: process.env.COMPANY_CONTACT || '',
   },
 
   /**

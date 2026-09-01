@@ -66,8 +66,9 @@ export default function Layout({ children, title, badge }) {
             문의 :{' '}
             <a href={CONTACT.kakaoOpenChat} target="_blank" rel="noreferrer"
               style={{ color: 'var(--brand)', fontWeight: 700 }}>
-              {CONTACT.label}
+              {CONTACT.label} 오픈채팅
             </a>
+            {CONTACT.kakaoId ? <span> · 카카오톡 ID <b>{CONTACT.kakaoId}</b></span> : null}
           </div>
           본 서비스는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받을 수 있습니다.
           고객님이 지불하시는 구매 금액은 동일합니다.

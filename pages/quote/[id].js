@@ -55,7 +55,9 @@ export default function QuotePage() {
         {/* 머리글 — 발행 주체 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>{doc.issuer.name}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>{doc.issuer.brand}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: '#4e5968', marginTop: 3 }}>{doc.issuer.name}</div>
+            <div style={{ fontSize: 10.5, color: '#8b95a1', marginTop: 1, maxWidth: 380 }}>{doc.issuer.address}</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: 11, color: '#4e5968' }}>
             <div>담당 : {doc.issuer.pic}</div>
@@ -63,6 +65,9 @@ export default function QuotePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, justifyContent: 'flex-end' }}>
                 <div>
                   <div>문의 : {doc.contact.label}</div>
+                  {doc.contact.kakaoId
+                    ? <div style={{ fontWeight: 800, color: '#191f28' }}>ID : {doc.contact.kakaoId}</div>
+                    : null}
                   <a href={doc.contact.url} style={{ color: '#3182f6', fontSize: 10.5 }}>{doc.contact.url}</a>
                 </div>
                 {/* 인쇄본에서 바로 스캔할 수 있게 — 이미지가 없으면 자동으로 숨깁니다 */}

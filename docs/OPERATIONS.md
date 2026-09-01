@@ -347,11 +347,19 @@
 env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
 현재 담당자 표기는 KIM YOUNG SEO 입니다.
 
-### 고객 문의 채널 (26-09-01)
+### 발행 주체·문의 채널 (26-09-01)
 
-카카오톡 오픈채팅 한 곳으로 받습니다 — https://open.kakao.com/o/sbjQwALi
+| 항목 | 값 | 설정 위치 |
+| --- | --- | --- |
+| 브랜드 | YS-ECOM 하노이 직구 | `config/quote.js` issuer.brand |
+| 상호 | SS TRADING COMPANY LIMITED | issuer.name |
+| 주소 | 59, Gwangyeo-ro, Gonjiam-eup, Gwangju-si, Gyeonggi-do, Republic of Korea | issuer.address |
+| 담당 | KIM YOUNG SEO | issuer.pic |
+| 카카오톡 ID | vietnam911 | `config/contact.js` kakaoId |
+| 오픈채팅 | https://open.kakao.com/o/sbjQwALi | kakaoOpenChat |
 
-- 설정: `config/contact.js` (env `KAKAO_OPEN_CHAT` 로 교체 가능)
-- 노출 위치: 견적서 머리글(주소·URL·QR), 사이트 하단 전체
-- QR 이미지 `public/kakao-openchat-qr.png` 는 그 주소로 생성해 두었고,
-  디코딩으로 주소 일치를 확인했습니다. 채널을 바꾸면 QR도 다시 만드세요.
+- 노출 위치: 견적서 머리글(브랜드·상호·주소·문의·QR), 사이트 하단(문의)
+- 고객 배송지는 견적서에 넣지 않습니다 — 배송지는 주문 화면·배송 안내로.
+- QR 이미지 `public/kakao-openchat-qr.png` 는 오픈채팅 주소로 생성했고
+  디코딩으로 주소 일치를 확인했습니다. **다른 QR(카톡 ID 1:1 등)로 바꾸려면**
+  그 이미지를 같은 경로에 덮어쓰거나, 주소를 알려주면 다시 생성합니다.
