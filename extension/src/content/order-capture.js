@@ -339,8 +339,9 @@
   // 배송지 자동 등록 진행/실패 상태 — 실패 시에만 수동 방법 버튼을 보여줍니다.
   let helperAddrBusy = false
   let helperAddrFailed = false
-  // 자동으로 창을 못 열어 "직접 [배송지 변경]을 눌러주세요" 대기 중인 상태.
-  let helperAddrWaitManual = false
+  // 자동 클릭이 통하지 않아 고객의 진짜 클릭을 기다리는 단계:
+  //   '' 없음 · 'open' [배송지 변경] · 'zip' [우편번호 찾기]
+  let helperAddrWaitManual = ''
 
   /**
    * 검색 대상 문서들 — 최상위 + 같은 출처 iframe 안까지.
@@ -698,7 +699,7 @@
       if (helperAddrBusy) return
       helperAddrBusy = true
       helperAddrFailed = false
-      helperAddrWaitManual = false
+      helperAddrWaitManual = ''
       card.dataset.kbHtml = ''
       renderCheckoutHelper() // "등록 중…" 표시
 
@@ -770,35 +771,52 @@
        * 안내로 바꾼 뒤 계속 기다립니다 — 고객의 진짜 클릭으로 창이 열리는
        * 순간 이어서 자동 진행. (테스트에서 __kbAddrWatchMs 로 단축 가능)
        */
+      const setWait = (stage, msg) => {
+        helperAddrWaitManual = stage
+        card.dataset.kbHtml = ''
+        renderCheckoutHelper()
+        if (msg) toast(msg, false)
+      }
+
       const WATCH_MS = globalThis.__kbAddrWatchMs ?? 75_000
-      const AUTO_MS = 8_000
+      const AUTO_MS = 2_600 // 이 시간 안에 반응이 없으면 직접 눌러달라고 안내
       const started = Date.now()
       let mode = ''
-      let addClicked = false
-      let openClicked = false
-      let manualAsked = false
+      let listSeen = 0   // [배송지 추가]가 보이기 시작한 시각 (목록 창이 열린 상태)
+      let lastAdd = 0
+      let askedOpen = false
+      let askedAdd = false
       while (Date.now() - started < WATCH_MS && !mode) {
         if (findSavedSelect()) { mode = 'select'; break }
         if (findExact(ZIP_RE, 16)) { mode = 'form'; break }
-        if (Date.now() - started < AUTO_MS) {
-          if (!addClicked && clickExact(ADD_RE, 12)) addClicked = true
-          else if (!openClicked && !addClicked && clickExact(OPEN_RE, 12)) openClicked = true
-        } else if (!manualAsked) {
-          manualAsked = true
-          helperAddrWaitManual = true
-          card.dataset.kbHtml = ''
-          renderCheckoutHelper()
-          toast(openClicked || addClicked
-            ? '쿠팡 창이 자동으로 열리지 않습니다 — [배송지 변경]을 직접 한 번 눌러주세요. 열리면 나머지는 자동으로 진행됩니다.'
-            : '[배송지 변경] 버튼을 찾지 못했습니다 — 직접 눌러 창을 열어주세요. 열리면 나머지는 자동으로 진행됩니다.',
-            false)
+
+        const addBtn = findExact(ADD_RE, 12)
+        if (addBtn) {
+          /**
+           * 배송지 목록 창이 열려 있습니다 — 저장된 창고 주소가 없으니
+           * [+ 배송지 추가]로 입력폼을 열어야 합니다. 고객이 창을 직접 연
+           * 뒤에도 계속 눌러봐야 하므로(예전엔 초반 몇 초만 시도해서 놓쳤음)
+           * 목록이 보이는 동안 주기적으로 시도합니다.
+           */
+          if (!listSeen) listSeen = Date.now()
+          if (Date.now() - lastAdd > 1200) { fireClick(addBtn); lastAdd = Date.now() }
+          if (!askedAdd && Date.now() - listSeen > AUTO_MS) {
+            askedAdd = true
+            setWait('add', '쿠팡 창에서 [+ 배송지 추가]를 직접 한 번 눌러주세요 — 누르면 나머지는 자동으로 진행됩니다.')
+          }
+        } else if (Date.now() - started < AUTO_MS) {
+          clickExact(OPEN_RE, 12)
+        } else if (!askedOpen) {
+          askedOpen = true
+          setWait('open', '쿠팡 [배송지 변경]을 직접 한 번 눌러주세요 — 창이 열리면 나머지는 자동으로 진행됩니다.')
         }
         await sleep(400)
       }
+      if (mode) setWait('', '')
 
       const finish = (failed, msg, good) => {
         helperAddrBusy = false
-        helperAddrWaitManual = false
+        helperAddrWaitManual = ''
         helperAddrFailed = failed
         if (failed) helperAddrHelpOpen = true // 실패하면 수동 방법을 바로 보여줍니다
         toast(msg, good)
@@ -835,12 +853,28 @@
       const zipEl = findExact(ZIP_RE, 16)
       if (zipEl) fireClick(zipEl)
 
-      // 주소 선택이 끝나면 상세주소 칸이 생깁니다 — 나타나는 즉시 채웁니다.
-      // (다음 검색창이 안 열렸으면 고객이 직접 누를 시간도 이 감시가 겸합니다)
+      /**
+       * 우편번호 검색창이 열렸는지 보고, 자동으로 안 열리면 곧바로 "직접
+       * 눌러주세요"로 바꿔 안내한 뒤 계속 기다립니다 — 쿠팡이 스크립트
+       * 클릭을 무시해도 고객의 진짜 클릭 한 번이면 이어지게. 열린 뒤에는
+       * 주소 선택으로 나타나는 상세주소 칸을 즉시 채웁니다.
+       */
+      const zipStart = Date.now()
+      const zipUntil = zipStart + (globalThis.__kbZipWaitMs ?? 60_000)
       let detailDone = 0
-      for (let i = 0; i < 20 && !detailDone; i++) {
-        await sleep(700)
-        detailDone = name ? fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force: true }) : 0
+      let zipAsked = false
+      while (Date.now() < zipUntil) {
+        await sleep(600)
+        if (name) {
+          detailDone = fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force: true })
+          if (detailDone) break
+        } else if (daumOpen()) {
+          break // 이름을 모르면 상세주소는 고객 몫 — 검색창이 열린 것까지만 확인
+        }
+        if (!zipAsked && !daumOpen() && Date.now() - zipStart > 2400) {
+          zipAsked = true
+          setWait('zip', '쿠팡 [우편번호 찾기]를 직접 한 번 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 진행됩니다.')
+        }
       }
       if (detailDone) return finish(false, '✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.', true)
       if (daumOpen()) return finish(false, '주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
@@ -1046,8 +1080,11 @@
       : helperAddrBusy
         ? (helperAddrWaitManual
             ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#fff8e6;color:#d9480f;' +
-              'font-size:13px;font-weight:800;text-align:center;line-height:1.5">🖱 쿠팡 [배송지 변경]을 직접 눌러주세요<br>' +
-              '<span style="font-weight:700;font-size:11px">창이 열리면 나머지는 자동으로 진행됩니다</span></div>'
+              'font-size:13px;font-weight:800;text-align:center;line-height:1.5">🖱 쿠팡 ' +
+              (helperAddrWaitManual === 'zip' ? '[우편번호 찾기]'
+                : helperAddrWaitManual === 'add' ? '[+ 배송지 추가]'
+                : '[배송지 변경]') + '를 직접 눌러주세요<br>' +
+              '<span style="font-weight:700;font-size:11px">누르면 나머지는 자동으로 진행됩니다</span></div>'
             : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
               'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>')
         : '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:46px;border:0;border-radius:10px;' +
