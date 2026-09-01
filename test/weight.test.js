@@ -139,6 +139,24 @@ test('비화장품 패드·쿠션은 화장품으로 오인하지 않는다', ()
   assert.notEqual(detectForm('메모리폼 목쿠션 베개').form.id, 'cushion')
 })
 
+test('중량 앞의 낱개 수를 구성 수량으로 곱하지 않는다 — 규격,총중량,구성수량 순서', () => {
+  const NAME = '스웨이 식기세척기 액체 캡슐 세제 구연산애플향 55입, 440g, 2개'
+  const spec = parseProductSpec(NAME)
+  assert.equal(spec.massG, 440)
+  assert.equal(spec.count, 2, '구성 수량은 중량 뒤의 "2개"')
+  // 실제 사고: 440g × 55 = 24.2kg 로 부풀어 "중량 초과"로 접수가 막혔습니다.
+  assert.ok(estimateItemWeight({ productName: NAME }, 1).chargeableG < 3000)
+
+  // 중량 뒤에 수량이 없으면 낱개 수로만 기록하고 곱하지 않습니다.
+  const inner = parseProductSpec('캡슐 세제 60입 900g')
+  assert.equal(inner.count, 1)
+  assert.equal(inner.pieces, 60)
+
+  // 용량·중량 뒤의 수량은 그대로 구성 수량입니다.
+  assert.equal(parseProductSpec('아누아 토너 250ml 3개입').count, 3)
+  assert.equal(parseProductSpec('동원 참치캔 150g 6개입').count, 6)
+})
+
 test('알약·포·스틱 단위는 구성 수량이 아니다 — 낱개 곱셈 사고 방지', () => {
   // '90정'을 상품 90개로 곱하면 영양제 하나가 11kg — 절대 금지.
   const tab = estimateItemWeight({ productName: '일양약품 밀크씨슬 90정' }, 1)
