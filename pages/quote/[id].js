@@ -55,8 +55,7 @@ export default function QuotePage() {
         {/* 머리글 — 발행 주체 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>{doc.issuer.nameKo}</div>
-            <div style={{ fontSize: 11, color: '#4e5968', marginTop: 2 }}>{doc.issuer.name}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>{doc.issuer.name}</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: 11, color: '#4e5968' }}>
             <div>담당 : {doc.issuer.pic}</div>

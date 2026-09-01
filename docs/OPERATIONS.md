@@ -340,6 +340,9 @@
 계좌 정보는 `lib/payment/methods.js` 한 곳에서 가져오므로 계좌가 바뀌면
 거기만 고치면 견적서·청구 안내가 함께 바뀝니다.
 
+**법인명(K&K Global Trading)도 표기하지 않습니다** — 견적서 머리글은
+브랜드명 `YS-ECOM 하노이 직구` 와 담당자만 나옵니다.
+
 발행 주체(상호·담당자)는 `config/quote.js` 의 `issuer` 에서 바꿉니다.
-env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_NAME_KO`, `COMPANY_PIC`.
+env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
 현재 담당자 표기는 KIM YOUNG SEO 입니다.
