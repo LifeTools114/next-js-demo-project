@@ -22,7 +22,7 @@ test.beforeEach(() => _reset())
 // ─────────────── 메시지 해석 ───────────────
 
 test('텔레그램 해석: 파트너의 네 가지 확인을 모두 알아듣는다', () => {
-  assert.deepEqual(parseCommand('K-ECOM(박하노) 1.42kg'), { action: 'weigh', weightG: 1420 })
+  assert.deepEqual(parseCommand('YS-ECOM(박하노) 1.42kg'), { action: 'weigh', weightG: 1420 })
   assert.deepEqual(parseCommand('HN2609010001 1420g 입고'), { action: 'weigh', weightG: 1420 })
   assert.equal(parseCommand('HN2609010001 하노이 도착').milestone, '하노이 도착')
   assert.equal(parseCommand('통관 진행중 HN2609010001').milestone, '통관 진행 중')
@@ -42,7 +42,7 @@ test('텔레그램 입고: 한 줄 메시지로 실측·정산까지 끝난다',
   const o = forwardingPaid('박하노')
   const chargeable = o.quote.weight.chargeableG
 
-  const r = handlePartnerMessage(`K-ECOM(박하노) ${(chargeable / 1000).toFixed(2)}kg`)
+  const r = handlePartnerMessage(`YS-ECOM(박하노) ${(chargeable / 1000).toFixed(2)}kg`)
   assert.equal(r.ok, true)
   assert.ok(r.reply.includes(o.orderNo))
 
@@ -69,7 +69,7 @@ test('텔레그램 현황·일정·배달완료: 고객 위치 표시로 이어�
 })
 
 test('텔레그램 안전장치: 주문 못 찾으면 안내, 잘못된 상태면 오류 회신', () => {
-  const miss = handlePartnerMessage('K-ECOM(없는사람) 1.2kg')
+  const miss = handlePartnerMessage('YS-ECOM(없는사람) 1.2kg')
   assert.equal(miss.ok, false)
   assert.ok(miss.reply.includes('찾지 못했습니다'))
 

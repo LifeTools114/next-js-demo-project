@@ -145,7 +145,7 @@ const KBPanel = (() => {
     const addr = w.configured
       ? `${w.address1 ?? ''}${w.zip ? ` (${w.zip})` : ''}`.trim()
       : '창고 확정 후 안내됩니다'
-    const code = w.code ?? 'K-ECOM'
+    const code = w.code ?? 'YS-ECOM'
     return `<div class="note">🏠 쿠팡 배송지 입력법
       <br>· 이름: <b>${esc(code)}</b>
       <br>· 주소: <span style="user-select:all">${esc(addr)}</span>

@@ -11,19 +11,28 @@ import { buildQuoteDoc } from '../../../../lib/quote-doc'
 import { isAdminRequest } from '../../../../lib/auth'
 import { getMethod } from '../../../../lib/payment/methods'
 
-/** 견적서에 실을 입금 계좌 — 결제 수단 설정에서 그대로 가져옵니다. */
-function paymentLines(order) {
-  try {
-    const req = getMethod(order.paymentMethod).createRequest(order)
-    return (req.instructions ?? [])
-      .filter((line) => /은행|계좌번호|예금주/.test(line))
-      .map((line) => {
-        const [label, ...rest] = line.split(':')
-        return { label: label.trim(), value: rest.join(':').trim() }
-      })
-  } catch {
-    return []
+/**
+ * 견적서에 실을 입금 계좌 — 한국(원화)·베트남(동화) 계좌를 모두 표기합니다.
+ * 고객이 편한 쪽으로 보낼 수 있어야 하므로 주문의 결제 수단과 무관하게 둘 다.
+ * 계좌 정보는 결제 수단 설정(lib/payment/methods.js) 한 곳에서만 가져옵니다.
+ */
+function paymentAccounts(order) {
+  const pick = (methodId, currency) => {
+    try {
+      const req = getMethod(methodId).createRequest(order)
+      const find = (re) => (req.instructions ?? [])
+        .find((line) => re.test(line))?.split(':').slice(1).join(':').trim() ?? ''
+      const account = find(/계좌번호/)
+      if (!account) return null
+      return { currency, bank: find(/은행/), account, holder: find(/예금주/) }
+    } catch {
+      return null
+    }
   }
+  return [
+    pick('manual-bank-krw', 'KRW'),
+    pick('manual-bank', 'VND'),
+  ].filter(Boolean)
 }
 
 export default function handler(req, res) {
@@ -51,7 +60,7 @@ export default function handler(req, res) {
     })
     return res.status(200).json({
       ok: true,
-      doc: { ...buildQuoteDoc(saved, { kind: 'final' }), payment: paymentLines(saved) },
+      doc: { ...buildQuoteDoc(saved, { kind: 'final' }), payment: paymentAccounts(saved) },
     })
   }
 
@@ -62,7 +71,7 @@ export default function handler(req, res) {
 
   try {
     const doc = buildQuoteDoc(order, { kind: req.query.kind })
-    return res.status(200).json({ ok: true, doc: { ...doc, payment: paymentLines(order) } })
+    return res.status(200).json({ ok: true, doc: { ...doc, payment: paymentAccounts(order) } })
   } catch (err) {
     return res.status(400).json({ ok: false, error: err.message })
   }

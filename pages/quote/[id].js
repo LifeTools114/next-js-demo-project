@@ -57,7 +57,6 @@ export default function QuotePage() {
           <div>
             <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>{doc.issuer.nameKo}</div>
             <div style={{ fontSize: 11, color: '#4e5968', marginTop: 2 }}>{doc.issuer.name}</div>
-            <div style={{ fontSize: 10.5, color: '#8b95a1', marginTop: 2, maxWidth: 420 }}>{doc.issuer.address}</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: 11, color: '#4e5968' }}>
             <div>담당 : {doc.issuer.pic}</div>
@@ -83,9 +82,6 @@ export default function QuotePage() {
         <div style={{ ...row, marginTop: 12 }}>
           <Field label="고객" value={doc.customer.name || '-'} bold wide />
           <Field label="연락처" value={doc.customer.phone || '-'} />
-        </div>
-        <div style={{ marginTop: 4 }}>
-          <Field label="배송지" value={doc.customer.address || '-'} wide />
         </div>
         <div style={{ marginTop: 4 }}>
           <Field label="구분" value={doc.trackLabel} wide />
@@ -161,11 +157,24 @@ export default function QuotePage() {
         {/* 입금 계좌 */}
         <div style={{ marginTop: 14, borderTop: '1px solid #d7dbe0', paddingTop: 10 }}>
           <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>입금 계좌</div>
-          <div style={{ fontSize: 11.5, color: '#4e5968', lineHeight: 1.8 }}>
-            {doc.payment.map((p) => <div key={p.label}>{p.label} : {p.value}</div>)}
-            <div style={{ color: '#f04452', fontWeight: 700 }}>
-              입금 시 메모에 주문번호 <b>{doc.orderNo}</b> 를 반드시 입력해 주세요.
-            </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {doc.payment.map((p) => (
+              <div key={p.currency} style={{
+                flex: '1 1 240px', border: '1px solid #e5e8eb', borderRadius: 8, padding: '8px 10px',
+              }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: '#3182f6' }}>
+                  {p.currency === 'KRW' ? '한국 계좌 (원화 입금)' : '베트남 계좌 (동화 입금)'}
+                </div>
+                <div style={{ fontSize: 11.5, color: '#4e5968', lineHeight: 1.7, marginTop: 2 }}>
+                  <div>{p.bank}</div>
+                  <div style={{ fontWeight: 800, color: '#191f28', fontSize: 13 }}>{p.account}</div>
+                  <div>예금주 : {p.holder}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ color: '#f04452', fontWeight: 700, fontSize: 11.5, marginTop: 6 }}>
+            입금 시 메모에 주문번호 <b>{doc.orderNo}</b> 를 반드시 입력해 주세요. (두 계좌 중 편한 쪽으로 보내시면 됩니다)
           </div>
         </div>
 

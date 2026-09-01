@@ -14,13 +14,15 @@
  */
 
 export const QUOTE = {
-  /** 발행 주체 — 고객에게 보이는 당사 정보 (env 로 교체 가능) */
+  /**
+   * 발행 주체 — 고객에게 보이는 당사 정보 (env 로 교체 가능).
+   * 주소는 넣지 않습니다 — 운영자 지시(26-09-01)로 견적서에서 당사·고객
+   * 주소를 모두 뺐습니다. 배송지는 주문 화면과 배송 안내로 전달합니다.
+   */
   issuer: {
     name: process.env.COMPANY_NAME || 'K & K GLOBAL TRADING COMPANY LIMITED',
-    nameKo: process.env.COMPANY_NAME_KO || 'K-ECOM 하노이 직구',
-    address: process.env.COMPANY_ADDRESS
-      || 'Số 113 Tô Hiến Thành, Tổ dân phố 2, Phường Hà Đông, Thành phố Hà Nội, Việt Nam',
-    pic: process.env.COMPANY_PIC || 'LEE SE YOUNG',
+    nameKo: process.env.COMPANY_NAME_KO || 'YS-ECOM 하노이 직구',
+    pic: process.env.COMPANY_PIC || 'KIM YOUNG SEO',
     contact: process.env.COMPANY_CONTACT || '',
   },
 
