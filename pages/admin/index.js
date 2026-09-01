@@ -427,6 +427,47 @@ export default function AdminConsole() {
                 </div>
               )}
 
+              {/*
+                견적서 — 임시본은 접수 즉시 고객에게 보내고, 물류사 청구서
+                (DEBIT NOTE)가 오면 실측 무게만 입력해 최종본을 만듭니다.
+                청구서의 단가·금액은 당사 원가라 입력하지도 저장하지도 않습니다.
+              */}
+              <div style={{ marginTop: 12, padding: 10, border: '1px solid #e5e8eb', borderRadius: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>📄 견적서</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                  <input className="input" placeholder="실측 무게 C/Weight (kg)"
+                    value={f.dnKg ?? ''} onChange={(e) => setField(o.orderNo, 'dnKg', e.target.value)} />
+                  <input className="input" placeholder="운송장 HAWB"
+                    value={f.dnHawb ?? ''} onChange={(e) => setField(o.orderNo, 'dnHawb', e.target.value)} />
+                  <input className="input" placeholder="항공편 (예: KE0361)"
+                    value={f.dnFlight ?? ''} onChange={(e) => setField(o.orderNo, 'dnFlight', e.target.value)} />
+                  <input className="input" placeholder="도착일 ETA (2026-08-19)"
+                    value={f.dnEta ?? ''} onChange={(e) => setField(o.orderNo, 'dnEta', e.target.value)} />
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  <a className="btn btn--ghost" href={`/quote/${o.id}?kind=provisional`} target="_blank" rel="noreferrer">
+                    임시 견적서 열기
+                  </a>
+                  <button className="btn" disabled={!(Number(f.dnKg) > 0)}
+                    onClick={async () => {
+                      const res = await fetch(`/api/orders/${o.id}/quote-doc`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+                        body: JSON.stringify({
+                          chargeableWeightKg: Number(f.dnKg),
+                          hawbNo: f.dnHawb ?? '', flight: f.dnFlight ?? '', eta: f.dnEta ?? '',
+                        }),
+                      })
+                      const data = await res.json()
+                      if (!data.ok) return alert(data.error ?? '등록에 실패했습니다.')
+                      alert(`최종 견적서 생성 — ${data.doc.adjustLabel}\n차액 ${data.doc.diffVnd.toLocaleString('ko-KR')}동`)
+                      window.open(`/quote/${o.id}?kind=final`, '_blank')
+                    }}>
+                    청구서 반영 → 최종 견적서
+                  </button>
+                </div>
+              </div>
+
               <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
                 {actions.map((a) => (
                   <button key={a.label}
