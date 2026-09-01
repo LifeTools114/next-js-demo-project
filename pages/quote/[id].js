@@ -68,12 +68,16 @@ export default function QuotePage() {
                   {doc.contact.kakaoId
                     ? <div style={{ fontWeight: 800, color: '#191f28' }}>ID : {doc.contact.kakaoId}</div>
                     : null}
-                  <a href={doc.contact.url} style={{ color: '#3182f6', fontSize: 10.5 }}>{doc.contact.url}</a>
+                  {doc.contact.url
+                    ? <a href={doc.contact.url} style={{ color: '#3182f6', fontSize: 10.5 }}>{doc.contact.url}</a>
+                    : null}
                 </div>
-                {/* 인쇄본에서 바로 스캔할 수 있게 — 이미지가 없으면 자동으로 숨깁니다 */}
-                <img src={doc.contact.qrPath} alt="" width={74} height={74}
-                  onError={(e) => { e.currentTarget.style.display = 'none' }}
-                  style={{ border: '1px solid #e5e8eb', borderRadius: 6 }} />
+                {/* 인쇄본에서 바로 스캔할 수 있게 — 주소가 없거나 이미지가 없으면 숨깁니다 */}
+                {doc.contact.url ? (
+                  <img src={doc.contact.qrPath} alt="" width={74} height={74}
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    style={{ border: '1px solid #e5e8eb', borderRadius: 6 }} />
+                ) : null}
               </div>
             ) : null}
           </div>
