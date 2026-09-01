@@ -356,7 +356,7 @@ env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
 | 주소 | 59, Gwangyeo-ro, Gonjiam-eup, Gwangju-si, Gyeonggi-do, Republic of Korea | issuer.address |
 | 담당 | KIM YOUNG SEO | issuer.pic |
 | 카카오톡 ID | vietnam911 | `config/contact.js` kakaoId |
-| 오픈채팅 | https://open.kakao.com/o/sbjQwALi | kakaoOpenChat |
+| 오픈채팅 | https://open.kakao.com/o/simlWALi | kakaoOpenChat |
 
 - 노출 위치: 견적서 머리글(브랜드·상호·주소·문의·QR), 사이트 하단(문의)
 - 고객 배송지는 견적서에 넣지 않습니다 — 배송지는 주문 화면·배송 안내로.

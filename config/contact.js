@@ -15,7 +15,7 @@ const env = (key, fallback) => (process.env[key] ?? fallback ?? '').trim()
 export const CONTACT = {
   /** 카카오톡 아이디로 검색해 1:1 문의도 가능합니다 */
   kakaoId: env('KAKAO_ID', 'vietnam911'),
-  kakaoOpenChat: env('KAKAO_OPEN_CHAT', 'https://open.kakao.com/o/sbjQwALi'),
+  kakaoOpenChat: env('KAKAO_OPEN_CHAT', 'https://open.kakao.com/o/simlWALi'),
   label: '카카오톡',
   /**
    * 인쇄된 견적서에서는 링크를 누를 수 없는 경우가 있어 QR 이미지를 함께
