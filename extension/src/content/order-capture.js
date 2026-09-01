@@ -339,6 +339,86 @@
   // 배송지 자동 등록 진행/실패 상태 — 실패 시에만 수동 방법 버튼을 보여줍니다.
   let helperAddrBusy = false
   let helperAddrFailed = false
+  // 자동으로 창을 못 열어 "직접 [배송지 변경]을 눌러주세요" 대기 중인 상태.
+  let helperAddrWaitManual = false
+
+  /**
+   * 검색 대상 문서들 — 최상위 + 같은 출처 iframe 안까지.
+   * 쿠팡이 배송지 창을 같은 출처 iframe 으로 띄우는 화면이 있으면 최상위
+   * document 만 봐서는 창이 "안 열린 것"처럼 보입니다. 교차 출처(다음
+   * 우편번호 등)는 접근 불가라 건너뜁니다 — 그쪽은 postcode-fill.js 담당.
+   */
+  function allDocs() {
+    const list = [document]
+    for (const f of document.querySelectorAll('iframe')) {
+      try {
+        const d = f.contentDocument
+        if (d && d.body) list.push(d)
+      } catch { /* 교차 출처 — 접근 불가 */ }
+    }
+    return list
+  }
+
+  // 자동 등록이 찾는 문구들 — 진단 복사에서도 같은 정의를 씁니다.
+  const ZIP_RE = /우편번호찾기|우편번호검색|주소찾기|주소검색/
+  const ADD_RE = /배송지추가|신규배송지|새배송지/
+  const OPEN_RE = /배송지변경|배송지선택/
+  const PICK_RE = /^선택(하기)?$/
+
+  /**
+   * 자동 등록 실패 시 화면 구조 요약 — 고객이 [진단 정보 복사]로 복사해
+   * 운영자에게 보내면, 어떤 요소가 몇 개 잡히는지/창이 프레임인지가 보여
+   * 실제 쿠팡 DOM 을 못 보는 상태에서도 원인을 짚을 수 있습니다.
+   * 개인정보는 담지 않습니다 — 태그·클래스 이름과 개수, 문구 주변 40자만.
+   */
+  function addrDiagnostics() {
+    const ver = (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })()
+    const out = { v: ver, path: location.pathname, at: new Date().toISOString(), frames: [], matches: {}, near: [] }
+    // 접근 못 하는(교차 출처) 프레임 수 — 배송지 창이 그 안에 있으면 자동화 불가.
+    const cross = [...document.querySelectorAll('iframe')].filter((f) => {
+      try { return !f.contentDocument } catch { return true }
+    }).length
+    for (const d of allDocs()) {
+      out.frames.push({
+        host: d.location?.host ?? '?',
+        inputs: [...d.querySelectorAll('input')].filter((x) => x.offsetParent).length,
+        dialogs: d.querySelectorAll('[role="dialog"], [aria-modal="true"]').length,
+        iframes: [...d.querySelectorAll('iframe')].map((f) => {
+          try { return new URL(f.src, location.href).host } catch { return '?' }
+        }).slice(0, 5),
+      })
+    }
+    out.crossFrames = cross
+    const CAND_SEL = 'button, a, [role="button"], label, span, div, input[type="button" i], input[type="submit" i]'
+    const candText = (x) =>
+      String(x.tagName === 'INPUT' ? (x.value ?? '') : (x.textContent || x.getAttribute?.('aria-label') || ''))
+        .replace(/\s+/g, '')
+    const scan = (re, max) => {
+      const found = []
+      for (const d of allDocs()) {
+        for (const el of d.querySelectorAll(CAND_SEL)) {
+          if (el.closest('[data-kb-ui]')) continue
+          const t = candText(el)
+          if (!t || t.length > max || !re.test(t)) continue
+          found.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 30)}${el.offsetParent ? '' : '(숨김)'}`)
+          if (found.length >= 6) return found
+        }
+      }
+      return found
+    }
+    out.matches = {
+      open: scan(OPEN_RE, 12), add: scan(ADD_RE, 12), zip: scan(ZIP_RE, 16), pick: scan(PICK_RE, 8),
+    }
+    for (const d of allDocs()) {
+      const body = (d.body?.innerText ?? '').replace(/\s+/g, '')
+      for (const m of body.matchAll(/배송지변경|배송지선택/g)) {
+        out.near.push(body.slice(Math.max(0, m.index - 15), m.index + 25))
+        if (out.near.length >= 3) break
+      }
+      if (out.near.length >= 3) break
+    }
+    return JSON.stringify(out)
+  }
   // 내역 줄 비용 안내(ⓘ) 펼침 상태 — 눌린 줄의 key(없으면 라벨)
   let helperRowInfoKey = null
   // 카드에서 고객이 고른 진행 방식 — 행을 눌러 선택하고, 그에 맞는 다음 행동을 안내합니다.
@@ -417,19 +497,21 @@
     input.dataset.kbFilled = '1'
   }
 
-  /** 배송지 다이얼로그 안의 특정 칸을 찾아 채웁니다. @returns 채운 개수 */
+  /** 배송지 다이얼로그 안의 특정 칸을 찾아 채웁니다 (같은 출처 iframe 포함). @returns 채운 개수 */
   function fillDialogInputs(selector, value, { force = false } = {}) {
     if (!value) return 0
     let filled = 0
-    for (const input of document.querySelectorAll(selector)) {
-      if (!input.offsetParent) continue
-      const dialog = input.closest('[role="dialog"], form') ?? input.parentElement?.parentElement
-      if (!dialog || !/배송지/.test((dialog.innerText ?? '').slice(0, 2000))) continue
-      const current = input.value.trim()
-      if (!force && (input.dataset.kbFilled || current !== '')) continue
-      if (current === value) continue
-      setNativeValue(input, value)
-      filled += 1
+    for (const doc of allDocs()) {
+      for (const input of doc.querySelectorAll(selector)) {
+        if (!input.offsetParent) continue
+        const dialog = input.closest('[role="dialog"], form') ?? input.parentElement?.parentElement
+        if (!dialog || !/배송지/.test((dialog.innerText ?? '').slice(0, 2000))) continue
+        const current = input.value.trim()
+        if (!force && (input.dataset.kbFilled || current !== '')) continue
+        if (current === value) continue
+        setNativeValue(input, value)
+        filled += 1
+      }
     }
     return filled
   }
@@ -605,15 +687,18 @@
 
     /**
      * 배송지 자동 등록 — [배송대행]을 누르면 실행되는 핵심 흐름.
-     * 쿠팡 결제창의 [배송지 변경]·[선택]·[우편번호 찾기]가 <button>이 아니라
-     * 스타일 입힌 <div>/<span>인 화면이 있어, 태그와 무관하게 "짧고 정확한
-     * 문구"로 찾고 실제 클릭처럼 pointer→mouse→click 이벤트를 흘려보냅니다.
-     * 실패하면 단계별 원인 + 도우미 버전을 토스트로 알려 원격 진단이 되게.
+     * - 버튼이 <div>/<span>/<input> 인 화면 대응: 태그 무관 짧은 문구 매칭
+     *   + pointer→mouse→click 이벤트 시퀀스.
+     * - 같은 출처 iframe 안에 뜨는 배송지 창까지 스캔 (allDocs).
+     * - 쿠팡이 스크립트 클릭을 무시하면(신뢰 이벤트만 처리) 강요하지 않고
+     *   "직접 눌러주세요"로 전환한 뒤 계속 감시하다가, 창이 열리는 순간
+     *   나머지(선택/입력/검색)를 이어서 자동 진행합니다.
      */
     async function runAddrAutofill() {
       if (helperAddrBusy) return
       helperAddrBusy = true
       helperAddrFailed = false
+      helperAddrWaitManual = false
       card.dataset.kbHtml = ''
       renderCheckoutHelper() // "등록 중…" 표시
 
@@ -626,24 +711,32 @@
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
       const ver = (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })()
       const fireClick = (el) => {
-        const opts = { bubbles: true, cancelable: true, view: window }
+        const win = el.ownerDocument?.defaultView ?? window
+        const opts = { bubbles: true, cancelable: true, view: win }
         for (const t of ['pointerover', 'pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
           try {
-            el.dispatchEvent(t.startsWith('pointer') ? new PointerEvent(t, opts) : new MouseEvent(t, opts))
+            el.dispatchEvent(t.startsWith('pointer') ? new win.PointerEvent(t, opts) : new win.MouseEvent(t, opts))
           } catch { /* PointerEvent 미지원 무시 */ }
         }
         el.click()
       }
+      const CAND_SEL = 'button, a, [role="button"], label, span, div, input[type="button" i], input[type="submit" i]'
+      const candText = (x) =>
+        String(x.tagName === 'INPUT' ? (x.value ?? '') : (x.textContent || x.getAttribute?.('aria-label') || ''))
+          .replace(/\s+/g, '')
       // 짧은 정확 문구로 클릭 대상 찾기 — 겹겹이 매치되면(버튼>스팬) 가장
       // 안쪽을 눌러야 위임된 실제 핸들러까지 이벤트가 닿습니다.
       const findExact = (re, max = 12) => {
-        const hits = [...document.querySelectorAll('button, a, [role="button"], label, span, div')]
-          .filter((x) => {
+        for (const doc of allDocs()) {
+          const hits = [...doc.querySelectorAll(CAND_SEL)].filter((x) => {
             if (!x.offsetParent || x.closest('[data-kb-ui]')) return false
-            const t = (x.textContent ?? '').replace(/\s+/g, '')
+            const t = candText(x)
             return t.length > 0 && t.length <= max && re.test(t)
           })
-        return hits.find((h) => !hits.some((o) => o !== h && h.contains(o))) ?? hits[0] ?? null
+          const leaf = hits.find((h) => !hits.some((o) => o !== h && h.contains(o))) ?? hits[0]
+          if (leaf) return leaf
+        }
+        return null
       }
       const clickExact = (re, max) => { const el = findExact(re, max); if (el) fireClick(el); return Boolean(el) }
       /**
@@ -652,43 +745,60 @@
        * 코드(K-ECOM)가 적힌 가장 작은 행 컨테이너 안의 [선택]만 인정합니다.
        */
       const findSavedSelect = () => {
-        const rows = [...document.querySelectorAll('li, div, section, article')]
-          .filter((el) => {
-            if (!el.offsetParent || el.closest('[data-kb-ui]')) return false
-            const t = el.innerText ?? ''
-            return t.includes(code) && t.length < 800
-          })
-          .sort((a, b) => (a.innerText ?? '').length - (b.innerText ?? '').length)
-        for (const row of rows) {
-          const sels = [...row.querySelectorAll('button, a, [role="button"], label, span, div')]
-            .filter((b) => b.offsetParent && /^선택(하기)?$/.test((b.textContent ?? '').replace(/\s+/g, '')))
-          const sel = sels.find((h) => !sels.some((o) => o !== h && h.contains(o))) ?? sels[0]
-          if (sel) return sel
+        for (const doc of allDocs()) {
+          const rows = [...doc.querySelectorAll('li, div, section, article')]
+            .filter((el) => {
+              if (!el.offsetParent || el.closest('[data-kb-ui]')) return false
+              const t = el.innerText ?? ''
+              return t.includes(code) && t.length < 800
+            })
+            .sort((a, b) => (a.innerText ?? '').length - (b.innerText ?? '').length)
+          for (const row of rows) {
+            const sels = [...row.querySelectorAll(CAND_SEL)]
+              .filter((b) => b.offsetParent && PICK_RE.test(candText(b)))
+            const sel = sels.find((h) => !sels.some((o) => o !== h && h.contains(o))) ?? sels[0]
+            if (sel) return sel
+          }
         }
         return null
       }
+      const daumOpen = () => allDocs().some((d) =>
+        [...d.querySelectorAll('iframe')].some((f) => /daum|postcode/i.test(f.src ?? '')))
 
-      const ZIP_RE = /우편번호찾기|우편번호검색|주소찾기|주소검색/
-      const ADD_RE = /배송지추가|신규배송지|새배송지/
-      const OPEN_RE = /배송지변경|배송지선택/
-
-      // 화면 전환을 따라가는 단계 탐색 (최대 10초): 저장된 창고 주소 → [선택],
-      // 새 주소 입력폼(우편번호 버튼) → 작성. 아직이면 [추가]→[변경] 순으로 열기.
+      /**
+       * 감시 루프: 처음 몇 초는 자동으로 열어보고, 안 열리면 "직접 눌러주세요"
+       * 안내로 바꾼 뒤 계속 기다립니다 — 고객의 진짜 클릭으로 창이 열리는
+       * 순간 이어서 자동 진행. (테스트에서 __kbAddrWatchMs 로 단축 가능)
+       */
+      const WATCH_MS = globalThis.__kbAddrWatchMs ?? 75_000
+      const AUTO_MS = 8_000
+      const started = Date.now()
       let mode = ''
       let addClicked = false
       let openClicked = false
-      const until = Date.now() + 10_000
-      while (Date.now() < until && !mode) {
-        const saved = findSavedSelect()
-        if (saved) { fireClick(saved); mode = 'select'; break }
+      let manualAsked = false
+      while (Date.now() - started < WATCH_MS && !mode) {
+        if (findSavedSelect()) { mode = 'select'; break }
         if (findExact(ZIP_RE, 16)) { mode = 'form'; break }
-        if (!addClicked && clickExact(ADD_RE, 12)) addClicked = true
-        else if (!openClicked && !addClicked && clickExact(OPEN_RE, 12)) openClicked = true
+        if (Date.now() - started < AUTO_MS) {
+          if (!addClicked && clickExact(ADD_RE, 12)) addClicked = true
+          else if (!openClicked && !addClicked && clickExact(OPEN_RE, 12)) openClicked = true
+        } else if (!manualAsked) {
+          manualAsked = true
+          helperAddrWaitManual = true
+          card.dataset.kbHtml = ''
+          renderCheckoutHelper()
+          toast(openClicked || addClicked
+            ? '쿠팡 창이 자동으로 열리지 않습니다 — [배송지 변경]을 직접 한 번 눌러주세요. 열리면 나머지는 자동으로 진행됩니다.'
+            : '[배송지 변경] 버튼을 찾지 못했습니다 — 직접 눌러 창을 열어주세요. 열리면 나머지는 자동으로 진행됩니다.',
+            false)
+        }
         await sleep(400)
       }
 
       const finish = (failed, msg, good) => {
         helperAddrBusy = false
+        helperAddrWaitManual = false
         helperAddrFailed = failed
         if (failed) helperAddrHelpOpen = true // 실패하면 수동 방법을 바로 보여줍니다
         toast(msg, good)
@@ -697,13 +807,21 @@
       }
 
       if (mode === 'select') {
-        return finish(false, `✓ 저장된 ${code} 배송지를 선택했습니다 — 새로 입력할 필요 없습니다.`, true)
+        const saved = findSavedSelect()
+        if (saved) fireClick(saved)
+        // 눌림 확인 — 목록이 그대로면(스크립트 클릭 무시) 직접 누르라고 안내.
+        let applied = false
+        for (let i = 0; i < 9 && !applied; i++) {
+          await sleep(400)
+          applied = !findSavedSelect()
+        }
+        if (applied) return finish(false, `✓ 저장된 ${code} 배송지를 선택했습니다 — 새로 입력할 필요 없습니다.`, true)
+        return finish(true,
+          `[선택]이 자동으로 눌리지 않습니다 — 목록에서 ${code} 옆 [선택]을 직접 눌러주세요. (도우미 v${ver})`, false)
       }
       if (mode !== 'form') {
         return finish(true,
-          !openClicked && !addClicked
-            ? `쿠팡 [배송지 변경] 버튼을 찾지 못했습니다 — [배송지 변경]을 직접 눌러 창을 연 뒤 다시 시도해주세요. (도우미 v${ver})`
-            : `쿠팡 배송지 창이 반응하지 않습니다 — [배송지 변경]을 직접 눌러 창이 보이는 상태에서 다시 시도해주세요. (도우미 v${ver})`,
+          `배송지 창을 확인하지 못했습니다 — [🩺 진단 정보 복사]를 눌러 내용을 관리자에게 보내주세요. (도우미 v${ver})`,
           false)
       }
 
@@ -715,22 +833,20 @@
         })
       } catch { /* 저장 불가 시 수동 검색 폴백 */ }
       const zipEl = findExact(ZIP_RE, 16)
-      if (!zipEl) {
-        // 받는사람·전화는 넣었고 검색 요청도 저장됨 — 검색 창만 열어주면 나머지는 자동.
-        return finish(true,
-          `받는사람·전화는 입력했습니다. [우편번호 찾기]만 직접 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 이어집니다. (도우미 v${ver})`,
-          false)
-      }
-      fireClick(zipEl)
+      if (zipEl) fireClick(zipEl)
 
       // 주소 선택이 끝나면 상세주소 칸이 생깁니다 — 나타나는 즉시 채웁니다.
+      // (다음 검색창이 안 열렸으면 고객이 직접 누를 시간도 이 감시가 겸합니다)
       let detailDone = 0
       for (let i = 0; i < 20 && !detailDone; i++) {
         await sleep(700)
         detailDone = name ? fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force: true }) : 0
       }
       if (detailDone) return finish(false, '✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.', true)
-      return finish(false, '주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
+      if (daumOpen()) return finish(false, '주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
+      return finish(true,
+        `받는사람·전화는 입력했습니다. [우편번호 찾기]만 직접 눌러주세요 — 검색·선택·상세주소는 자동으로 이어집니다. (도우미 v${ver})`,
+        false)
     }
 
     // ── 가격 두 줄이 카드의 전부 — 행을 눌러 진행 방식을 고릅니다 ──
@@ -928,8 +1044,12 @@
     const miniForm = onCart || ok || helperTrack !== 'forwarding'
       ? ''
       : helperAddrBusy
-        ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
-          'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>'
+        ? (helperAddrWaitManual
+            ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#fff8e6;color:#d9480f;' +
+              'font-size:13px;font-weight:800;text-align:center;line-height:1.5">🖱 쿠팡 [배송지 변경]을 직접 눌러주세요<br>' +
+              '<span style="font-weight:700;font-size:11px">창이 열리면 나머지는 자동으로 진행됩니다</span></div>'
+            : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
+              'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>')
         : '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:46px;border:0;border-radius:10px;' +
           'background:#17916b;color:#fff;font-weight:800;font-size:15px;cursor:pointer">' +
           (helperAddrFailed ? '⚡ 배송지 자동 등록 — 다시 시도' : '⚡ 배송지 자동 등록') + '</button>' +
@@ -938,6 +1058,11 @@
               'border-radius:8px;background:#fff;color:#4e5968;font-size:11.5px;font-weight:700;cursor:pointer">' +
               (helperAddrHelpOpen ? '직접 입력 방법 접기 ▴' : '📖 직접 입력 방법 보기 ▾') + '</button>' +
               (helperAddrHelpOpen ? addrHelpBody : '')
+            : '') +
+          (helperAddrFailed
+            ? '<button id="kb-diag" style="margin-top:5px;width:100%;min-height:28px;border:1px dashed #c9d3e0;' +
+              'border-radius:8px;background:#f9fafb;color:#8b95a1;font-size:10.5px;cursor:pointer">' +
+              '🩺 진단 정보 복사 — 붙여넣어 관리자에게 보내주세요</button>'
             : '')
 
     // 장바구니 화면에는 배송지가 아직 없으므로 검사하지 않습니다.
@@ -999,6 +1124,17 @@
     })
     // [⚡ 배송지 자동 등록] — 실제 흐름은 runAddrAutofill (위) 하나로 통일.
     card.querySelector('#kb-addr-fill')?.addEventListener('click', () => { runAddrAutofill() })
+    card.querySelector('#kb-diag')?.addEventListener('click', async (e) => {
+      const b = e.currentTarget
+      const text = addrDiagnostics()
+      try {
+        await navigator.clipboard.writeText(text)
+        b.textContent = '✓ 복사됨 — 채팅에 붙여넣어 보내주세요'
+      } catch {
+        // 클립보드 권한이 없으면 창으로 띄워 직접 복사하게 합니다.
+        window.prompt('아래 내용을 복사해 관리자에게 보내주세요', text)
+      }
+    })
     card.querySelector('#kb-agent-go')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget
       /**
