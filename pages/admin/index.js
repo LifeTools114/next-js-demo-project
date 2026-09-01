@@ -434,6 +434,9 @@ export default function AdminConsole() {
               */}
               <div style={{ marginTop: 12, padding: 10, border: '1px solid #e5e8eb', borderRadius: 8 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>📄 견적서</div>
+                <div style={{ fontSize: 11, color: '#8b95a1', marginBottom: 6 }}>
+                  청구서 PDF 를 올리면 무게를 자동으로 읽습니다. 못 읽으면 아래에 직접 입력하세요.
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
                   <input className="input" placeholder="실측 무게 C/Weight (kg)"
                     value={f.dnKg ?? ''} onChange={(e) => setField(o.orderNo, 'dnKg', e.target.value)} />
@@ -444,6 +447,46 @@ export default function AdminConsole() {
                   <input className="input" placeholder="도착일 ETA (2026-08-19)"
                     value={f.dnEta ?? ''} onChange={(e) => setField(o.orderNo, 'dnEta', e.target.value)} />
                 </div>
+                {/*
+                  청구서 업로드 — PDF 를 올리면 실측 무게·운송정보를 읽어
+                  바로 최종 견적서를 엽니다. 읽지 못하면(이미지·스캔본)
+                  아래 칸에 직접 입력하는 경로가 그대로 남아 있습니다.
+                  업로드한 파일은 서버에 저장하지 않습니다 (원가 보호).
+                */}
+                <label className="btn" style={{ marginTop: 8, display: 'block', textAlign: 'center', cursor: 'pointer' }}>
+                  📎 물류사 청구서 업로드 (PDF) → 최종 견적서
+                  <input type="file" accept="application/pdf,image/*" style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!file) return
+                      const dataBase64 = await new Promise((resolve, reject) => {
+                        const r = new FileReader()
+                        r.onload = () => resolve(String(r.result))
+                        r.onerror = () => reject(r.error)
+                        r.readAsDataURL(file)
+                      })
+                      const res = await fetch(`/api/orders/${o.id}/debit-note-upload`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+                        body: JSON.stringify({ fileName: file.name, dataBase64 }),
+                      })
+                      const data = await res.json()
+                      if (!data.ok) return alert(data.error ?? '업로드에 실패했습니다.')
+                      if (!data.saved) {
+                        // 읽은 값만이라도 칸에 채워 두고 무게는 직접 받습니다.
+                        const p = data.parsed ?? {}
+                        if (p.hawbNo) setField(o.orderNo, 'dnHawb', p.hawbNo)
+                        if (p.flight) setField(o.orderNo, 'dnFlight', p.flight)
+                        if (p.eta) setField(o.orderNo, 'dnEta', p.eta)
+                        return alert(data.message)
+                      }
+                      const d = data.doc
+                      alert(`${data.message}\n\n${d.adjustLabel}\n차액 ${d.diffVnd.toLocaleString('ko-KR')}동`)
+                      load()
+                      window.open(`/quote/${o.id}?kind=final`, '_blank')
+                    }} />
+                </label>
                 <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                   <a className="btn btn--ghost" href={`/quote/${o.id}?kind=provisional`} target="_blank" rel="noreferrer">
                     임시 견적서 열기
