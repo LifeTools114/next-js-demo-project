@@ -194,11 +194,30 @@ test('표본 300종의 청구무게가 상식 범위에 들어온다 (운영자 
   assert.deepEqual(off, [], `범위를 벗어난 상품 ${off.length}건:\n${off.join('\n')}`)
 })
 
-test('표본 300종 중 정상 상품이 접수 차단되지 않는다', () => {
+/**
+ * 접수 차단은 판정 필드가 verdict/shippable 입니다 (status 아님).
+ * 예전 검사는 없는 필드를 봐서 늘 통과했고, 그 사이 "식기세척기 세제"가
+ * 대형 가전으로 막히는 오차단을 놓쳤습니다. 이제 실제로 검사합니다.
+ */
+test('표본 300종 중 정책상 막아야 할 품목만 차단된다', () => {
+  // 배터리·향수(인화성)·유제품/육류(검역)·대형 가전 본체만 차단이 정상입니다.
+  const ALLOWED_BLOCK_RULES = ['battery', 'flammable', 'quarantine-animal', 'oversize']
   const blocked = WEIGHT_SAMPLES
     .map(([productName, , , categoryName]) =>
       ({ productName, res: checkEligibility({ productName, categoryName, price: 30000, quantity: 1 }) }))
-    .filter((x) => x.res.status === 'BLOCKED')
-    .map((x) => `${x.productName} — ${x.res.reasons?.[0] ?? ''}`)
-  assert.deepEqual(blocked, [], `잘못 차단된 상품:\n${blocked.join('\n')}`)
+    .filter((x) => x.res.shippable === false)
+
+  const unexpected = blocked
+    .filter((x) => !ALLOWED_BLOCK_RULES.includes(x.res.ruleId))
+    .map((x) => `${x.productName} — ${x.res.label} (${x.res.ruleId})`)
+  assert.deepEqual(unexpected, [], `정책 외 사유로 차단된 상품:\n${unexpected.join('\n')}`)
+
+  // 소모품이 기기 본체로 오인돼 차단되면 안 됩니다 (실제 사고 재발 방지).
+  for (const name of ['스웨이 식기세척기 액체 캡슐 세제 구연산애플향 55입, 440g, 2개',
+    '피니쉬 식기세척기 올인원 태블릿 60정']) {
+    const res = checkEligibility({ productName: name, price: 30000, quantity: 1 })
+    assert.equal(res.shippable, true, `${name} 는 소모품이라 접수돼야 합니다`)
+  }
+  // 반대로 본체는 계속 차단되어야 합니다.
+  assert.equal(checkEligibility({ productName: 'LG 트롬 식기세척기 12인용' }).shippable, false)
 })
