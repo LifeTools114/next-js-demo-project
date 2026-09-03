@@ -11,10 +11,22 @@
  *    통신판매업 신고번호, 개인정보 보유기간은 실제 값으로 채워야 합니다.
  */
 
-/** 실제 사업자 정보로 교체하세요 (미기재 시 화면에 '확인 중'으로 표시) */
+/**
+ * 사업자 정보 — 전자상거래법 제10조 표시사항.
+ * 사업자등록증·통신판매업신고증(2024-08-28 발급) 원본 기준입니다.
+ * 전화번호·이메일은 공개 채널이 정해지면 env 로 채우세요.
+ */
 export const BUSINESS = {
-  bizNo: process.env.BIZ_REG_NO || '',
-  mailOrderNo: process.env.MAIL_ORDER_NO || '',
+  name: process.env.BIZ_NAME || '에스에스무역',
+  nameEn: process.env.BIZ_NAME_EN || 'SS TRADING',
+  ceo: process.env.BIZ_CEO || '박승우',
+  address: process.env.BIZ_ADDRESS || '경기도 광주시 곤지암읍 광여로 59',
+  bizNo: process.env.BIZ_REG_NO || '282-12-02850',
+  mailOrderNo: process.env.MAIL_ORDER_NO || '2024-경기광주-1786',
+  /** 사업자등록증상 업종 — 해외직구대행업 */
+  bizType: process.env.BIZ_TYPE || '도매 및 소매업 / 해외직구대행업',
+  tel: process.env.BIZ_TEL || '',
+  email: process.env.BIZ_EMAIL || '',
   disputeVenue: process.env.DISPUTE_VENUE || '대한민국 법원',
 }
 

@@ -23,7 +23,12 @@ export const QUOTE = {
     /** 고객이 먼저 보는 브랜드명 */
     brand: process.env.COMPANY_BRAND || 'YS-ECOM 하노이 직구',
     /** 사업자 상호 — 견적서 머리글에 함께 표기 */
-    name: process.env.COMPANY_NAME || 'SS TRADING COMPANY LIMITED',
+    /**
+     * 사업자등록증상 상호는 '에스에스무역'(개인사업자)입니다.
+     * 견적서는 거래 문서라 등록 상호와 다르게 적으면 곤란해질 수 있어
+     * 영문 상호와 등록 상호를 함께 표기합니다.
+     */
+    name: process.env.COMPANY_NAME || 'SS TRADING (에스에스무역)',
     address: process.env.COMPANY_ADDRESS
       || '59, Gwangyeo-ro, Gonjiam-eup, Gwangju-si, Gyeonggi-do, Republic of Korea',
     pic: process.env.COMPANY_PIC || 'KIM YOUNG SEO',

@@ -197,6 +197,14 @@ export default function QuotePage() {
           </div>
         </div>
 
+        {/* 사업자 정보 — 거래 문서에는 등록번호를 함께 남깁니다 */}
+        {doc.business ? (
+          <div style={{ marginTop: 10, fontSize: 11.5, color: '#4e5968', lineHeight: 1.7 }}>
+            {doc.business.name} · 대표 {doc.business.ceo} · 사업자등록번호 {doc.business.bizNo}
+            {' · '}통신판매업 신고 {doc.business.mailOrderNo}
+          </div>
+        ) : null}
+
         {/* 비고 */}
         <div style={{ marginTop: 14, fontSize: 12.5, color: '#2b3138', lineHeight: 1.8 }}>
           <div style={{ fontWeight: 800, color: '#111418', marginBottom: 3, fontSize: 13.5 }}>안내</div>

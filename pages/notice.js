@@ -56,10 +56,21 @@ export default function NoticePage() {
         <ul style={{ paddingLeft: 18, color: '#333d4b', fontSize: 14.5, lineHeight: 1.9 }}>
           {REQUIRED_CONSENTS.map((c) => <li key={c.id}>{c.label}</li>)}
         </ul>
-        <p className="note" style={{ fontSize: 13 }}>
-          사업자 등록번호 {BUSINESS.bizNo || '확인 중'} · 통신판매업 신고 {BUSINESS.mailOrderNo || '확인 중'}
-          {' · '}분쟁 관할 {BUSINESS.disputeVenue}
-        </p>
+        {/* 전자상거래법 제10조 표시사항 — 상호·대표자·주소·신고번호 */}
+        <div style={{
+          marginTop: 14, padding: '12px 14px', border: '1px solid #e5e8eb',
+          borderRadius: 10, background: '#f9fafb', fontSize: 13.5, lineHeight: 1.9, color: '#333d4b',
+        }}>
+          <div style={{ fontWeight: 800, color: '#191f28', marginBottom: 4 }}>사업자 정보</div>
+          <div>상호 : {BUSINESS.name} ({BUSINESS.nameEn}) · 대표자 : {BUSINESS.ceo}</div>
+          <div>사업장 : {BUSINESS.address}</div>
+          <div>사업자등록번호 : {BUSINESS.bizNo}</div>
+          <div>통신판매업 신고번호 : {BUSINESS.mailOrderNo}</div>
+          <div>업종 : {BUSINESS.bizType}</div>
+          {BUSINESS.tel ? <div>전화 : {BUSINESS.tel}</div> : null}
+          {BUSINESS.email ? <div>이메일 : {BUSINESS.email}</div> : null}
+          <div>분쟁 관할 : {BUSINESS.disputeVenue}</div>
+        </div>
       </section>
     </Layout>
   )
