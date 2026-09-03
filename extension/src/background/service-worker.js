@@ -52,6 +52,40 @@ async function getConfig() {
   }
 }
 
+/**
+ * 자가진단 보고 — 쿠팡 화면이 바뀌어 문구를 못 찾을 때 콘텐츠 스크립트가 부릅니다.
+ *
+ * 고객을 방해하지 않는 것이 최우선이라 실패는 전부 조용히 무시합니다.
+ * 개인정보는 애초에 담기지 않지만(문구 개수·경로뿐), 여기서 한 번 더
+ * 크기를 자르고 화이트리스트 필드만 보냅니다.
+ */
+async function reportHealth(payload) {
+  const clean = {
+    kind: String(payload?.kind ?? '').slice(0, 24),
+    missing: (payload?.missing ?? []).slice(0, 8).map((x) => String(x).slice(0, 24)),
+    found: Object.fromEntries(
+      Object.entries(payload?.found ?? {}).slice(0, 8).map(([k, v]) => [String(k).slice(0, 24), Number(v) || 0]),
+    ),
+    host: String(payload?.host ?? '').slice(0, 40),
+    path: String(payload?.path ?? '').slice(0, 80),
+    ext: String(payload?.ext ?? '').slice(0, 16),
+    pat: Number(payload?.pat) || 0,
+    patSource: payload?.patSource === 'server' ? 'server' : 'bundled',
+    stage: String(payload?.stage ?? '').slice(0, 24),
+    rejected: (payload?.rejected ?? []).slice(0, 8).map((x) => String(x).slice(0, 40)),
+  }
+  try {
+    await fetch(`${await backendUrl()}/api/extension/health`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(clean),
+    })
+    return { ok: true }
+  } catch {
+    return { ok: false } // 보고 실패는 고객 흐름과 무관합니다
+  }
+}
+
 async function addToCart(item) {
   const { cart = [] } = await storage.get('cart')
   // 같은 상품이라도 옵션(상품명에 반영)이 다르면 다른 줄로 담습니다 —
@@ -193,6 +227,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     switch (msg?.type) {
       case 'getConfig':
         return getConfig()
+      case 'reportHealth':
+        return reportHealth(msg.payload ?? {})
       case 'addToCart':
         return addToCart(msg.payload)
       case 'getCart': {

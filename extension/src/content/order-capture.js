@@ -178,6 +178,7 @@
 
   async function runOrderComplete() {
     const cfg = await send('getConfig')
+    globalThis.KBPatterns?.apply(cfg?.config?.coupang)
     const { coupangOrderNo, amountKrw } = extract(cfg?.config ?? {})
     if (!coupangOrderNo || coupangOrderNo.length < 9) return
 
@@ -360,11 +361,38 @@
     return list
   }
 
-  // 자동 등록이 찾는 문구들 — 진단 복사에서도 같은 정의를 씁니다.
-  const ZIP_RE = /우편번호찾기|우편번호검색|주소찾기|주소검색/
-  const ADD_RE = /배송지추가|신규배송지|새배송지/
-  const OPEN_RE = /배송지변경|배송지선택/
-  const PICK_RE = /^선택(하기)?$/
+  /**
+   * 자동 등록이 찾는 문구들 — patterns.js 가 갖고 있습니다.
+   * 서버(config/coupang-patterns.js)에서 문구를 더하면 확장 재배포 없이
+   * 쿠팡 화면 변경에 대응할 수 있고, 서버가 죽어도 번들 기본값으로 동작합니다.
+   * 진단 복사·자가진단도 같은 정의를 씁니다.
+   */
+  const PAT = globalThis.KBPatterns
+  /** 이 키의 문구가 하나라도 맞는가 (공백 제거된 문자열 기준) */
+  const hitsKey = (key, text) => PAT?.test(key, text) ?? false
+  const lenOf = (key) => PAT?.maxLen(key) ?? 12
+  /** 입력칸 셀렉터 — 서버 설정이 있으면 함께 시도합니다 */
+  const fieldSel = (key) => PAT?.field(key) ?? ''
+
+  /** 클릭 후보 — 쿠팡은 버튼을 <div>/<span>으로 만드는 화면이 많아 태그를 가리지 않습니다. */
+  const CAND_SEL = 'button, a, [role="button"], label, span, div, input[type="button" i], input[type="submit" i]'
+  const candText = (x) =>
+    String(x.tagName === 'INPUT' ? (x.value ?? '') : (x.textContent || x.getAttribute?.('aria-label') || ''))
+      .replace(/\s+/g, '')
+
+  /** 이 문구로 잡히는 요소 수 (보이는 것만) — 자가진단·진단 복사 공통 */
+  function countMatches(key) {
+    const max = lenOf(key)
+    let n = 0
+    for (const d of allDocs()) {
+      for (const el of d.querySelectorAll(CAND_SEL)) {
+        if (!el.offsetParent || el.closest('[data-kb-ui]')) continue
+        const t = candText(el)
+        if (t && t.length <= max && hitsKey(key, t)) n += 1
+      }
+    }
+    return n
+  }
 
   /**
    * 자동 등록 실패 시 화면 구조 요약 — 고객이 [진단 정보 복사]로 복사해
@@ -390,29 +418,28 @@
       })
     }
     out.crossFrames = cross
-    const CAND_SEL = 'button, a, [role="button"], label, span, div, input[type="button" i], input[type="submit" i]'
-    const candText = (x) =>
-      String(x.tagName === 'INPUT' ? (x.value ?? '') : (x.textContent || x.getAttribute?.('aria-label') || ''))
-        .replace(/\s+/g, '')
-    const scan = (re, max) => {
+    const scan = (key) => {
       const found = []
+      const max = lenOf(key)
       for (const d of allDocs()) {
         for (const el of d.querySelectorAll(CAND_SEL)) {
           if (el.closest('[data-kb-ui]')) continue
           const t = candText(el)
-          if (!t || t.length > max || !re.test(t)) continue
+          if (!t || t.length > max || !hitsKey(key, t)) continue
           found.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 30)}${el.offsetParent ? '' : '(숨김)'}`)
           if (found.length >= 6) return found
         }
       }
       return found
     }
+    out.pat = PAT?.info().version ?? -1 // 어떤 문구 설정으로 찾았는지 (0 = 번들 기본값)
     out.matches = {
-      open: scan(OPEN_RE, 12), add: scan(ADD_RE, 12), zip: scan(ZIP_RE, 16), pick: scan(PICK_RE, 8),
+      open: scan('openAddr'), add: scan('addAddr'), zip: scan('zipSearch'), pick: scan('pick'),
     }
     for (const d of allDocs()) {
       const body = (d.body?.innerText ?? '').replace(/\s+/g, '')
-      for (const m of body.matchAll(/배송지변경|배송지선택/g)) {
+      const nearRe = new RegExp((PAT?.list('openAddr') ?? []).map((r) => r.source).join('|') || '배송지변경', 'g')
+      for (const m of body.matchAll(nearRe)) {
         out.near.push(body.slice(Math.max(0, m.index - 15), m.index + 25))
         if (out.near.length >= 3) break
       }
@@ -420,6 +447,70 @@
     }
     return JSON.stringify(out)
   }
+  /**
+   * ─────────────── 자가진단 ───────────────
+   *
+   * 쿠팡이 화면 문구를 바꾸면 자동입력이 조용히 멈추고, 그 사실은 보통
+   * "안 돼요"라는 고객 연락으로 처음 알게 됩니다. 그때는 이미 늦습니다.
+   * 여기서는 확장이 **스스로** 필요한 문구가 화면에 있는지 보고, 없으면
+   * 운영자에게 알립니다 — 고객이 겪기 전에 서버 설정으로 고칠 수 있게.
+   *
+   * 보내는 것: 어떤 문구가 몇 개 잡혔는지 · 경로 · 확장/문구 설정 버전.
+   * 보내지 않는 것: 이름·주소·전화·상품·금액 등 **개인정보 일체**.
+   * 같은 증상은 6시간에 한 번만 보냅니다(운영자 알림이 도배되지 않게).
+   */
+  const HEALTH_KEY = 'kbHealthSent'
+  const HEALTH_QUIET_MS = 6 * 60 * 60 * 1000
+
+  async function reportHealth(kind, missing, found, extra = {}) {
+    const sig = `${kind}|${missing.join(',')}|${PAT?.info().version ?? -1}`
+    try {
+      const store = (await chrome.storage.local.get(HEALTH_KEY))?.[HEALTH_KEY] ?? {}
+      if (Date.now() - (store[sig] ?? 0) < HEALTH_QUIET_MS) return
+      store[sig] = Date.now()
+      // 오래된 기록은 버립니다 — storage 가 무한히 커지지 않게.
+      for (const [k, at] of Object.entries(store)) {
+        if (Date.now() - at > 7 * 24 * 60 * 60 * 1000) delete store[k]
+      }
+      await chrome.storage.local.set({ [HEALTH_KEY]: store })
+    } catch { /* 저장 못 해도 보고는 시도합니다 */ }
+
+    send('reportHealth', {
+      kind,
+      missing,
+      found,
+      host: location.host,
+      path: location.pathname.slice(0, 80),
+      ext: (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })(),
+      pat: PAT?.info().version ?? -1,
+      patSource: PAT?.info().source ?? 'bundled',
+      rejected: PAT?.info().rejected ?? [],
+      ...extra,
+    })
+  }
+
+  /**
+   * 이 화면에서 필요한 문구가 잡히는지 확인합니다.
+   * @returns 못 찾은 문구 키 목록 (빈 배열이면 정상)
+   */
+  function healthMissing(kind) {
+    const missing = []
+    const found = {}
+    for (const key of PAT?.require(kind) ?? []) {
+      found[key] = countMatches(key)
+      if (found[key] === 0) missing.push(key)
+    }
+    return { missing, found }
+  }
+
+  /** 결제 화면 진입 시 1회 — 필요한 문구가 하나도 없으면 화면 구조 변경 의심 */
+  function selfCheckCheckout() {
+    const text = squash(pageTextSansOurUi()).slice(0, 8000)
+    if (!(PAT?.looksLikeCheckout(text) ?? false)) return
+    const { missing, found } = healthMissing('checkout')
+    if (missing.length > 0) reportHealth('checkout', missing, found)
+  }
+
   // 내역 줄 비용 안내(ⓘ) 펼침 상태 — 눌린 줄의 key(없으면 라벨)
   let helperRowInfoKey = null
   // 카드에서 고객이 고른 진행 방식 — 행을 눌러 선택하고, 그에 맞는 다음 행동을 안내합니다.
@@ -500,7 +591,7 @@
 
   /** 배송지 다이얼로그 안의 특정 칸을 찾아 채웁니다 (같은 출처 iframe 포함). @returns 채운 개수 */
   function fillDialogInputs(selector, value, { force = false } = {}) {
-    if (!value) return 0
+    if (!value || !selector) return 0
     let filled = 0
     for (const doc of allDocs()) {
       for (const input of doc.querySelectorAll(selector)) {
@@ -517,10 +608,11 @@
     return filled
   }
 
+  // 입력칸 셀렉터는 patterns.js 에서 — 쿠팡이 폼을 바꾸면 서버에서 더할 수 있습니다.
   const DIALOG_FIELDS = {
-    name: 'input[name*="name" i], input[placeholder*="받는"], input[placeholder*="이름"]',
-    phone: 'input[type="tel"], input[name*="phone" i], input[placeholder*="휴대폰"], input[placeholder*="전화"]',
-    detail: 'input[name*="detail" i], input[name*="addr2" i], input[placeholder*="상세"]',
+    get name() { return fieldSel('name') },
+    get phone() { return fieldSel('phone') },
+    get detail() { return fieldSel('detail') },
   }
 
   /** 받는사람·휴대폰·상세주소를 한 번에. 상세주소는 이름을 알 때만. */
@@ -580,7 +672,7 @@
       for (let up = 0; node && up < 5; up++) {
         if (!node.closest('[data-kb-ui]')) {
           const t = (node.textContent ?? '').replace(/\s+/g, '')
-          if (t.length <= 20 && /결제하기$/.test(t)) { hit = node; break }
+          if (t.length <= lenOf('payButton') && hitsKey('payButton', t)) { hit = node; break }
         }
         node = node.parentElement
       }
@@ -603,6 +695,10 @@
     } catch { /* 무시 */ }
 
     const cfg = await send('getConfig')
+    // 서버가 내려준 쿠팡 문구 설정 반영 — 쿠팡이 화면을 바꿔도 재배포 없이 대응.
+    PAT?.apply(cfg?.config?.coupang)
+    // 자가진단 — 필요한 문구가 화면에서 사라졌으면 조용히 운영자에게 보고합니다.
+    try { selfCheckCheckout() } catch { /* 진단 실패가 카드를 막지 않게 */ }
     const w = cfg?.config?.warehouse ?? {}
     const addr1 = w.address1 || '서울특별시 강서구 개화동로 11길 5'
     const zip = w.zip || '07504'
@@ -633,6 +729,16 @@
     let raw = onCart ? extractCartItemsDom() : []
     if (raw.length === 0) raw = extractCheckoutItems()
     const pageItems = raw.map((it, i) => ({ ...it, productId: `chk-${i}`, track: 'forwarding' }))
+    /**
+     * 금액 파싱 자가진단 — 결제 화면이고 결제 금액도 찍혀 있는데 상품을
+     * 하나도 못 읽었다면, 쿠팡이 상품·금액 표기를 바꾼 것입니다.
+     * 이 경우 카드는 견적함(옛 계획)으로 폴백하므로 **다른 금액**이 뜰 수
+     * 있어, 고객이 이상한 견적을 받기 전에 운영자가 알아야 합니다.
+     */
+    if (!onCart && pageItems.length === 0 && PAT?.looksLikeCheckout(squash(allText))
+        && /[\d,]{4,}원/.test(allText)) {
+      reportHealth('price', ['items'], { items: 0 })
+    }
     // 초안은 결제창에서만 남깁니다 — 주문완료 후 자동 신청이 이 초안을 씁니다.
     // (장바구니에서도 남기면 옛 초안이 다른 결제의 금액에 끼어들 수 있습니다)
     if (pageItems.length > 0 && !onCart) await send('setCheckoutDraft', { items: pageItems })
@@ -721,25 +827,22 @@
         }
         el.click()
       }
-      const CAND_SEL = 'button, a, [role="button"], label, span, div, input[type="button" i], input[type="submit" i]'
-      const candText = (x) =>
-        String(x.tagName === 'INPUT' ? (x.value ?? '') : (x.textContent || x.getAttribute?.('aria-label') || ''))
-          .replace(/\s+/g, '')
       // 짧은 정확 문구로 클릭 대상 찾기 — 겹겹이 매치되면(버튼>스팬) 가장
       // 안쪽을 눌러야 위임된 실제 핸들러까지 이벤트가 닿습니다.
-      const findExact = (re, max = 12) => {
+      const findExact = (key) => {
+        const max = lenOf(key)
         for (const doc of allDocs()) {
           const hits = [...doc.querySelectorAll(CAND_SEL)].filter((x) => {
             if (!x.offsetParent || x.closest('[data-kb-ui]')) return false
             const t = candText(x)
-            return t.length > 0 && t.length <= max && re.test(t)
+            return t.length > 0 && t.length <= max && hitsKey(key, t)
           })
           const leaf = hits.find((h) => !hits.some((o) => o !== h && h.contains(o))) ?? hits[0]
           if (leaf) return leaf
         }
         return null
       }
-      const clickExact = (re, max) => { const el = findExact(re, max); if (el) fireClick(el); return Boolean(el) }
+      const clickExact = (key) => { const el = findExact(key); if (el) fireClick(el); return Boolean(el) }
       /**
        * 주소록에 창고 배송지가 이미 있으면 새로 만들지 않고 그 행의 [선택]을
        * 누릅니다 — 두 번째 이용부터는 이게 정답 경로이고 중복 등록도 막습니다.
@@ -756,7 +859,7 @@
             .sort((a, b) => (a.innerText ?? '').length - (b.innerText ?? '').length)
           for (const row of rows) {
             const sels = [...row.querySelectorAll(CAND_SEL)]
-              .filter((b) => b.offsetParent && PICK_RE.test(candText(b)))
+              .filter((b) => b.offsetParent && hitsKey('pick', candText(b)))
             const sel = sels.find((h) => !sels.some((o) => o !== h && h.contains(o))) ?? sels[0]
             if (sel) return sel
           }
@@ -788,9 +891,9 @@
       let askedAdd = false
       while (Date.now() - started < WATCH_MS && !mode) {
         if (findSavedSelect()) { mode = 'select'; break }
-        if (findExact(ZIP_RE, 16)) { mode = 'form'; break }
+        if (findExact('zipSearch')) { mode = 'form'; break }
 
-        const addBtn = findExact(ADD_RE, 12)
+        const addBtn = findExact('addAddr')
         if (addBtn) {
           /**
            * 배송지 목록 창이 열려 있습니다 — 저장된 창고 주소가 없으니
@@ -805,7 +908,7 @@
             setWait('add', '쿠팡 창에서 [+ 배송지 추가]를 직접 한 번 눌러주세요 — 누르면 나머지는 자동으로 진행됩니다.')
           }
         } else if (Date.now() - started < AUTO_MS) {
-          clickExact(OPEN_RE, 12)
+          clickExact('openAddr')
         } else if (!askedOpen) {
           askedOpen = true
           setWait('open', '쿠팡 [배송지 변경]을 직접 한 번 눌러주세요 — 창이 열리면 나머지는 자동으로 진행됩니다.')
@@ -838,6 +941,14 @@
           `[선택]이 자동으로 눌리지 않습니다 — 목록에서 ${code} 옆 [선택]을 직접 눌러주세요. (도우미 v${ver})`, false)
       }
       if (mode !== 'form') {
+        /**
+         * 자동 등록이 끝내 실패 — 쿠팡 화면 변경의 가장 강한 신호입니다.
+         * 어떤 문구가 몇 개 잡혔는지만 운영자에게 보내 원인을 좁힙니다.
+         */
+        const found = {}
+        for (const key of ['openAddr', 'addAddr', 'zipSearch', 'pick']) found[key] = countMatches(key)
+        const missing = Object.entries(found).filter(([, n]) => n === 0).map(([k]) => k)
+        reportHealth('addrAutofill', missing, found, { stage: helperAddrWaitManual || 'watch' })
         return finish(true,
           `배송지 창을 확인하지 못했습니다 — [🩺 진단 정보 복사]를 눌러 내용을 관리자에게 보내주세요. (도우미 v${ver})`,
           false)
@@ -850,7 +961,7 @@
           kbPostcodeQuery: { q: addr1, road: addr1.split(/\s+/).slice(-3).join(' '), at: Date.now() },
         })
       } catch { /* 저장 불가 시 수동 검색 폴백 */ }
-      const zipEl = findExact(ZIP_RE, 16)
+      const zipEl = findExact('zipSearch')
       if (zipEl) fireClick(zipEl)
 
       /**

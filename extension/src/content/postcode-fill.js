@@ -21,6 +21,18 @@
   } catch { return }
   if (!req?.q || !req.at || Date.now() - req.at > FRESH_MS) return
 
+  /**
+   * 서버 문구 설정 반영 — 다음(카카오) 위젯이 [검색] 버튼 문구를 바꿔도
+   * 서버(config/coupang-patterns.js)에서 고치면 재배포 없이 따라갑니다.
+   * 캐시된 설정을 그대로 쓰므로 여기서 네트워크를 기다리지 않습니다.
+   */
+  const PAT = globalThis.KBPatterns
+  try {
+    const { config } = await chrome.storage.local.get('config')
+    PAT?.apply(config?.coupang)
+  } catch { /* 설정이 없으면 번들 기본값 */ }
+  const hitsKey = (key, text) => PAT?.test(key, text) ?? /검색/.test(text)
+
   const norm = (s) => String(s ?? '').replace(/\s+/g, '')
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -53,7 +65,7 @@
   input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }))
   input.form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
   const searchBtn = [...document.querySelectorAll('button, a')].find((el) =>
-    el.offsetParent && /검색/.test(el.textContent ?? ''))
+    el.offsetParent && hitsKey('zipSubmit', norm(el.textContent)))
   searchBtn?.click()
 
   // 2) 결과에서 도로명(공백 무시)이 일치하는 첫 항목 클릭 → 선택 완료

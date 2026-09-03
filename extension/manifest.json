@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "쿠팡 하노이 직구 도우미",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "쿠팡 상품의 하노이 도착 가격을 바로 계산합니다. 무게 추정, 국제배송비, 배송 가능 여부 확인.",
   "default_locale": "ko",
   "permissions": [
@@ -25,6 +25,7 @@
         "https://m.coupang.com/vm/products/*"
       ],
       "js": [
+        "src/content/patterns.js",
         "vendor/calc.js",
         "src/content/extract.js",
         "src/content/panel.js",
@@ -41,6 +42,7 @@
         "https://cart.coupang.com/*"
       ],
       "js": [
+        "src/content/patterns.js",
         "vendor/calc.js",
         "src/content/parse-page.js",
         "src/content/order-capture.js"
@@ -48,8 +50,13 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://postcode.map.daum.net/*"],
-      "js": ["src/content/postcode-fill.js"],
+      "matches": [
+        "https://postcode.map.daum.net/*"
+      ],
+      "js": [
+        "src/content/patterns.js",
+        "src/content/postcode-fill.js"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
     }

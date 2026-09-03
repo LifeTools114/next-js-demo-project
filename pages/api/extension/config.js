@@ -15,6 +15,7 @@ import { FX } from '../../../config/fx'
 import { AFFILIATE } from '../../../config/affiliate'
 import { DESTINATION } from '../../../config/eligibility'
 import { MAINTENANCE } from '../../../config/maintenance'
+import { coupangPatternPayload, COUPANG_PATTERNS } from '../../../config/coupang-patterns'
 import { WAREHOUSE } from '../../../config/warehouse'
 import { maintenanceStatus } from '../../../lib/maintenance'
 import { ensureFreshFx } from '../../../lib/fx/refresh'
@@ -51,6 +52,8 @@ export default function handler(req, res) {
 
   return res.status(200).json({
     version: 1,
+    /** 쿠팡 문구 설정 버전 — 관리자 화면이 "반영됐는지"를 이 값으로 확인합니다 */
+    coupangPatternVersion: COUPANG_PATTERNS.version,
     updatedAt: new Date().toISOString(),
     destination: DESTINATION,
 
@@ -118,5 +121,12 @@ export default function handler(req, res) {
       disclosureShort: AFFILIATE.compliance.disclosureShort,
     },
     selectors: SELECTORS,
+
+    /**
+     * 쿠팡 화면 문구 — 쿠팡이 [배송지 변경] 같은 문구를 바꿔도 여기서 고치면
+     * 확장 재배포 없이 반영됩니다. 확장은 이 값을 **번들 기본값에 더해서**
+     * 시도하므로, 설정이 잘못돼도 기존 동작이 멈추지 않습니다.
+     */
+    coupang: coupangPatternPayload(),
   })
 }

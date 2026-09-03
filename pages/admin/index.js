@@ -40,6 +40,20 @@ const ACTIONS_BY_STATE = {
 }
 
 /** 입금 대조 실패 사유 → 사람이 읽는 설명 */
+/** 자가진단 보고의 문구 키 → 운영자가 읽을 이름 */
+const PATTERN_LABELS = {
+  openAddr: '배송지 변경', addAddr: '배송지 추가', zipSearch: '우편번호 찾기',
+  pick: '선택', payButton: '결제하기', zipSubmit: '주소 검색',
+  items: '상품·금액 표기',
+}
+
+/** 자가진단 종류 → 운영자가 읽을 이름 */
+const HEALTH_KIND_LABELS = {
+  addrAutofill: '⚡ 배송지 자동등록 실패',
+  checkout: '🖥 결제 화면 문구 없음',
+  price: '💰 결제 화면 금액을 못 읽음',
+}
+
 const DEPOSIT_REASON_LABELS = {
   'no-order-no': '이체 메모에 주문번호 없음',
   'order-not-found': '주문번호 불일치',
@@ -65,6 +79,8 @@ export default function AdminConsole() {
   const [review, setReview] = useState(null)
   // 점검 상태는 시간이 지나면 바뀌므로 주기적으로 갱신합니다.
   const [maint, setMaint] = useState(null)
+  // 쿠팡 화면 자가진단 — 확장이 "문구를 못 찾았다"고 보고한 내역
+  const [health, setHealth] = useState(null)
   // 토큰 로드 전후로 요청이 두 번 나가며, 먼저 보낸 실패 응답이
   // 나중에 도착해 성공 결과를 덮어쓰는 경쟁 상태를 막습니다.
   const reqRef = useRef(0)
@@ -90,6 +106,11 @@ export default function AdminConsole() {
       fetch('/api/admin/review', { headers: { 'x-admin-token': token } })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (seq === reqRef.current && d) setReview(d) })
+        .catch(() => {})
+      // 쿠팡 화면 점검도 마찬가지 — 있으면 보여주고, 없으면 조용히 넘어갑니다.
+      fetch('/api/extension/health', { headers: { 'x-admin-token': token } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (seq === reqRef.current && d) setHealth(d) })
         .catch(() => {})
     } catch (e) {
       if (seq !== reqRef.current) return
@@ -193,6 +214,51 @@ export default function AdminConsole() {
       )}
 
       {error && <div className="section" style={{ paddingTop: 0 }}><p className="note note--danger">{error}</p></div>}
+
+      {/* 쿠팡 화면 점검 — 확장이 스스로 보고한 "문구를 못 찾음" */}
+      {health?.total > 0 && (
+        <section className="panel">
+          <div className="panel__head">
+            <span>🩺 쿠팡 화면 점검</span>
+            <span className={health.autofillFailures > 0 ? 'tag tag--danger' : 'tag tag--warn'}>
+              {health.total}회
+            </span>
+          </div>
+          <div className="panel__body">
+            <p className="note note--danger" style={{ marginBottom: 8 }}>
+              쿠팡 화면에서 확장이 찾아야 할 문구가 보이지 않습니다 —
+              쿠팡이 화면을 바꿨을 가능성이 높습니다.
+              <b> config/coupang-patterns.js</b> 의 해당 항목에 새 문구를 추가하고
+              <b> version</b> 을 올린 뒤 서버를 재시작하면 확장 재배포 없이 복구됩니다.
+              (현재 문구 설정 버전 {health.patternVersion})
+            </p>
+            {health.items.map((h, i) => (
+              <div className="row" key={i}>
+                <span className="row__label">
+                  {HEALTH_KIND_LABELS[h.kind] ?? '🖥 결제 화면 문구 없음'}
+                  {' — '}
+                  <b>{h.missing.map((m) => PATTERN_LABELS[m] ?? m).join(', ') || '일부 문구'}</b>
+                  <small>
+                    {' '}{h.host}{h.path} · 확장 v{h.ext} · 문구 v{h.pat}
+                    {h.patSource === 'bundled' ? '(번들)' : ''}
+                    {h.stage ? ` · 단계 ${h.stage}` : ''}
+                    {h.rejected?.length > 0 ? ` · 거부된 설정 ${h.rejected.join(',')}` : ''}
+                  </small>
+                </span>
+                <span className="row__value">
+                  {h.count}회 <small>{formatDateTime(h.lastAt)}</small>
+                </span>
+              </div>
+            ))}
+            {health.staleExtensions?.length > 0 && (
+              <p className="note" style={{ marginTop: 8 }}>
+                아직 옛 문구 설정으로 도는 확장이 있습니다 (v{health.staleExtensions.join(', v')}) —
+                고객이 확장을 🔄 새로고침하거나 최대 6시간 뒤 자동으로 새 설정을 받습니다.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* 검토 필요 — 자동화가 처리하지 못하고 남긴 건들 */}
       {(review?.paymentReview?.length > 0 || review?.captureReview?.length > 0) && (
