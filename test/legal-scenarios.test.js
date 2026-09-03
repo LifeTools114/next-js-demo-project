@@ -21,12 +21,12 @@ import { estimateItemWeight } from '../lib/weight/estimate.js'
 import { QUOTE } from '../config/quote.js'
 import { REFUND_DAYS, RETURN_POLICY } from '../config/payment.js'
 import { RETURN_SHIPPING } from '../config/shipping.js'
-import { ALL_CONSENTS } from './helpers/consents.js'
 
 const CUSTOMER = { name: '박하노', phone: '0901234567', address: '하노이시 하동구' }
+/** 필수 동의 전체 — 접수가 통과하려면 모두 있어야 합니다. */
 const ALL = REQUIRED_CONSENTS.map((c) => c.id)
 const item = (productName, productPrice, quantity = 1) => ({ productName, productPrice, quantity })
-const order = (over = {}) => createOrder({ consents: ALL_CONSENTS,
+const order = (over = {}) => createOrder({
   items: [item('토리든 다이브인 세럼 50ml', 18900)],
   zone: 'hanoi', track: 'forwarding', customer: CUSTOMER, consents: ALL, ...over,
 })
