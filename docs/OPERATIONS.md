@@ -6,6 +6,33 @@
 
 ---
 
+## 0. 서버 켜기 — 명령 하나
+
+**가장 쉬운 방법**: 저장소 폴더의 **`start-server.cmd` 를 더블클릭**하세요.
+최신 코드 받기 → 패키지 확인 → 설정 확인 → 이전 서버 정리 → 시작 →
+관리자 화면 자동 열기까지 한 번에 합니다.
+
+PowerShell 에서 직접 하려면:
+
+```powershell
+cd C:\Users\acma2\next-js-demo-project
+.\scripts\start-server.ps1
+```
+
+스크립트 없이 손으로 할 때는 이렇게 씁니다. **PowerShell 은 `&&` 를 쓰지
+못합니다** — 여러 명령을 한 줄에 이을 때는 세미콜론(`;`)입니다.
+
+```powershell
+cd C:\Users\acma2\next-js-demo-project ; git pull ; npm run dev
+```
+
+> `'&&' 토큰은 이 버전에서 올바른 문 구분 기호가 아닙니다` 오류가 그 이유입니다.
+
+서버를 끌 때는 그 창에서 **Ctrl+C**. 포트 3000 이 이미 잡혀 있으면
+`start-server.cmd` 가 알아서 이전 서버를 정리하고 새로 띄웁니다.
+
+---
+
 ## 1. 하루 동선
 
 ### 고객이 겪는 흐름 (배송대행 기본 — 쿠팡 결제가 먼저)

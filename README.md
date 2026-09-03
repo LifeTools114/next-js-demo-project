@@ -7,9 +7,14 @@
 npm install
 npm run build:ext   # 확장용 계산 로직 번들
 npm run dev         # 백엔드 http://localhost:3000
-npm test            # 로직 테스트 160개
+npm test            # 로직 테스트
 npm run pack:ext    # 웹스토어 업로드용 zip
 ```
+
+**윈도우 운영 PC** 에서는 `start-server.cmd` 를 더블클릭하면
+`git pull` → 패키지 확인 → 이전 서버 정리 → 시작 → 관리자 화면 열기까지
+한 번에 됩니다. (PowerShell 은 `&&` 를 못 쓰므로 손으로 이을 때는 `;` 입니다:
+`cd <폴더> ; git pull ; npm run dev`)
 
 확장 설치: 크롬 `chrome://extensions` → 개발자 모드 → **압축해제된 확장 프로그램을 로드** → `extension/` 선택
 
