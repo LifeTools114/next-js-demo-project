@@ -15,14 +15,38 @@
 
 import { isAdminRequest } from '../../../lib/auth.js'
 import { appendLog } from '../../../lib/order/persist.js'
-import { COUPANG_PATTERNS } from '../../../config/coupang-patterns.js'
+import { COUPANG_PATTERNS, PATTERN_LABELS, HEALTH_KIND_LABELS } from '../../../config/coupang-patterns.js'
+import { notifyOperator } from '../../../lib/notify.js'
 
-/** HMR·재요청에도 살아남게 전역 하나로 둡니다 (주문 저장소와 같은 방식) */
-const bucket = (globalThis.__kbHealth ??= { entries: new Map(), window: { at: 0, n: 0 } })
+/**
+ * HMR·재요청에도 살아남게 전역 하나로 둡니다 (주문 저장소와 같은 방식).
+ *
+ * 칸을 하나씩 채우는 이유: 코드를 고쳐 새 칸이 생겨도, 이미 떠 있는 서버가
+ * 들고 있던 옛 객체에는 그 칸이 없습니다. 통째로 `??=` 하면 옛 객체가 그대로
+ * 살아남아 새 칸이 undefined 인 채 터집니다 (실제로 겪은 오류입니다).
+ */
+const bucket = (globalThis.__kbHealth ??= {})
+bucket.entries ??= new Map()
+bucket.window ??= { at: 0, n: 0 }
+bucket.alertWindow ??= { at: 0, n: 0 }
 
 const MAX_ENTRIES = 300
 /** 폭주 방지 — 한 시간에 이만큼만 받습니다 (공개 엔드포인트) */
 const MAX_PER_HOUR = 2000
+
+/**
+ * ─────────────── 알림 규칙 ───────────────
+ *
+ * 쿠팡이 화면을 바꾸면 **지금** 알아야 합니다 — 관리자 화면을 열어볼 때까지
+ * 기다리면 그 사이 고객이 막힙니다. 그래서 첫 보고에 바로 알립니다.
+ *
+ * 다만 화면 하나가 바뀌면 고객 수만큼 같은 보고가 들어옵니다. 그대로
+ * 보내면 폰이 울리기만 하고 정작 내용을 못 봅니다. 그래서:
+ *   · 같은 증상: 처음 즉시, 그 뒤로는 계속되는 동안 1시간에 한 번 (누적 횟수 포함)
+ *   · 전체로도 시간당 6건까지 — 여러 화면이 한꺼번에 바뀌어도 폰이 안 잠깁니다
+ */
+const ALERT_QUIET_MS = 60 * 60 * 1000
+const ALERT_MAX_PER_HOUR = 6
 
 const str = (v, max) => String(v ?? '').slice(0, max)
 const KEY_RE = /^[a-zA-Z]{1,24}$/
@@ -72,7 +96,44 @@ function record(report) {
   }
   // 재시작해도 남게 파일에도 한 줄 — 개인정보가 없어 그대로 보관해도 안전합니다.
   appendLog('coupang-health.jsonl', { at: new Date(now).toISOString(), ...report })
-  return { ok: true, first: !prev }
+
+  const entry = bucket.entries.get(sig)
+  const alerted = maybeAlert(entry, now)
+  return { ok: true, first: !prev, alerted }
+}
+
+/** 알림을 보낼 때인가 — 보냈으면 true */
+function maybeAlert(entry, now) {
+  // 처음 보는 증상이면 alertedAt 이 없어 그 자리에서 통과합니다.
+  if (now - (entry.alertedAt ?? 0) < ALERT_QUIET_MS) return false
+  if (now - bucket.alertWindow.at > 3600_000) bucket.alertWindow = { at: now, n: 0 }
+  if (bucket.alertWindow.n >= ALERT_MAX_PER_HOUR) return false
+
+  bucket.alertWindow.n += 1
+  entry.alertedAt = now
+  notifyOperator({ tag: 'coupang-health', ...alertText(entry) })
+  return true
+}
+
+/** 알림 문구 — 폰에서 이것만 보고도 무엇을 고칠지 알 수 있어야 합니다. */
+function alertText(entry) {
+  const what = HEALTH_KIND_LABELS[entry.kind] ?? HEALTH_KIND_LABELS.unknown
+  const missing = entry.missing.map((k) => PATTERN_LABELS[k] ?? k).join(', ') || '일부 문구'
+  const base = (process.env.BASE_URL || '').replace(/\/$/, '')
+  return {
+    title: `🚨 쿠팡 화면 변경 의심 — ${what}`,
+    message: [
+      `못 찾은 것: ${missing}`,
+      `위치: ${entry.host}${entry.path} · 확장 v${entry.ext || '?'} · 문구 설정 v${entry.pat}`,
+      entry.count > 1
+        ? `누적 ${entry.count}회 — 계속되고 있습니다 (처음 ${new Date(entry.firstAt).toLocaleString('ko-KR')})`
+        : `방금 처음 발생 (${new Date(entry.firstAt).toLocaleString('ko-KR')})`,
+      '',
+      `고치는 법: config/coupang-patterns.js 의 ${entry.missing.join(', ') || '해당 항목'} 에`,
+      '새 문구를 추가하고 version 을 올린 뒤 서버 재시작 — 확장 재배포는 필요 없습니다.',
+      base ? `관리자 화면: ${base}/admin` : '관리자 화면: /admin 의 「🩺 쿠팡 화면 점검」',
+    ].join('\n'),
+  }
 }
 
 /** 운영자 화면용 요약 — 최근 것이 위로 */
@@ -102,6 +163,7 @@ export function healthSummary({ hours = 72 } = {}) {
 export function resetHealth() {
   bucket.entries.clear()
   bucket.window = { at: 0, n: 0 }
+  bucket.alertWindow = { at: 0, n: 0 }
 }
 
 export const config = { api: { bodyParser: { sizeLimit: '8kb' } } }

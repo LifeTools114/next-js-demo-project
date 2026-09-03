@@ -71,6 +71,25 @@ export const COUPANG_PATTERNS = {
   },
 }
 
+/**
+ * 사람이 읽을 이름 — 관리자 화면과 알림 문구가 같은 말을 쓰도록 한 곳에 둡니다.
+ * ("openAddr 없음" 이 아니라 "[배송지 변경] 문구를 못 찾음" 으로 보여야 합니다)
+ */
+export const PATTERN_LABELS = {
+  openAddr: '배송지 변경', addAddr: '배송지 추가', zipSearch: '우편번호 찾기',
+  pick: '선택', payButton: '결제하기', zipSubmit: '주소 검색',
+  items: '상품·금액 표기',
+}
+
+/** 자가진단 종류 → 사람이 읽을 이름 */
+export const HEALTH_KIND_LABELS = {
+  addrAutofill: '⚡ 배송지 자동등록 실패',
+  checkout: '🖥 결제 화면 문구 없음',
+  price: '💰 결제 화면 금액을 못 읽음',
+  product: '📦 상품 화면 인식 실패',
+  unknown: '❓ 알 수 없는 이상',
+}
+
 /** API 로 내보낼 형태 — 확장이 그대로 쓰는 값만 담습니다. */
 export function coupangPatternPayload() {
   return {

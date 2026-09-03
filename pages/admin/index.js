@@ -5,6 +5,7 @@ import { ORDER_STATES, TRANSITIONS } from '../../lib/order/states'
 import { krw, vnd, weight, formatDateTime } from '../../lib/format'
 import { maintenanceStatus, checkAction } from '../../lib/maintenance'
 import { DESTINATION } from '../../config/eligibility'
+import { PATTERN_LABELS, HEALTH_KIND_LABELS } from '../../config/coupang-patterns'
 
 /**
  * 운영자 콘솔 — 두 거래를 각각 처리합니다.
@@ -40,20 +41,6 @@ const ACTIONS_BY_STATE = {
 }
 
 /** 입금 대조 실패 사유 → 사람이 읽는 설명 */
-/** 자가진단 보고의 문구 키 → 운영자가 읽을 이름 */
-const PATTERN_LABELS = {
-  openAddr: '배송지 변경', addAddr: '배송지 추가', zipSearch: '우편번호 찾기',
-  pick: '선택', payButton: '결제하기', zipSubmit: '주소 검색',
-  items: '상품·금액 표기',
-}
-
-/** 자가진단 종류 → 운영자가 읽을 이름 */
-const HEALTH_KIND_LABELS = {
-  addrAutofill: '⚡ 배송지 자동등록 실패',
-  checkout: '🖥 결제 화면 문구 없음',
-  price: '💰 결제 화면 금액을 못 읽음',
-}
-
 const DEPOSIT_REASON_LABELS = {
   'no-order-no': '이체 메모에 주문번호 없음',
   'order-not-found': '주문번호 불일치',

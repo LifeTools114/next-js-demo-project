@@ -102,8 +102,15 @@ test('자가진단 요구 항목은 실제 문구 키만 가리킨다', () => {
 /* ─────────────── 자가진단 수집 API ─────────────── */
 
 process.env.ADMIN_TOKEN = 'testtoken'
+// 알림 기록을 확인하려면 로그를 켜야 합니다 (이 파일은 주문 스토어를 쓰지 않습니다).
+const { mkdtempSync } = await import('node:fs')
+const { join } = await import('node:path')
+const { tmpdir } = await import('node:os')
+process.env.ORDER_STORE_DIR = mkdtempSync(join(tmpdir(), 'kb-health-'))
+
 const { default: healthHandler, resetHealth, healthSummary } =
   await import('../pages/api/extension/health.js')
+const { readLog } = await import('../lib/order/persist.js')
 
 const mockRes = () => ({
   statusCode: 0, body: null,
@@ -175,4 +182,57 @@ test('요약 조회는 운영자 토큰이 있어야 한다 — 어떤 문구가
 test('빈 보고는 거부한다', () => {
   resetHealth()
   assert.equal(post({}).statusCode, 400)
+})
+
+
+/* ─────────────── 이상 발견 시 알림 ─────────────── */
+
+test('처음 발견하면 즉시 알린다 — 관리자 화면을 열어볼 때까지 기다리지 않는다', () => {
+  resetHealth()
+  const before = readLog('operator-alerts.jsonl').length
+  const res = post({
+    kind: 'addrAutofill', missing: ['openAddr'], found: { openAddr: 0 },
+    host: 'checkout.coupang.com', path: '/order/pc', ext: '0.5.0', pat: 1, patSource: 'server',
+  })
+  assert.equal(res.body.alerted, true, '첫 보고는 알려야 합니다')
+
+  const sent = readLog('operator-alerts.jsonl')
+  assert.equal(sent.length, before + 1)
+  assert.ok(sent[0].title.includes('쿠팡 화면 변경'), sent[0].title)
+  assert.ok(sent[0].message.includes('배송지 변경'), '무엇을 못 찾았는지 사람 말로 적혀야 합니다')
+  assert.ok(sent[0].message.includes('coupang-patterns.js'), '고치는 방법이 함께 가야 합니다')
+})
+
+test('같은 증상이 쏟아져도 폰은 한 번만 울린다', () => {
+  resetHealth()
+  const body = {
+    kind: 'checkout', missing: ['openAddr'], found: { openAddr: 0 },
+    host: 'checkout.coupang.com', path: '/order/pc', ext: '0.5.0', pat: 1,
+  }
+  const alerts = []
+  for (let i = 0; i < 12; i += 1) alerts.push(post(body).body.alerted)
+  assert.deepEqual(alerts.filter(Boolean).length, 1, '고객 12명이 겪어도 알림은 1건이어야 합니다')
+  assert.equal(alerts[0], true, '첫 보고에서 바로 알려야 합니다')
+  assert.equal(healthSummary().total, 12, '알림은 줄여도 집계는 전부 남아야 합니다')
+})
+
+test('다른 증상은 따로 알린다 — 한 건에 묻히지 않게', () => {
+  resetHealth()
+  const at = { host: 'checkout.coupang.com', path: '/order/pc', ext: '0.5.0', pat: 1 }
+  assert.equal(post({ kind: 'checkout', missing: ['openAddr'], ...at }).body.alerted, true)
+  assert.equal(post({ kind: 'price', missing: ['items'], ...at }).body.alerted, true)
+})
+
+test('알림이 실패해도 보고 수집은 계속된다', () => {
+  resetHealth()
+  // 잘못된 웹훅 주소 — fetch 가 실패해도 202 로 받고 요약에는 남아야 합니다.
+  const prev = process.env.NOTIFY_WEBHOOK_URL
+  process.env.NOTIFY_WEBHOOK_URL = 'http://127.0.0.1:1/none'
+  try {
+    assert.equal(post({ kind: 'price', missing: ['items'], host: 'checkout.coupang.com' }).statusCode, 202)
+    assert.equal(healthSummary().total, 1)
+  } finally {
+    if (prev === undefined) delete process.env.NOTIFY_WEBHOOK_URL
+    else process.env.NOTIFY_WEBHOOK_URL = prev
+  }
 })
