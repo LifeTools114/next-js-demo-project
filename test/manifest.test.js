@@ -7,9 +7,10 @@ import {
 import { manifestRow, toManifestCsv } from '../lib/manifest.js'
 import { MANIFEST } from '../config/manifest.js'
 import manifestHandler from '../pages/api/admin/manifest.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 const settledOrder = (name = 'Mai') => {
-  let o = createOrder({
+  let o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productId: '1', productName: '수분크림, "특별판" 100ml', productPrice: 27600, quantity: 2 }],
     zone: 'hanoi', track: 'agent',
     customer: { name, phone: '0912', address: 'Ba Đình, Hà Nội' },

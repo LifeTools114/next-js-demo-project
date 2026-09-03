@@ -5,6 +5,7 @@ import Layout from '../components/Layout'
 import CostBreakdown from '../components/CostBreakdown'
 import { SHIPPING, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { PAYMENT, REFUND_DAYS, RETURN_POLICY } from '../config/payment'
+import { REQUIRED_CONSENTS } from '../config/legal'
 import { FX } from '../config/fx'
 import { krw, vnd } from '../lib/format'
 import { rememberMyOrder } from '../lib/my-orders'
@@ -24,6 +25,12 @@ export default function Checkout() {
   const [form, setForm] = useState({ name: '', phone: '', address: '', email: '' })
   const [methods, setMethods] = useState([])
   const [paymentMethod, setPaymentMethod] = useState('manual-bank')
+  /**
+   * 필수 고지 동의 — 서버가 최종 검증하지만, 화면에서 먼저 받아
+   * 무엇에 동의하는지 큰 글씨로 보여줍니다 (config/legal.js).
+   */
+  const [consents, setConsents] = useState({})
+  const allAgreed = REQUIRED_CONSENTS.every((c) => consents[c.id])
   const [quote, setQuote] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -126,6 +133,7 @@ export default function Checkout() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items, zone, track, customer: form, paymentMethod,
+          consents: REQUIRED_CONSENTS.filter((c) => consents[c.id]).map((c) => c.id),
           coupangOrderNo: coupangOrderNo || undefined,
           // 중복 안내를 보고 "일부러 한 번 더 산다"고 확인한 재구매만 true
           force: force || undefined,
@@ -405,31 +413,103 @@ export default function Checkout() {
           </div>
         </section>
 
+        {/*
+          결제 안내 — 10살 어린이도, 60세 어르신도 따라 할 수 있게.
+          "무엇을 / 어디로 / 얼마" 를 큰 글씨 세 줄로만 보여주고,
+          계좌번호는 눌러서 복사되게 합니다.
+        */}
         <section className="panel">
-          <div className="panel__head">결제 수단</div>
+          <div className="panel__head">3. 결제 방법 고르기</div>
           <div className="panel__body">
             {methods.length === 0 ? (
-              <p className="note note--warn">사용 가능한 결제 수단이 없습니다. 운영자에게 문의해 주세요.</p>
+              <p className="note note--warn">사용 가능한 결제 수단이 없습니다. 카카오톡으로 문의해 주세요.</p>
             ) : (
-              <select className="select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="결제 수단">
-                {methods.map((m) => <option key={m.id} value={m.id}>{m.label} · {m.labelVi}</option>)}
-              </select>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {methods.map((m) => {
+                  const on = paymentMethod === m.id
+                  return (
+                    <button key={m.id} type="button" onClick={() => setPaymentMethod(m.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                        padding: '16px 14px', borderRadius: 14, cursor: 'pointer', textAlign: 'left',
+                        border: on ? '3px solid #3182f6' : '2px solid #e5e8eb',
+                        background: on ? '#eef4fb' : '#fff',
+                      }}>
+                      <span style={{ fontSize: 30 }}>{m.currency === 'KRW' ? '🇰🇷' : '🇻🇳'}</span>
+                      <span style={{ flex: 1 }}>
+                        <span style={{ display: 'block', fontSize: 17, fontWeight: 800, color: '#191f28' }}>
+                          {m.currency === 'KRW' ? '한국 계좌로 원화 입금' : '베트남 계좌로 동화 입금'}
+                        </span>
+                        <span style={{ display: 'block', fontSize: 13.5, color: '#4e5968' }}>{m.label}</span>
+                      </span>
+                      <span style={{ fontSize: 24, color: on ? '#3182f6' : '#c9d0d8' }}>{on ? '✓' : '○'}</span>
+                    </button>
+                  )
+                })}
+              </div>
             )}
+
             {quote && (() => {
               const chosen = methods.find((m) => m.id === paymentMethod)
               if (!chosen?.currency) return null
+              const amount = chosen.currency === 'KRW' ? krw(quote.total) : vnd(quote.totalVnd)
               return (
-                <p className="note" style={{ marginTop: 12 }}>
-                  입금하실 금액: <b>{chosen.currency === 'KRW' ? krw(quote.total) : vnd(quote.totalVnd)}</b>
-                  {' '}<small>({chosen.currency === 'KRW' ? `≈ ${vnd(quote.totalVnd)}` : `≈ ${krw(quote.total)}`})</small>
-                  <br />
-                  <small>이체 메모(입금자명)에 주문번호를 꼭 넣어주세요 — 입금이 자동으로 확인됩니다.</small>
-                </p>
+                <div style={{ marginTop: 14, border: '2px solid #3182f6', borderRadius: 14, overflow: 'hidden' }}>
+                  <div style={{ background: '#3182f6', color: '#fff', padding: '10px 14px', fontWeight: 800, fontSize: 15 }}>
+                    이렇게 하시면 됩니다
+                  </div>
+                  <ol style={{ margin: 0, padding: '14px 14px 14px 34px', fontSize: 15.5, lineHeight: 2, color: '#191f28' }}>
+                    <li>아래 <b>주문하기</b>를 누릅니다.</li>
+                    <li>다음 화면에 나오는 <b>계좌번호</b>로 <b style={{ color: '#f04452', fontSize: 18 }}>{amount}</b> 을 보냅니다.</li>
+                    <li>보낼 때 메모에 <b>주문번호</b>를 적습니다. (자동으로 확인됩니다)</li>
+                  </ol>
+                  <p style={{ margin: 0, padding: '0 14px 14px', fontSize: 13.5, color: '#4e5968' }}>
+                    계좌번호는 다음 화면에서 <b>누르면 복사</b>됩니다. 카드로 내고 싶으시면 카카오톡으로 말씀해 주세요.
+                  </p>
+                </div>
               )
             })()}
-            <p className="note" style={{ marginTop: 12 }}>
-              선결제 방식입니다. 입금이 확인되면 진행합니다. 청구서는 발행 후 {PAYMENT.invoiceValidHours}시간
-              동안 유효하며, 그동안 환율이 고정됩니다.
+          </div>
+        </section>
+
+        {/*
+          필수 동의 — 무엇에 동의하는지 한 줄씩, 전문은 공지사항으로.
+          서버가 다시 검증하므로 화면을 건너뛴 접수는 거절됩니다.
+        */}
+        <section className="panel">
+          <div className="panel__head">4. 확인하고 동의하기</div>
+          <div className="panel__body">
+            <button type="button"
+              onClick={() => {
+                const next = {}
+                for (const c of REQUIRED_CONSENTS) next[c.id] = !allAgreed
+                setConsents(next)
+              }}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 12, cursor: 'pointer',
+                border: allAgreed ? '3px solid #17916b' : '2px solid #e5e8eb',
+                background: allAgreed ? '#e6f6f0' : '#fff',
+                fontSize: 16.5, fontWeight: 800, color: allAgreed ? '#17916b' : '#191f28',
+              }}>
+              {allAgreed ? '✓ 모두 확인했습니다' : '아래 내용을 모두 확인했습니다'}
+            </button>
+
+            <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+              {REQUIRED_CONSENTS.map((c) => (
+                <label key={c.id} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                  border: '1px solid #e5e8eb', borderRadius: 10, cursor: 'pointer',
+                  background: consents[c.id] ? '#f7fbf9' : '#fff',
+                }}>
+                  <input type="checkbox" checked={Boolean(consents[c.id])}
+                    onChange={(e) => setConsents({ ...consents, [c.id]: e.target.checked })}
+                    style={{ width: 22, height: 22, marginTop: 1, flexShrink: 0 }} />
+                  <span style={{ fontSize: 14.5, lineHeight: 1.6, color: '#333d4b' }}>{c.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="note" style={{ marginTop: 10, fontSize: 13.5 }}>
+              자세한 내용은 <a href="/notice" target="_blank" rel="noreferrer"><b>공지사항</b></a> 에서 확인하실 수 있습니다.
             </p>
           </div>
         </section>
@@ -494,10 +574,13 @@ export default function Checkout() {
         )}
 
         <div className="section" style={{ paddingTop: 0 }}>
-          <button className="btn" type="submit" disabled={!valid || !quote || blocked || overLimit || submitting || methods.length === 0}>
+          <button className="btn" type="submit"
+            style={{ minHeight: 60, fontSize: 19, fontWeight: 800 }}
+            disabled={!valid || !quote || blocked || overLimit || submitting || methods.length === 0 || !allAgreed}>
             {submitting ? '주문 생성 중…'
               : blocked ? '배송 불가 상품 포함'
               : overLimit ? '접수 한도 초과 — 나눠서 신청해 주세요'
+              : !allAgreed ? '위 확인 항목에 모두 체크해 주세요'
               : quote ? `${krw(quote.total)} 주문하기` : '견적 계산 중…'}
           </button>
           {quote && !blocked && (

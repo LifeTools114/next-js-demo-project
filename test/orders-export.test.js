@@ -4,6 +4,7 @@ import {
   createOrder, confirmPayment, startPurchase, recordPurchase, recordWeighing, _reset,
 } from '../lib/order/store.js'
 import exportHandler, { toOrdersCsv, COLUMNS } from '../pages/api/admin/orders-export.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 function mockRes() {
   return {
@@ -23,7 +24,7 @@ const call = (method, query = {}) => {
 test.beforeEach(() => _reset())
 
 test('주문 엑셀: 구매대행 행에 쿠팡 주문번호·실측 무게가 담긴다', () => {
-  let o = createOrder({
+  let o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productId: '1', productName: '수분크림 100ml', productPrice: 27600, quantity: 2 }],
     zone: 'hanoi', track: 'agent',
     customer: { name: 'Mai', phone: '0912 345 678', address: 'Ba Đình, Hà Nội', email: 'mai@x.vn' },
@@ -45,7 +46,7 @@ test('주문 엑셀: 구매대행 행에 쿠팡 주문번호·실측 무게가 �
 })
 
 test('주문 엑셀: 배송대행 행은 고객이 연결한 쿠팡 주문번호를 쓴다', () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productId: '2', productName: '선크림 50ml', productPrice: 15000, quantity: 1 }],
     zone: 'hanoi', track: 'forwarding',
     customer: { name: 'Linh', phone: '09', address: 'Hà Nội' },
@@ -57,12 +58,12 @@ test('주문 엑셀: 배송대행 행은 고객이 연결한 쿠팡 주문번호
 })
 
 test('주문 엑셀 API: 전체 CSV, 상태 필터, 빈 목록 404, POST 405', () => {
-  const a = createOrder({
+  const a = createOrder({ consents: ALL_CONSENTS,
     items: [{ productId: '1', productName: 'A', productPrice: 30000, quantity: 1 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'A', phone: '1', address: 'x' },
   })
   confirmPayment(a.id, { confirmedBy: 'op' })
-  const b = createOrder({
+  const b = createOrder({ consents: ALL_CONSENTS,
     items: [{ productId: '2', productName: 'B', productPrice: 30000, quantity: 1 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'B', phone: '2', address: 'y' },
   })
@@ -81,14 +82,14 @@ test('주문 엑셀 API: 전체 CSV, 상태 필터, 빈 목록 404, POST 405', (
 
 test('구매대행 접수 한도: 초과 주문은 생성 자체가 거절된다', () => {
   assert.throws(
-    () => createOrder({
+    () => createOrder({ consents: ALL_CONSENTS,
       items: [{ productId: '1', productName: '수분크림 50ml', productPrice: 550000, quantity: 2 }],
       zone: 'hanoi', track: 'agent', customer: { name: 'A', phone: '1', address: 'HN' },
     }),
     /나눠서 신청/,
   )
   // 배송대행은 상품값을 받지 않으므로 같은 금액이어도 접수됩니다.
-  const fw = createOrder({
+  const fw = createOrder({ consents: ALL_CONSENTS,
     items: [{ productId: '1', productName: '수분크림 50ml', productPrice: 550000, quantity: 2 }],
     zone: 'hanoi', track: 'forwarding', customer: { name: 'A', phone: '1', address: 'HN' },
   })

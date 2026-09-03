@@ -10,8 +10,9 @@ import assert from 'node:assert/strict'
 import { createOrder, saveDebitNote, getOrder } from '../lib/order/store.js'
 import { buildProvisionalQuote, buildFinalQuote, buildQuoteDoc } from '../lib/quote-doc.js'
 import { QUOTE } from '../config/quote.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
-const newOrder = () => createOrder({
+const newOrder = () => createOrder({ consents: ALL_CONSENTS,
   items: [{ productName: '토리든 다이브인 세럼 50ml', productPrice: 18000, quantity: 3 }],
   zone: 'hanoi',
   track: 'forwarding',

@@ -165,13 +165,61 @@ export default function OrderPage() {
               </span>
             </div>
 
-            {order.paymentRequest?.instructions && (
-              <div className="note" style={{ marginTop: 12 }}>
-                {order.paymentRequest.instructions.map((line, i) => (
-                  <span key={i}>· {line}<br /></span>
-                ))}
-              </div>
-            )}
+            {/*
+              계좌번호는 손으로 옮겨 적다 틀리기 쉽습니다 — 눌러서 복사되게
+              하고, 어린이·어르신도 읽을 수 있게 크게 보여줍니다.
+            */}
+            {order.paymentRequest?.instructions && (() => {
+              const lines = order.paymentRequest.instructions
+              const pick = (re) => lines.find((l) => re.test(l))?.split(':').slice(1).join(':').trim() ?? ''
+              const bank = pick(/은행/)
+              const account = pick(/계좌번호/)
+              const holder = pick(/예금주/)
+              const others = lines.filter((l) => !/은행|계좌번호|예금주/.test(l))
+              return (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ border: '2px solid #3182f6', borderRadius: 14, overflow: 'hidden' }}>
+                    <div style={{ background: '#3182f6', color: '#fff', padding: '10px 14px', fontWeight: 800, fontSize: 15 }}>
+                      여기로 보내주세요
+                    </div>
+                    <div style={{ padding: 14 }}>
+                      <div style={{ fontSize: 15, color: '#4e5968' }}>{bank}</div>
+                      <button type="button"
+                        onClick={async (e) => {
+                          try {
+                            await navigator.clipboard.writeText(account.replace(/[^0-9]/g, ''))
+                            const b = e.currentTarget
+                            const t = b.textContent
+                            b.textContent = '✓ 복사되었습니다'
+                            setTimeout(() => { b.textContent = t }, 1500)
+                          } catch { /* 권한 없으면 화면의 번호를 보고 입력 */ }
+                        }}
+                        style={{
+                          display: 'block', width: '100%', marginTop: 6, padding: '12px 10px',
+                          border: '2px dashed #3182f6', borderRadius: 10, background: '#f2f6fb',
+                          fontSize: 24, fontWeight: 800, color: '#191f28', cursor: 'pointer',
+                        }}>
+                        {account}
+                      </button>
+                      <div style={{ fontSize: 15, color: '#4e5968', marginTop: 6 }}>예금주 : <b>{holder}</b></div>
+                      <div style={{
+                        marginTop: 12, padding: '10px 12px', borderRadius: 10,
+                        background: '#fff0f0', color: '#c92a2a', fontSize: 15, fontWeight: 700, lineHeight: 1.6,
+                      }}>
+                        보낼 때 메모(내용)에 <b style={{ fontSize: 17 }}>{order.orderNo}</b> 를 꼭 적어주세요.
+                        <br />
+                        <span style={{ fontWeight: 500, fontSize: 13.5 }}>적지 않으면 누구 입금인지 확인이 늦어집니다.</span>
+                      </div>
+                    </div>
+                  </div>
+                  {others.length > 0 && (
+                    <div className="note" style={{ marginTop: 10, fontSize: 13 }}>
+                      {others.map((line, i) => <span key={i}>· {line}<br /></span>)}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
             <p className="note note--warn" style={{ marginTop: 10 }}>
               적용 환율 1원 = {order.fx.effectiveRate.toFixed(2)}₫ (주문 시점 고정)
               {order.invoice.expiresAt && ` · 유효기한 ${formatDateTime(order.invoice.expiresAt)}`}

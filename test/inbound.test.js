@@ -4,15 +4,16 @@ import {
   createOrder, confirmPayment, linkInbound, findByInbound, recordWeighing,
   customerView, orderView, _reset,
 } from '../lib/order/store.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 const forwardingOrder = () =>
-  createOrder({
+  createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
     zone: 'hanoi', track: 'forwarding',
     customer: { name: '김하노', phone: '0912', address: 'Hanoi' },
   })
 const agentOrder = () =>
-  createOrder({
+  createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
     zone: 'hanoi', track: 'agent',
     customer: { name: 'Mai', phone: '0912', address: 'Hanoi' },
@@ -63,7 +64,7 @@ test('입고 매칭: 수령인 코드·쿠팡 주문번호·운송장 무엇으�
 
 test('쿠팡 결제 우선: 생성 시 연결 → 수동 입금확인만으로 끝까지 자동', () => {
   // 고객이 쿠팡에서 먼저 결제 → 트랜잭션(주문번호)을 들고 주문 생성
-  let o = createOrder({
+  let o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
     zone: 'hanoi', track: 'forwarding',
     customer: { name: '김하노', phone: '0912', address: 'Hanoi' },
@@ -82,7 +83,7 @@ test('쿠팡 결제 우선: 생성 시 연결 → 수동 입금확인만으로 �
 })
 
 test('쿠팡 결제 우선: 구매대행 주문에는 연결이 무시된다', () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
     zone: 'hanoi', track: 'agent',
     customer: { name: 'Mai', phone: '0912', address: 'Hanoi' },
@@ -94,7 +95,7 @@ test('쿠팡 결제 우선: 구매대행 주문에는 연결이 무시된다', (
 
 test('입고 매칭: 이름 폴백은 유일할 때만 통한다', () => {
   const mk = (name, no) => {
-    const o = createOrder({
+    const o = createOrder({ consents: ALL_CONSENTS,
       items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
       zone: 'hanoi', track: 'forwarding',
       customer: { name, phone: '0912', address: 'Hanoi' },

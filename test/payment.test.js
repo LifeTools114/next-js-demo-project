@@ -7,12 +7,13 @@ import {
 import { extractOrderNo, dueFor, matchDeposit } from '../lib/payment/deposit-match.js'
 import { availableMethods } from '../lib/payment/methods.js'
 import webhookHandler from '../pages/api/payment/webhook.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 const ITEMS = [
   { productId: '7001', productName: '토리든 다이브인 세럼 50ml', productPrice: 19900, quantity: 2 },
 ]
 const newOrder = (paymentMethod = 'manual-bank') =>
-  createOrder({
+  createOrder({ consents: ALL_CONSENTS,
     items: ITEMS, zone: 'hanoi', track: 'agent',
     customer: { name: 'Mai', phone: '0912', address: 'Hanoi' },
     paymentMethod,

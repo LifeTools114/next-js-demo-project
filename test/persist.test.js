@@ -5,6 +5,7 @@ import { mkdtempSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 // Windows 호환: URL.pathname 은 "/C:/..." 를 돌려줘 경로가 깨지고,
 // 백슬래시 경로를 -e 문자열에 넣으면 이스케이프로 해석됩니다.
@@ -27,7 +28,7 @@ function runInFreshProcess(dir, code) {
 }
 
 const CREATE = `
-const o = S.createOrder({
+const o = S.createOrder({ consents: (await import('file://' + process.cwd() + '/config/legal.js')).REQUIRED_CONSENTS.map((c) => c.id),
   items: [{ productName: '수분크림 100ml', productPrice: 25000, quantity: 1 }],
   zone: 'hanoi',
   track: 'agent',

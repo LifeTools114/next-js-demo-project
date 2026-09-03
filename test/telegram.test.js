@@ -6,9 +6,10 @@ import {
 } from '../lib/order/store.js'
 import { parseCommand, findOrderFromText, trackingTokenFrom } from '../lib/telegram/inbound.js'
 import { handlePartnerMessage } from '../lib/telegram/handle.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 const forwardingPaid = (name = '박하노', coupangNo = '29000111111111') => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
     zone: 'hanoi', track: 'forwarding',
     customer: { name, phone: '0912', address: 'Hanoi' },
@@ -82,7 +83,7 @@ test('텔레그램 안전장치: 주문 못 찾으면 안내, 잘못된 상태�
 })
 
 test('텔레그램 고객뷰: 매입 정보는 여전히 숨겨진다', () => {
-  let o = createOrder({
+  let o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 1 }],
     zone: 'hanoi', track: 'agent',
     customer: { name: 'Mai', phone: '0912', address: 'Hanoi' },

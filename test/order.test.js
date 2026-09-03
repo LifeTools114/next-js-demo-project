@@ -10,13 +10,14 @@ import { SETTLEMENT_RULES } from '../config/payment.js'
 import { emptyLedger, customerEntry, procurementEntry, summarize, recognizeRevenue } from '../lib/order/ledger.js'
 import { computeSettlement } from '../lib/order/settlement.js'
 import { availableMethods, getMethod, NotConfiguredError } from '../lib/payment/methods.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 const ITEMS = [
   { productId: '7001', productName: '토리든 다이브인 세럼 50ml', productPrice: 19900, quantity: 2 },
   { productId: '7201', productName: '메디힐 마스크팩 10매', productPrice: 12900, quantity: 3 },
 ]
 const newOrder = () =>
-  createOrder({ items: ITEMS, zone: 'hanoi', customer: { name: 'Mai', phone: '0912', address: 'Hanoi' } })
+  createOrder({ consents: ALL_CONSENTS, items: ITEMS, zone: 'hanoi', customer: { name: 'Mai', phone: '0912', address: 'Hanoi' } })
 
 test.beforeEach(() => _reset())
 
@@ -57,12 +58,12 @@ test('주문 생성: 청구가 고객 원장에 기록된다', () => {
 })
 
 test('주문 생성: 상품이 없으면 거부한다', () => {
-  assert.throws(() => createOrder({ items: [], zone: 'hanoi', customer: { name: 'A' } }), /상품이 없습니다/)
+  assert.throws(() => createOrder({ consents: ALL_CONSENTS, items: [], zone: 'hanoi', customer: { name: 'A' } }), /상품이 없습니다/)
 })
 
 test('주문 생성: 설정되지 않은 결제 수단은 거부한다', () => {
   assert.throws(
-    () => createOrder({ items: ITEMS, zone: 'hanoi', customer: { name: 'A' }, paymentMethod: 'momo' }),
+    () => createOrder({ consents: ALL_CONSENTS, items: ITEMS, zone: 'hanoi', customer: { name: 'A' }, paymentMethod: 'momo' }),
     NotConfiguredError,
   )
 })
@@ -112,7 +113,7 @@ test('매출 인식: 매입 기록 전에는 확정되지 않는다', () => {
 test('정산: 실측이 무거우면 추가 청구, 가벼우면 환불', () => {
   // 무게가 충분히 커야 양방향 정산을 모두 확인할 수 있습니다.
   // (2kg 주문은 최소 청구무게가 1kg 이라 환불 폭이 허용오차를 못 넘습니다)
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
@@ -316,7 +317,7 @@ test('환율 동결: 정산은 주문 시점 환율로 재계산한다', async (
 test('허용오차: 같은 청구 구간이면 정산이 없다 — 반내림이 ±0.5kg 를 흡수', () => {
   // 정수 kg 반내림 규칙에서는 구간 자체가 흡수 장치입니다:
   // 실측이 (청구kg + 0.5) 까지는 요금이 같아 정산이 아예 발생하지 않습니다.
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
@@ -337,7 +338,7 @@ test('허용오차: 같은 청구 구간이면 정산이 없다 — 반내림이
 
 test('허용오차: 신뢰도가 낮으면 흡수하지 않는다', () => {
   // 세트·기획 상품처럼 근거가 약한 건은 오차가 커서 흡수하면 손실이 큽니다.
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '알 수 없는 기획세트', productPrice: 50000, quantity: 3 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
@@ -349,7 +350,7 @@ test('허용오차: 신뢰도가 낮으면 흡수하지 않는다', () => {
 
 test('허용오차: 소액 차액은 신뢰도와 무관하게 정산하지 않는다', () => {
   // 송금 수수료가 차액보다 크면 정산 자체가 손해입니다.
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '알 수 없는 기획세트', productPrice: 50000, quantity: 1 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })
@@ -359,7 +360,7 @@ test('허용오차: 소액 차액은 신뢰도와 무관하게 정산하지 않�
 })
 
 test('허용오차: 흡수해도 고객 청구액은 최초 견적 그대로다', () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', specOverride: '50ml', productPrice: 19900, quantity: 20 }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })

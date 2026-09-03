@@ -5,6 +5,7 @@ import {
   findDuplicateOrder, CUSTOMER_CANCELLABLE_STATES, _reset,
 } from '../lib/order/store.js'
 import { summarize } from '../lib/order/ledger.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 /**
  * 중복 접수 감지 + 고객 셀프 취소.
@@ -20,7 +21,7 @@ const ITEMS = [
 ]
 const CUSTOMER = { name: 'Mai', phone: '0912 345 678', address: 'Hanoi' }
 const make = (over = {}) =>
-  createOrder({ items: ITEMS, zone: 'hanoi', track: 'agent', customer: CUSTOMER, ...over })
+  createOrder({ consents: ALL_CONSENTS, items: ITEMS, zone: 'hanoi', track: 'agent', customer: CUSTOMER, ...over })
 
 test.beforeEach(() => _reset())
 
@@ -101,7 +102,7 @@ test('중복: 여러 건이 열려 있으면 전부 알려준다 — 하나만 �
 // ─────────────── 중복 감지: 쿠팡 주문번호 ───────────────
 
 test('중복: 같은 쿠팡 주문번호는 상품·연락처가 달라도 언제나 잡힌다', () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: ITEMS, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
     coupangOrderNo: '30001234567890',
   })
@@ -116,7 +117,7 @@ test('중복: 같은 쿠팡 주문번호는 상품·연락처가 달라도 언�
 })
 
 test('중복: 쿠팡 주문번호 중복은 결제·배송이 진행된 뒤에도 잡힌다', () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: ITEMS, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
     coupangOrderNo: '30009999999999',
   })
@@ -128,7 +129,7 @@ test('중복: 쿠팡 주문번호 중복은 결제·배송이 진행된 뒤에�
 })
 
 test('중복: 연결된 주문을 취소하면 같은 쿠팡 주문을 다시 접수할 수 있다', () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: ITEMS, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
     coupangOrderNo: '30008888888888',
   })
@@ -194,7 +195,7 @@ test('변심 취소: 구매대행은 대행수수료만 남기고 환불한다',
 
 test('변심 취소: 배송대행은 $1 만 차감한다', async () => {
   const { cancelOrder } = await import('../lib/order/store.js')
-  const o = createOrder({ items: ITEMS, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER })
+  const o = createOrder({ consents: ALL_CONSENTS, items: ITEMS, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER })
   confirmPayment(o.id, { confirmedBy: 'admin' })
   const cancelled = cancelOrder(o.id, { reason: '고객 변심', by: 'admin', customerFault: true })
   const s = summarize(cancelled.ledger, cancelled.fx.effectiveRate)
@@ -229,12 +230,12 @@ test('서버 최종 거절: 배송 불가 상품은 주문 생성 자체가 막�
   // 화면 검증을 우회한 직접 API 호출 대비 — 해외직구·금지 품목 공통 가드.
   const overseas = [{ productName: '나이키 에어맥스', productPrice: 120000, quantity: 1, badges: ['로켓직구'] }]
   assert.throws(
-    () => createOrder({ items: overseas, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER }),
+    () => createOrder({ consents: ALL_CONSENTS, items: overseas, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER }),
     /배송할 수 없는 상품/,
   )
   const banned = [{ productName: '샤넬 오드퍼퓸 50ml', productPrice: 200000, quantity: 1 }]
   assert.throws(
-    () => createOrder({ items: banned, zone: 'hanoi', track: 'agent', customer: CUSTOMER }),
+    () => createOrder({ consents: ALL_CONSENTS, items: banned, zone: 'hanoi', track: 'agent', customer: CUSTOMER }),
     /배송할 수 없는 상품/,
   )
 })

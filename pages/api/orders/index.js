@@ -111,6 +111,8 @@ export default async function handler(req, res) {
         email: String(customer.email ?? '').slice(0, 120),
       },
       paymentMethod: paymentMethod || DEFAULT_METHOD,
+      // 필수 고지 동의 — 없으면 createOrder 가 거절합니다.
+      consents: req.body?.consents,
       // 쿠팡 결제 우선 흐름 — 고객이 이미 결제한 쿠팡 주문을 생성 시점에 연결
       coupangOrderNo: typeof coupangOrderNo === 'string' ? coupangOrderNo : undefined,
     })

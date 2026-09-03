@@ -2,9 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createOrder, confirmPayment, startPurchase, getOrder, _reset } from '../lib/order/store.js'
 import captureHandler from '../pages/api/admin/coupang-capture.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 const agentOrder = () =>
-  createOrder({
+  createOrder({ consents: ALL_CONSENTS,
     items: [{ productId: '7001', productName: '토리든 세럼 50ml', productPrice: 25000, quantity: 2 }],
     zone: 'hanoi', track: 'agent',
     customer: { name: 'Mai', phone: '0912', address: 'Hanoi' },

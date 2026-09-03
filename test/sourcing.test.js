@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { detectSourcing, estimateSchedule, analyzeSourcing } from '../lib/sourcing.js'
 import { recordWeighing, createOrder, confirmPayment, startPurchase, recordPurchase, orderView, customerView, _reset } from '../lib/order/store.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 test.beforeEach(() => _reset())
 
@@ -68,7 +69,7 @@ test('국내 상품만 있으면 재점검이 필요 없다', () => {
  * items 에 해외직구 배지를 덧붙입니다 (당시 저장된 주문과 같은 모양).
  */
 const overseasOrder = () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '비타민 D3', productPrice: 45000, quantity: 1 }],
     zone: 'hanoi',
     track: 'agent',
@@ -106,7 +107,7 @@ test('재점검을 확인하면 실측이 등록되고 추가 비용이 원장�
 })
 
 test('국내 상품 주문은 재점검 없이도 실측이 등록된다', () => {
-  const o = createOrder({
+  const o = createOrder({ consents: ALL_CONSENTS,
     items: [{ productName: '토리든 세럼 50ml', productPrice: 19900, quantity: 1, badges: ['로켓배송'] }],
     zone: 'hanoi', track: 'agent', customer: { name: 'Mai', phone: '090', address: 'Hanoi' },
   })

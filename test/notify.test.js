@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { composeNotification } from '../lib/notify.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 // Windows 호환 — persist.test.js 의 주석 참조
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -42,7 +43,7 @@ test('알림 기록: 주문 생성부터 상태가 바뀔 때마다 jsonl 에 �
 
   execFileSync(process.execPath, ['--input-type=module', '-e', `
     const S = await import('${STORE_URL}')
-    const o = S.createOrder({
+    const o = S.createOrder({ consents: (await import('file://' + process.cwd() + '/config/legal.js')).REQUIRED_CONSENTS.map((c) => c.id),
       items: [{ productName: '수분크림 100ml', productPrice: 25000, quantity: 1 }],
       zone: 'hanoi', track: 'agent',
       customer: { name: 'Mai', phone: '0912', address: 'Hanoi', email: 'mai@example.com' },

@@ -25,6 +25,7 @@ import { estimateItemWeight } from '../lib/weight/estimate.js'
 import { QUOTE } from '../config/quote.js'
 import { SHIPPING } from '../config/shipping.js'
 import { RETURN_POLICY } from '../config/payment.js'
+import { ALL_CONSENTS } from './helpers/consents.js'
 
 // ── 공통 도우미 ───────────────────────────────────────────────────────
 const CUSTOMER = { name: '박하노', phone: '0901234567', address: '하노이시 하동구 응우옌짜이 123' }
@@ -70,7 +71,7 @@ const paid = (order) => confirmPayment(order.id, { confirmedBy: 'op' })
 // ── 시나리오 ──────────────────────────────────────────────────────────
 
 test('S01 배송대행 — 접수 → 임시 견적서 → 입금 → 입고 → 청구서 업로드 → 최종 견적서 → 배송 완료', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 다이브인 세럼 50ml', 18900, 2)],
     zone: 'hanoi', track: 'forwarding', customer: CUSTOMER, coupangOrderNo: '2600000001',
   })
@@ -101,7 +102,7 @@ test('S01 배송대행 — 접수 → 임시 견적서 → 입금 → 입고 →
 })
 
 test('S02 구매대행 — 상품가·수수료 포함 견적 → 발주 → 입고 → 최종 견적서', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('아누아 어성초 토너 250ml', 21000, 2)],
     zone: 'hanoi', track: 'agent', customer: CUSTOMER,
   })
@@ -120,7 +121,7 @@ test('S02 구매대행 — 상품가·수수료 포함 견적 → 발주 → 입
 })
 
 test('S03 무게 증가 → 차액 기준 이상 → 추가 청구 대상', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('메디힐 마스크팩 10매', 12900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const before = order.quote.total
@@ -134,7 +135,7 @@ test('S03 무게 증가 → 차액 기준 이상 → 추가 청구 대상', () =
 })
 
 test('S04 무게 감소 → 환불 대상', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('삼다수 2L 6병', 6000)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const estKg = order.quote.weight.chargeableG / 1000
@@ -147,7 +148,7 @@ test('S04 무게 감소 → 환불 대상', () => {
 })
 
 test('S05 차액이 기준(20,000동) 미만 → 임시 견적서 금액 그대로 확정', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const sameKg = order.quote.weight.chargeableG / 1000
@@ -159,7 +160,7 @@ test('S05 차액이 기준(20,000동) 미만 → 임시 견적서 금액 그대�
 
 test('S06 금지 품목은 접수 자체가 거절된다', () => {
   assert.throws(
-    () => createOrder({
+    () => createOrder({ consents: ALL_CONSENTS,
       items: [item('보조배터리 20000mAh', 39000)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
     }),
     /배송할 수 없는/,
@@ -177,7 +178,7 @@ test('S07 해외직구(중국 등 타국 발송) 상품 차단', () => {
 })
 
 test('S08 전자·가전 기기 할증이 견적과 최종 견적서에 모두 반영된다', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('다이슨 에어랩 컴플리트 롱 HS05', 599000)],
     zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
@@ -197,14 +198,14 @@ test('S09 부피 큰 상품은 부피무게로 청구된다', () => {
 
 test('S10 중복 주문 감지 — 같은 상품·같은 고객', () => {
   const items = [item('클리오 킬커버 쿠션 15g', 25000)]
-  const first = createOrder({ items, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER })
+  const first = createOrder({ consents: ALL_CONSENTS, items, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER })
   const dup = findDuplicateOrder({ track: 'forwarding', customer: CUSTOMER, items })
   assert.ok(dup, '중복이 감지되어야 합니다')
   assert.ok(dup.openOrderNos.includes(first.orderNo))
 })
 
 test('S11 고객 셀프 취소 — 입금 전에는 스스로 취소 가능', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('라운드랩 독도 토너 200ml', 17000)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const cancelled = customerCancelOrder(order.id, { reason: '다시 담을게요' })
@@ -214,7 +215,7 @@ test('S11 고객 셀프 취소 — 입금 전에는 스스로 취소 가능', ()
 })
 
 test('S12 입금 후 고객 변심 취소 — 수수료(실비) 차감 후 환불, 원장 잔액 0', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('아누아 토너 250ml', 21000)], zone: 'hanoi', track: 'agent', customer: CUSTOMER,
   })
   paid(order)
@@ -226,7 +227,7 @@ test('S12 입금 후 고객 변심 취소 — 수수료(실비) 차감 후 환�
 })
 
 test('S13 당사 사유 취소 — 전액 환불, 남는 금액 없음', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('아누아 토너 250ml', 21000)], zone: 'hanoi', track: 'agent', customer: CUSTOMER,
   })
   paid(order)
@@ -236,7 +237,7 @@ test('S13 당사 사유 취소 — 전액 환불, 남는 금액 없음', () => {
 })
 
 test('S14 청구서 업로드 — PDF 에서 무게·운송정보를 읽고 금액은 읽지 않는다', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const { parsed, doc } = uploadDebitNote(order, 3.0, { hawb: 'S1K999', flight: 'VJ961' })
@@ -250,7 +251,7 @@ test('S14 청구서 업로드 — PDF 에서 무게·운송정보를 읽고 금�
 })
 
 test('S15 청구서가 이미지·스캔본이면 자동 인식 실패 → 수동 무게로 최종 견적서', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   // PNG 헤더 — 텍스트가 없습니다
@@ -262,7 +263,7 @@ test('S15 청구서가 이미지·스캔본이면 자동 인식 실패 → 수�
 })
 
 test('S16 무게 없이는 최종 견적서를 만들지 않는다', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   assert.throws(() => buildFinalQuote(order, {}), /실측 무게/)
@@ -270,10 +271,10 @@ test('S16 무게 없이는 최종 견적서를 만들지 않는다', () => {
 })
 
 test('S17 다품목 합산 — 무게·금액이 품목 수에 맞게 커진다', () => {
-  const one = createOrder({
+  const one = createOrder({ consents: ALL_CONSENTS,
     items: [item('메디힐 마스크팩 10매', 12900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
-  const many = createOrder({
+  const many = createOrder({ consents: ALL_CONSENTS,
     items: [
       item('메디힐 마스크팩 10매', 12900),
       item('아누아 토너 250ml', 21000, 2),
@@ -287,7 +288,7 @@ test('S17 다품목 합산 — 무게·금액이 품목 수에 맞게 커진다'
 })
 
 test('S18 환율은 접수 시점에 동결 — 최종 견적서도 같은 환율로 계산', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const rate = order.fx.effectiveRate
@@ -299,7 +300,7 @@ test('S18 환율은 접수 시점에 동결 — 최종 견적서도 같은 환�
 })
 
 test('S19 고객 화면·견적서에 원가·마진이 없다', () => {
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   linkInbound(order.id, { coupangOrderNo: '2600000019', by: 'op' })
@@ -320,7 +321,7 @@ test('S20 정책 값이 문서·요금에 일관되게 적용된다', () => {
   assert.equal(RETURN_POLICY.forwardingRefundFeeUsd, 1)
   assert.equal(QUOTE.adjustThresholdVnd, 20000)
 
-  const order = createOrder({
+  const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const prov = buildProvisionalQuote(order)
