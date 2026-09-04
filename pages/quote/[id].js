@@ -37,10 +37,17 @@ export default function QuotePage() {
       <Head><title>{`${doc.title} ${doc.docNo}`}</title></Head>
       <style jsx global>{`
         body { margin: 0; background: #f2f4f6; }
+        /* 폰에서는 여백을 줄여 글자를 최대한 크게 씁니다 */
+        @media (max-width: 480px) {
+          .sheet { padding: 18px 14px !important; margin: 10px auto !important; }
+        }
+        /* 표는 좁은 화면에서 그 표만 옆으로 밀리게 — 화면 전체가 밀리면 안 됩니다 */
+        .sheet table { display: block; overflow-x: auto; white-space: nowrap; }
         @media print {
           body { background: #fff; }
           .no-print { display: none !important; }
-          .sheet { box-shadow: none; margin: 0; width: auto; }
+          .sheet { box-shadow: none; margin: 0; width: auto; max-width: none; padding: 0; }
+          .sheet table { display: table; overflow: visible; white-space: normal; }
         }
       `}</style>
 
@@ -57,7 +64,7 @@ export default function QuotePage() {
           <div>
             <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.3 }}>{doc.issuer.brand}</div>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: '#2b3138', marginTop: 3 }}>{doc.issuer.name}</div>
-            <div style={{ fontSize: 12, color: '#4e5968', marginTop: 2, maxWidth: 440 }}>{doc.issuer.address}</div>
+            <div style={{ fontSize: 12.5, color: '#4e5968', marginTop: 2, maxWidth: 440 }}>{doc.issuer.address}</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: 12.5, color: '#2b3138' }}>
             <div>담당 : {doc.issuer.pic}</div>
@@ -69,7 +76,7 @@ export default function QuotePage() {
                     ? <div style={{ fontWeight: 800, color: '#191f28' }}>ID : {doc.contact.kakaoId}</div>
                     : null}
                   {doc.contact.url
-                    ? <a href={doc.contact.url} style={{ color: '#1b64da', fontSize: 11.5 }}>{doc.contact.url}</a>
+                    ? <a href={doc.contact.url} style={{ color: '#1b64da', fontSize: 13, lineHeight: 1.9, wordBreak: 'break-all' }}>{doc.contact.url}</a>
                     : null}
                 </div>
                 {/* 인쇄본에서 바로 스캔할 수 있게 — 주소가 없거나 이미지가 없으면 숨깁니다 */}
@@ -199,7 +206,7 @@ export default function QuotePage() {
 
         {/* 사업자 정보 — 거래 문서에는 등록번호를 함께 남깁니다 */}
         {doc.business ? (
-          <div style={{ marginTop: 10, fontSize: 11.5, color: '#4e5968', lineHeight: 1.7 }}>
+          <div style={{ marginTop: 10, fontSize: 12.5, color: '#4e5968', lineHeight: 1.8 }}>
             {doc.business.name} · 대표 {doc.business.ceo} · 사업자등록번호 {doc.business.bizNo}
             {' · '}통신판매업 신고 {doc.business.mailOrderNo}
           </div>
@@ -215,11 +222,21 @@ export default function QuotePage() {
   )
 }
 
+/**
+ * 견적서의 한 항목 (라벨 + 값).
+ *
+ * wordBreak:'break-all' 이 견적번호 같은 값을 아무 데서나 끊어
+ * "Q-HN260904001 / 2" 처럼 보이게 만들었습니다 — 번호가 잘려 보이면
+ * 고객이 옮겨 적을 때 틀립니다. 그래서 기본은 안 끊고(nowrap 대신
+ * break-word), 폰에서 폭이 모자라면 항목이 통째로 다음 줄로 갑니다.
+ */
 function Field({ label, value, bold, wide }) {
   return (
-    <div style={{ flex: wide ? '1 1 100%' : '1 1 0', minWidth: 0 }}>
-      <div style={{ fontSize: 11.5, color: '#4e5968' }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: bold ? 800 : 700, color: '#111418', wordBreak: 'break-all' }}>{value}</div>
+    <div style={{ flex: wide ? '1 1 100%' : '1 1 auto', minWidth: 'fit-content' }}>
+      <div style={{ fontSize: 13, color: '#4e5968' }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: bold ? 800 : 700, color: '#111418', overflowWrap: 'break-word' }}>
+        {value}
+      </div>
     </div>
   )
 }
@@ -230,10 +247,17 @@ const bar = {
 }
 const printBtn = {
   border: 0, borderRadius: 8, background: '#17916b', color: '#fff',
-  padding: '8px 14px', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+  padding: '12px 16px', minHeight: 44, fontWeight: 800, fontSize: 14.5, cursor: 'pointer',
+  whiteSpace: 'nowrap',
 }
+/**
+ * 견적서 한 장 — 인쇄는 A4 폭(760px)이지만 화면에서는 폰 폭에 맞춰야 합니다.
+ * 예전에는 760px 로 못박혀 있어 폰에서 좌우로 밀렸습니다(390px 화면에 760px).
+ * 고객이 카톡으로 받은 견적서를 폰에서 여는 일이 대부분이라 실제로 문제였습니다.
+ */
 const sheet = {
-  width: 760, margin: '20px auto', background: '#fff', padding: '28px 32px',
+  width: '100%', maxWidth: 760, boxSizing: 'border-box',
+  margin: '20px auto', background: '#fff', padding: '28px 32px',
   boxShadow: '0 2px 12px rgba(0,0,0,.08)', font: '14.5px/1.65 sans-serif', color: '#111418',
 }
 const row = { display: 'flex', gap: 14, flexWrap: 'wrap' }
