@@ -621,7 +621,7 @@
     let n = 0
     n += fillDialogInputs(DIALOG_FIELDS.name, code, { force })
     n += fillDialogInputs(DIALOG_FIELDS.phone, phone, { force })
-    if (name) n += fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force })
+    if (name) n += fillDialogInputs(DIALOG_FIELDS.detail, `${code} ${name}`, { force })
     return n
   }
 
@@ -772,7 +772,26 @@
      * 본인 이름이 빠졌으면(주인 못 찾음) [결제하기] 클릭 때 확인을 받습니다.
      * 장바구니에는 결제 버튼이 없으므로 걸지 않습니다.
      */
-    const okDetail = body.includes(squash(`${code}(`))
+    /**
+     * 상세주소에 "코드 + 이름"이 들어갔는가.
+     *
+     * 형식(괄호·공백·하이픈)은 따지지 않습니다. 창고 입고 매칭은 라벨에
+     * **이름이 들어 있는지**만 봅니다(findByInbound 의 이름 폴백). 그런데
+     * 예전에는 `YS-ECOM(` 이라는 괄호 형식만 인정해서, 안내 문구대로
+     * `YS-ECOM 홍길동` 이라고 제대로 적은 고객에게 매번 헛경고가 떴습니다.
+     * 헛경고가 반복되면 고객은 경고를 습관적으로 넘기게 되고, 그 창은
+     * **진짜 오배송(집 주소로 결제)을 막는 유일한 장치**와 같은 창입니다.
+     */
+    const detailKey = (t) => squash(t).replace(/[^0-9A-Za-z가-힣]/g, '')
+    const okDetail = (() => {
+      const hay = detailKey(body)
+      const c = detailKey(code)
+      if (!c) return false
+      const nm = detailKey(getRecipientName() ?? '')
+      // 이름을 알면 "코드+이름"이 붙어 있는지, 모르면 코드 뒤에 두 글자 이상이 있는지
+      if (nm.length >= 2) return hay.includes(c + nm)
+      return new RegExp(`${c}[0-9A-Za-z가-힣]{2,}`).test(hay)
+    })()
     armPayGuard()
     if (onCart || (ok && okDetail)) {
       payGuard.warn = ''
@@ -786,9 +805,9 @@
     } else {
       payGuard.warn =
         '⚠️ 상세주소에 본인 이름이 없습니다\n\n' +
-        `배송지는 한국 창고가 맞지만, 상세주소가 "${code}(이름)" 형식이 아니면\n` +
+        `배송지는 한국 창고가 맞지만, 상세주소에 본인 이름이 없으면\n` +
         '창고에서 소포 주인을 찾기 어렵습니다.\n\n' +
-        `· [취소] 누른 뒤 배송지 [수정]에서 상세주소에 ${code}(본인이름) 을 넣어주세요.\n` +
+        `· [취소] 누른 뒤 배송지 [수정]에서 상세주소에 "${code} 본인이름" 을 넣어주세요.\n` +
         '· 그래도 진행하려면 [확인] — 신청서의 이름·연락처로 찾아 처리합니다.'
     }
 
@@ -977,7 +996,7 @@
       while (Date.now() < zipUntil) {
         await sleep(600)
         if (name) {
-          detailDone = fillDialogInputs(DIALOG_FIELDS.detail, `${code}(${name})`, { force: true })
+          detailDone = fillDialogInputs(DIALOG_FIELDS.detail, `${code} ${name}`, { force: true })
           if (detailDone) break
         } else if (daumOpen()) {
           break // 이름을 모르면 상세주소는 고객 몫 — 검색창이 열린 것까지만 확인
