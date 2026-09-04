@@ -286,7 +286,9 @@ $('track').addEventListener('change', async (e) => {
 })
 $('backend').addEventListener('change', (e) => {
   backend = e.target.value.replace(/\/$/, '')
-  chrome.storage.local.set({ backend })
+  // 설정 캐시(6시간)도 함께 비웁니다 — 서버를 바꿨는데 옛 서버의 요율·창고
+  // 주소로 계속 계산하면 그게 더 위험합니다.
+  chrome.storage.local.set({ backend, configAt: 0 })
 })
 
 init()
