@@ -23,6 +23,8 @@ export default function Checkout() {
   const [track, setTrack] = useState('agent')
   const [zone, setZone] = useState(SHIPPING.defaultZone)
   const [form, setForm] = useState({ name: '', phone: '', address: '', email: '' })
+  /** 받는 분 정보를 펼쳐서 고칠지 — 저장된 값이 있으면 접힌 채로 시작합니다 */
+  const [editRecipient, setEditRecipient] = useState(true)
   const [methods, setMethods] = useState([])
   const [paymentMethod, setPaymentMethod] = useState('manual-bank')
   /**
@@ -57,6 +59,9 @@ export default function Checkout() {
           address: saved.address ?? '',
           email: saved.email ?? '',
         }))
+        // 저장된 값이 다 차 있으면 입력칸을 접고 요약만 보여줍니다 —
+        // 다시 오신 분이 같은 정보를 또 치지 않게. [바꾸기]로 언제든 펼칩니다.
+        if (saved.name && saved.phone && saved.address) setEditRecipient(false)
       }
     } catch { /* 저장값이 없거나 손상 — 빈 폼으로 시작 */ }
     recipientLoaded.current = true
@@ -123,7 +128,13 @@ export default function Checkout() {
     refresh()
   }, [refresh])
 
-  const submitOrder = async (force) => {
+  /**
+   * @param force 중복 안내를 보고도 "그래도 신청" 한 경우
+   * @param consentIds 이번 신청에 동의한 항목 — 넘기지 않으면 화면 체크 상태를 씁니다.
+   *        [동의하고 신청하기] 한 번 누름으로 처리할 때, setState 가 반영되기를
+   *        기다리지 않고 바로 보내기 위해 인자로 받습니다.
+   */
+  const submitOrder = async (force, consentIds) => {
     setSubmitting(true)
     setError(null)
     setDuplicate(null)
@@ -133,7 +144,7 @@ export default function Checkout() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items, zone, track, customer: form, paymentMethod,
-          consents: REQUIRED_CONSENTS.filter((c) => consents[c.id]).map((c) => c.id),
+          consents: consentIds ?? REQUIRED_CONSENTS.filter((c) => consents[c.id]).map((c) => c.id),
           coupangOrderNo: coupangOrderNo || undefined,
           // 중복 안내를 보고 "일부러 한 번 더 산다"고 확인한 재구매만 true
           force: force || undefined,
@@ -155,9 +166,18 @@ export default function Checkout() {
     }
   }
 
+  /**
+   * 신청 — 아직 확인 항목을 안 누르셨다면, 버튼 문구가 "동의하고 신청하기"이므로
+   * 그 누름 자체가 동의입니다(필수 항목은 일괄 동의가 가능합니다).
+   * 화면 체크도 함께 켜서 무엇에 동의했는지 눈으로 남게 합니다.
+   */
   const submit = (e) => {
     e.preventDefault()
-    submitOrder(false)
+    if (allAgreed) return submitOrder(false)
+    const all = {}
+    for (const c of REQUIRED_CONSENTS) all[c.id] = true
+    setConsents(all)
+    submitOrder(false, REQUIRED_CONSENTS.map((c) => c.id))
   }
 
   /**
@@ -374,8 +394,32 @@ export default function Checkout() {
         <section className="panel">
           <div className="panel__head">수령인 정보 (베트남)</div>
           <div className="panel__body">
+            {/*
+              다시 오신 분은 같은 정보를 또 치지 않습니다 — 저장된 값이 다 차 있으면
+              요약만 보여주고, 고치실 때만 [바꾸기]로 입력칸을 펼칩니다.
+              (저장은 이 브라우저 안에만 — 서버로 보내지 않습니다)
+            */}
+            {!editRecipient ? (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+                padding: '14px 16px', border: '2px solid #e5e8eb', borderRadius: 12, background: '#fbfcfd',
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: '#191f28' }}>{form.name}</div>
+                  <div style={{ fontSize: 15, color: '#4e5968', marginTop: 3 }}>{form.phone}</div>
+                  <div style={{ fontSize: 14.5, color: '#4e5968', marginTop: 3, lineHeight: 1.5 }}>{form.address}</div>
+                  {form.email ? <div style={{ fontSize: 13.5, color: '#8b95a1', marginTop: 3 }}>{form.email}</div> : null}
+                </div>
+                <button type="button" onClick={() => setEditRecipient(true)}
+                  style={{
+                    flexShrink: 0, padding: '10px 14px', minHeight: 44, borderRadius: 10,
+                    border: '2px solid #dbe4f0', background: '#fff', color: '#3182f6',
+                    fontSize: 15, fontWeight: 800, cursor: 'pointer',
+                  }}>바꾸기</button>
+              </div>
+            ) : (<>
             <p className="note" style={{ marginBottom: 12, fontSize: 12 }}>
-              입력하신 정보는 이 브라우저에 자동 저장되어, 다음 주문서에 자동으로 채워집니다.
+              한 번만 적어주시면 이 브라우저에 저장돼, 다음부터는 확인만 하시면 됩니다.
             </p>
             {[
               ['name', '받는 분 이름 *', 'Nguyễn Thị Mai / 홍길동', 'text'],
@@ -410,6 +454,7 @@ export default function Checkout() {
                 </p>
               </div>
             )}
+            </>)}
           </div>
         </section>
 
@@ -576,12 +621,13 @@ export default function Checkout() {
         <div className="section" style={{ paddingTop: 0 }}>
           <button className="btn" type="submit"
             style={{ minHeight: 60, fontSize: 19, fontWeight: 800 }}
-            disabled={!valid || !quote || blocked || overLimit || submitting || methods.length === 0 || !allAgreed}>
-            {submitting ? '주문 생성 중…'
-              : blocked ? '배송 불가 상품 포함'
-              : overLimit ? '접수 한도 초과 — 나눠서 신청해 주세요'
-              : !allAgreed ? '위 확인 항목에 모두 체크해 주세요'
-              : quote ? `${krw(quote.total)} 주문하기` : '견적 계산 중…'}
+            disabled={!valid || !quote || blocked || overLimit || submitting || methods.length === 0}>
+            {submitting ? '신청서를 만들고 있어요…'
+              : blocked ? '보낼 수 없는 상품이 있어요'
+              : overLimit ? '한도를 넘었어요 — 나눠서 신청해 주세요'
+              : !quote ? '금액 계산 중…'
+              : allAgreed ? `${krw(quote.total)} 신청하기`
+              : `${krw(quote.total)} · 위 내용에 동의하고 신청하기`}
           </button>
           {quote && !blocked && (
             <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-500)', marginTop: 8 }}>
