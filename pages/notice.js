@@ -62,7 +62,10 @@ export default function NoticePage() {
           borderRadius: 10, background: '#f9fafb', fontSize: 13.5, lineHeight: 1.9, color: '#333d4b',
         }}>
           <div style={{ fontWeight: 800, color: '#191f28', marginBottom: 4 }}>사업자 정보</div>
-          <div>상호 : {BUSINESS.name} ({BUSINESS.nameEn}) · 대표자 : {BUSINESS.ceo}</div>
+          {/* 영문 상호는 없을 수도 있습니다 — 빈 괄호가 남지 않게 합니다 */}
+          <div>
+            상호 : {BUSINESS.name}{BUSINESS.nameEn ? ` (${BUSINESS.nameEn})` : ''} · 대표자 : {BUSINESS.ceo}
+          </div>
           <div>사업장 : {BUSINESS.address}</div>
           <div>사업자등록번호 : {BUSINESS.bizNo}</div>
           <div>통신판매업 신고번호 : {BUSINESS.mailOrderNo}</div>

@@ -419,8 +419,8 @@ env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
 | 항목 | 값 | 설정 위치 |
 | --- | --- | --- |
 | 브랜드 | YS-ECOM 하노이 직구 | `config/quote.js` issuer.brand |
-| 상호 | SS TRADING COMPANY LIMITED | issuer.name |
-| 주소 | 59, Gwangyeo-ro, Gonjiam-eup, Gwangju-si, Gyeonggi-do, Republic of Korea | issuer.address |
+| 상호 | 전세계무역 (JEONSEGYE TRADING) | issuer.name |
+| 주소 | 412, 4F, Bldg 1, 10 Cheongnahannae-ro 100beon-gil, Seo-gu, Incheon, Republic of Korea | issuer.address |
 | 담당 | KIM YOUNG SEO | issuer.pic |
 | 카카오톡 ID | vietnam911 | `config/contact.js` kakaoId |
 | 오픈채팅 | https://open.kakao.com/o/simlWALi | kakaoOpenChat |

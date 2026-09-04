@@ -17,14 +17,17 @@
  * 전화번호·이메일은 공개 채널이 정해지면 env 로 채우세요.
  */
 export const BUSINESS = {
-  name: process.env.BIZ_NAME || '에스에스무역',
-  nameEn: process.env.BIZ_NAME_EN || 'SS TRADING',
-  ceo: process.env.BIZ_CEO || '박승우',
-  address: process.env.BIZ_ADDRESS || '경기도 광주시 곤지암읍 광여로 59',
-  bizNo: process.env.BIZ_REG_NO || '282-12-02850',
-  mailOrderNo: process.env.MAIL_ORDER_NO || '2024-경기광주-1786',
+  name: process.env.BIZ_NAME || '전세계무역',
+  /** 서류에 영문 상호가 없어 로마자 표기입니다 — 공식 영문명이 생기면 교체 */
+  nameEn: process.env.BIZ_NAME_EN || 'JEONSEGYE TRADING',
+  ceo: process.env.BIZ_CEO || '김영서',
+  address: process.env.BIZ_ADDRESS
+    || '인천광역시 서구 청라한내로100번길 10, 1차동 4층 412호 (청라동, 청라큐브시그니처1차오피스텔)',
+  bizNo: process.env.BIZ_REG_NO || '360-14-03304',
+  mailOrderNo: process.env.MAIL_ORDER_NO || '2025-인천서구-2986',
   /** 사업자등록증상 업종 — 해외직구대행업 */
-  bizType: process.env.BIZ_TYPE || '도매 및 소매업 / 해외직구대행업',
+  bizType: process.env.BIZ_TYPE
+    || '도매 및 소매업 / 전자상거래 소매업 · 기타 통신판매업 · SNS마켓 · 해외직구대행업',
   tel: process.env.BIZ_TEL || '',
   email: process.env.BIZ_EMAIL || '',
   disputeVenue: process.env.DISPUTE_VENUE || '대한민국 법원',
