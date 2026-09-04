@@ -79,6 +79,9 @@ const KBPanel = (() => {
   white-space: nowrap; font-variant-numeric: tabular-nums; }
 .prow .pv { font-size: 11px; font-weight: 700; color: #f04452; white-space: nowrap; display: block; text-align: right; }
 .wline { font-size: 11px; color: #8b95a1; margin-top: 6px; }
+/* 몇 개짜리 견적인지 — 금액 바로 위에 눈에 띄게 */
+.qtyline { font-size: 12.5px; color: #0b57d0; background: #eef4ff; border-radius: 7px;
+           padding: 6px 9px; margin: 6px 0 2px; font-weight: 600; }
 .track { display: flex; gap: 8px; margin-bottom: 4px; }
 .track button { flex: 1; min-height: 52px; border: 2px solid #e5e8eb; background: #fff; border-radius: 11px;
   font-size: 15px; font-weight: 800; color: #333d4b; cursor: pointer; display: flex; flex-direction: column;
@@ -309,9 +312,24 @@ const KBPanel = (() => {
         </button>`
       : ''
 
+    /**
+     * 몇 개짜리 견적인지 숨기지 않습니다.
+     *
+     * 예전에는 화면에서 82개를 골라놔도 패널은 말없이 1개로만 계산했습니다.
+     * 그대로 담으면 고객은 82개를 기대하는데 1개가 신청됩니다.
+     */
+    const qty = Number.isFinite(state.quantity) ? state.quantity : 1
+    const qtyLine = state.quantityUncertain
+      ? `<div class="note" style="color:#c92a2a">개수를 확실히 읽지 못해 <b>1개 기준</b>으로 계산했습니다.
+           쿠팡 화면의 개수를 1로 두고 담은 뒤, 신청서에서 개수를 정해 주세요.</div>`
+      : qty > 1
+        ? `<div class="qtyline"><b>${qty}개</b> 기준 금액입니다</div>`
+        : ''
+
     return `<div class="body">
       ${banner}${opHint}
       <p class="name">${esc(state.productName)}</p>
+      ${qtyLine}
       <div class="pricebox">
         ${priceRow('forwarding', '📦 배송만', '배송비 · 쿠팡 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
         ${priceRow('agent', '🛒 구매하고 배송까지', '총액 · 저희가 대신', qs.agent ?? (state.track === 'agent' ? q : null))}

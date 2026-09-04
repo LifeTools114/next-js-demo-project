@@ -171,6 +171,46 @@ Write-Host '  주소' -ForegroundColor White
 Write-Host ('    고객 화면   http://localhost:' + $Port + '/')
 Write-Host ('    관리자      http://localhost:' + $Port + '/admin')
 Write-Host ('    공지사항    http://localhost:' + $Port + '/notice')
+
+# ── 폰에서 접속할 주소 ────────────────────────────────────────────────
+# 같은 와이파이에 있는 폰은 이 PC 의 사설 IP 로 들어올 수 있습니다.
+# 공유기마다 대역이 달라(192.168 / 10 / 172.16~31) 직접 찾아 알려줍니다.
+# 가상 랜카드(WSL·도커·VirtualBox·VMware)는 걸러야 합니다. 이것들도 사설
+# IP 를 갖지만 폰에서는 절대 닿지 않아, 잘못 알려주면 한참 헤매게 됩니다.
+$virtual = 'vEthernet|WSL|Hyper-V|VirtualBox|VMware|Loopback|Bluetooth|Npcap'
+$lanIp = $null
+try {
+  $lanIp = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
+    Where-Object {
+      $_.InterfaceAlias -notmatch $virtual -and
+      ($_.IPAddress -match '^192\.168\.' -or
+       $_.IPAddress -match '^10\.' -or
+       $_.IPAddress -match '^172\.(1[6-9]|2[0-9]|3[01])\.')
+    } |
+    # 가정용 공유기에서 가장 흔한 192.168 대역을 먼저 보여줍니다.
+    Sort-Object -Property @{ Expression = { if ($_.IPAddress -match '^192\.168\.') { 0 } elseif ($_.IPAddress -match '^10\.') { 1 } else { 2 } } } |
+    Select-Object -First 1 -ExpandProperty IPAddress
+} catch {
+  # 옛 윈도우에는 Get-NetIPAddress 가 없어 ipconfig 로 대신 찾습니다.
+  try {
+    $lanIp = ipconfig |
+      Select-String -Pattern 'IPv4.*:\s*(192\.168\.\S+|10\.\S+|172\.(?:1[6-9]|2[0-9]|3[01])\.\S+)' |
+      ForEach-Object { $_.Matches[0].Groups[1].Value } |
+      Select-Object -First 1
+  } catch { $lanIp = $null }
+}
+
+if ($lanIp) {
+  Write-Host ''
+  Write-Host '  폰에서 보려면 (같은 와이파이여야 합니다)' -ForegroundColor White
+  Write-Host ('    폰 브라우저 주소창에   http://' + $lanIp + ':' + $Port + '/') -ForegroundColor Green
+  Write-Host '    * 폰이 회사 와이파이나 LTE 면 안 됩니다 - PC 와 같은 와이파이로 바꿔주세요.' -ForegroundColor Gray
+  Write-Host '    * 처음 한 번은 윈도우가 "네트워크 허용?" 을 물어볼 수 있습니다 - 허용을 누르세요.' -ForegroundColor Gray
+} else {
+  Write-Host ''
+  Write-Host '  폰 접속용 주소를 찾지 못했습니다 (와이파이가 꺼져 있을 수 있습니다).' -ForegroundColor Gray
+}
+
 Write-Host ''
 Write-Host '  크롬 확장은 chrome://extensions 에서 새로고침(둥근 화살표) 한 번 눌러주세요.' -ForegroundColor Gray
 Write-Host '  서버를 끌 때는 이 창에서 Ctrl+C 입니다.' -ForegroundColor Gray

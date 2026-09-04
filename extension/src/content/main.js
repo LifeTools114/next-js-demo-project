@@ -49,6 +49,11 @@
 
   // "담겼습니다" 표시는 담은 그 상품에서만 — 다른 상품/옵션으로 넘어가면 초기화.
   let addedProductId = null
+  /**
+   * 견적·담기에 실제로 쓰는 개수.
+   * 화면 값을 그대로 믿을 수 없는 경우(아래 safeQuantity 참고) 1로 떨어집니다.
+   */
+  let safeQty = 1
 
   KBPanel.mount({
     onTrackChange: (t) => {
@@ -58,7 +63,8 @@
     },
     onAdd: async () => {
       if (!product) return
-      const res = await send('addToCart', { ...product, quantity: 1, track })
+      // 화면에서 고른 개수를 그대로 담습니다. 예전에는 무조건 1개였습니다.
+      const res = await send('addToCart', { ...product, quantity: safeQty, track })
       addedProductId = product.productId
       KBPanel.setState({ added: true, cartCount: res?.count ?? 1 })
     },
@@ -105,16 +111,32 @@
     product = extracted
 
     // 배송 불가면 계산 자체를 하지 않습니다. 견적을 보여줄 이유가 없습니다.
+    /**
+     * 화면에서 고른 개수를 견적에 반영합니다.
+     *
+     * 다만 개수를 곱해도 되는지는 **가격을 어디서 읽었는지**에 달렸습니다.
+     *   json-ld · meta → 낱개 값. 곱해도 안전합니다.
+     *   selector      → 화면의 `.total-price` 는 수량을 올리면 이미 곱해진
+     *                   총액입니다. 여기에 또 곱하면 청구액이 개수의 제곱으로
+     *                   부풀어 오릅니다 (82개면 82배 과다청구).
+     * 확신이 없으면 1개로 계산하고 그렇다고 화면에 말합니다 —
+     * 조용히 틀린 금액을 보여주는 것이 가장 나쁩니다.
+     */
+    const pageQty = Number.isFinite(extracted.quantity) ? extracted.quantity : 1
+    const decided = KBExtract.safeQuantity(extracted)
+    const qtyUncertain = decided.uncertain
+    safeQty = decided.quantity
+
     // 무게를 먼저 추정해야 30kg 상한·중량물 판정이 동작합니다.
     const preWeight = K.estimateItemWeight(
       { productName: extracted.productName, specOverride: extracted.specOverride },
-      1,
+      safeQty,
     )
     const eligibility = K.checkEligibility({
       productName: extracted.productName,
       categoryPath: extracted.categoryPath,
       price: extracted.price,
-      quantity: 1,
+      quantity: safeQty,
       chargeableG: preWeight.chargeableG,
     })
     if (!eligibility.shippable) {
@@ -149,7 +171,7 @@
       // 해외직구 판별 신호 — 한국 창고 도착 일정이 크게 달라집니다.
       badges: extracted.badges,
       shippingText: extracted.shippingText,
-      quantity: 1,
+      quantity: safeQty,
       // 운영자 발주 시 "상품 탭 열기"가 정확히 이 페이지(옵션 포함)를 열도록.
       // itemId/vendorItemId 가 빠지면 기본 옵션이 열려 대리 주문을 그르칩니다.
       productUrl: (() => {
@@ -192,6 +214,10 @@
       track,
       quote: q,
       quotes: { forwarding: qF, agent: qA },
+      // 화면에 "82개 기준" 을 띄워, 몇 개짜리 견적인지 숨기지 않습니다.
+      quantity: safeQty,
+      quantityUncertain: qtyUncertain,
+      pageQuantity: pageQty,
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
       ruleText: K.roundingRuleText(),

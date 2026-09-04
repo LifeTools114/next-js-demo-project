@@ -30,6 +30,19 @@ const KBExtract = (() => {
       'span.total-price > strong',
       '[class*="PriceInfo"] [class*="finalPrice"]',
     ],
+    /**
+     * 수량 입력칸 — 고객이 화면에서 고른 개수입니다.
+     * 이걸 안 읽으면 82개를 골라놔도 1개짜리 견적을 보여주게 됩니다.
+     * (26-09-04 실제로 그랬습니다)
+     */
+    quantity: [
+      'input[name="quantity"]',
+      '.prod-quantity input',
+      '.prod-quantity__input',
+      '[class*="QuantityInput"] input',
+      '[class*="quantity" i] input[type="number"]',
+      '[class*="quantity" i] input[type="tel"]',
+    ],
     breadcrumb: ['#breadcrumb', '.breadcrumb', 'ul.breadcrumb'],
     /** 고시정보 표 — 내용물의 용량 또는 중량이 여기 있습니다 */
     noticeTable: ['.prod-description table', '.product-details table', 'table.prod-delivery-return-policy-table'],
@@ -243,8 +256,51 @@ const KBExtract = (() => {
     return null
   }
 
+  /**
+   * 화면에서 고른 수량을 읽습니다.
+   *
+   * 못 읽으면 1 로 두되 found:false 로 알립니다 — 잘못된 개수로 계산하느니
+   * 1개로 계산하고 그렇다고 말하는 편이 낫습니다.
+   */
+  function readQuantity() {
+    const el = first(selectors.quantity)
+    if (!el) return { value: 1, found: false }
+    const raw = el.value ?? el.getAttribute('value') ?? ''
+    const n = Number.parseInt(String(raw).replace(/[^0-9]/g, ''), 10)
+    if (!Number.isFinite(n) || n < 1) return { value: 1, found: false }
+    // 화면 값이 터무니없으면(오타·자동입력) 믿지 않습니다.
+    if (n > 999) return { value: 1, found: false }
+    return { value: n, found: true }
+  }
+
+  /**
+   * 세 단계를 **끝까지** 시도합니다.
+   *
+   * 예전에는 `fromJsonLd() ?? fromMeta() ?? fromSelectors()` 였습니다.
+   * 쿠팡 페이지에는 og:title 이 항상 있어서 2단계가 늘 "이름은 있고 가격은
+   * 없음" 을 돌려주고, 그 순간 3단계(CSS 셀렉터)는 **한 번도 실행되지
+   * 않았습니다.** 즉 JSON-LD 가 사라지면 화면에 가격이 멀쩡히 떠 있어도
+   * "가격을 읽지 못했습니다" 만 나오고, 쿠팡 화면 변경에 대비해 만든
+   * 원격 셀렉터 갱신도 무용지물이었습니다. (26-09-04 발견)
+   *
+   * 이제 이름과 가격이 **둘 다** 있는 첫 단계를 고르고, 그런 단계가
+   * 없으면 이름이라도 있는 단계를 골라 이유를 제대로 말합니다.
+   */
+  function pickBase() {
+    const layers = [fromJsonLd, fromMeta, fromSelectors]
+    let named = null
+    for (const layer of layers) {
+      let r = null
+      try { r = layer() } catch { r = null }
+      if (!r || !r.productName) continue
+      if (r.price) return r
+      named ??= r
+    }
+    return named
+  }
+
   function extractProduct() {
-    const base = fromJsonLd() ?? fromMeta() ?? fromSelectors()
+    const base = pickBase()
 
     if (!base || !base.productName) {
       return { ok: false, reason: 'name', message: '상품명을 읽지 못했습니다. 페이지를 새로고침해 주세요.' }
@@ -259,6 +315,7 @@ const KBExtract = (() => {
     }
 
     const notice = extractNoticeSpec()
+    const qty = readQuantity()
 
     // 선택된 수량 옵션이 있으면 가격과 상품명 끝의 "N개" 를 그 값으로.
     // (상품명의 개수는 무게 계산이 그대로 쓰므로 함께 맞춰야 합니다)
@@ -283,6 +340,21 @@ const KBExtract = (() => {
       specOverride: notice?.value ?? null,
       noticeSpec: notice,
       price,
+      /**
+       * 화면에서 고른 개수. 견적과 견적함이 이 값을 그대로 씁니다.
+       */
+      quantity: qty.value,
+      quantityFound: qty.found,
+      /**
+       * 가격을 어디서 읽었는가 — 개수 계산의 안전 판단에 씁니다.
+       *
+       * json-ld·meta 는 **낱개 값**이라 개수를 곱해도 안전합니다.
+       * selector 는 화면의 `.total-price` 라서 수량을 올리면 **곱해진
+       * 총액**이 잡힙니다. 그 값에 개수를 또 곱하면 청구액이 개수의
+       * 제곱으로 부풀어 오릅니다 — 그래서 main.js 가 이 값을 보고
+       * 낱개인지 확신할 수 없으면 1개로만 계산합니다.
+       */
+      priceBasis: base.source,
       image: base.image,
       brand: base.brand,
       categoryPath: extractBreadcrumb(),
@@ -318,6 +390,27 @@ const KBExtract = (() => {
     }
   }
 
+  /**
+   * 견적에 실제로 쓸 개수를 정합니다. (순수 함수 — 테스트로 지킵니다)
+   *
+   * 개수를 곱해도 되는지는 **가격을 어디서 읽었는지**에 달렸습니다.
+   *   json-ld · meta → 낱개 값. 곱해도 안전합니다.
+   *   selector      → 화면의 `.total-price` 는 수량을 올리면 이미 곱해진
+   *                   총액입니다. 여기에 또 곱하면 청구액이 개수의 제곱으로
+   *                   부풀어 오릅니다 (82개면 82배 과다청구).
+   *
+   * 확신이 없으면 1개로 계산하고, 화면이 그렇다고 말하게 합니다.
+   *
+   * @returns {{ quantity:number, uncertain:boolean }}
+   */
+  function safeQuantity(extracted) {
+    const raw = Number(extracted?.quantity)
+    const page = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1
+    if (page <= 1) return { quantity: 1, uncertain: false }
+    const trusted = extracted?.priceBasis === 'json-ld' || extracted?.priceBasis === 'meta'
+    return trusted ? { quantity: page, uncertain: false } : { quantity: 1, uncertain: true }
+  }
+
   /** 목록/검색 페이지의 상품 카드들 */
   function extractListItems() {
     const cards = document.querySelectorAll('li.search-product, li[class*="ProductUnit"], ul.products li')
@@ -331,7 +424,7 @@ const KBExtract = (() => {
     return items
   }
 
-  return { extractProduct, extractListItems, extractNoticeSpec, extractBadges, setSelectors, canonicalUrl, DEFAULT_SELECTORS }
+  return { extractProduct, extractListItems, extractNoticeSpec, extractBadges, setSelectors, canonicalUrl, safeQuantity, readQuantity, DEFAULT_SELECTORS }
 })()
 
 globalThis.KBExtract = KBExtract
