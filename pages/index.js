@@ -11,10 +11,26 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
   return (
     <Layout badge="베트남 하노이">
       <div className="hero">
-        <h1 className="hero__title">쿠팡에서 바로, 하노이 도착 가격 🇰🇷 → 🇻🇳</h1>
+        <h1 className="hero__title">쿠팡에서 산 물건, 하노이까지 🇰🇷 → 🇻🇳</h1>
         <p className="hero__desc">
-          크롬 확장프로그램을 설치하면 <strong>쿠팡 상품 페이지에서 바로</strong> 무게와
-          국제배송비를 계산한 하노이 도착 가격이 뜹니다. 통관이 막히는 상품은 주문 전에 알려드립니다.
+          쿠팡에서 직접 사시면 저희가 하노이까지 보내드립니다.
+          한국 카드가 없으셔도 <strong>대신 사드릴 수</strong> 있습니다.
+        </p>
+      </div>
+
+      {/*
+        폰으로 오신 분이 가장 먼저 눌러야 할 것 — 확장은 폰에서 돌지 않으므로
+        이 버튼이 폰 고객의 유일한 시작점입니다. 그래서 맨 위, 가장 크게.
+      */}
+      <div className="section" style={{ paddingTop: 0 }}>
+        <Link href="/send" className="btn" style={{
+          display: 'block', textAlign: 'center', minHeight: 62, fontSize: 19,
+          fontWeight: 800, lineHeight: '38px',
+        }}>
+          📦 폰으로 바로 시작하기
+        </Link>
+        <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5 }}>
+          쿠팡에 넣을 <b>한국 창고 주소</b>를 알려드리고, 배송비까지 계산해 드립니다.
         </p>
       </div>
 
