@@ -75,6 +75,13 @@
       if (items.length === 0) return
       await send('openCheckout', { track, items })
     },
+    /** 바로가기 안내를 펼칠 때 사이트 주소를 채웁니다 (한 번만 물어봅니다) */
+    onShortcutOpen: async () => {
+      if (KBPanel.getState?.().siteUrl) return
+      const r = await send('getSite')
+      if (r?.url) KBPanel.setState({ siteUrl: r.url })
+    },
+    onOpenSite: () => send('openSite', { path: '/' }),
     onAffiliate: async () => {
       /**
        * 제휴 링크 열기 — 배송대행 전용 + 사용자 클릭 전용.

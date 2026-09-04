@@ -326,6 +326,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           return { ok: false, error: error.message }
         }
       }
+      /**
+       * 우리 사이트 주소를 알려줍니다 — 패널이 "폰에서 이 주소로" 안내에 씁니다.
+       * 주소는 chrome.storage 의 backend 값(운영자가 바꿀 수 있음)에서 옵니다.
+       */
+      case 'getSite':
+        return { ok: true, url: await backendUrl() }
+
+      /** 우리 사이트를 새 탭으로 엽니다 (바로가기 만들기 안내용) */
+      case 'openSite': {
+        const base = await backendUrl()
+        const path = typeof msg.payload?.path === 'string' ? msg.payload.path : '/'
+        // 경로만 받습니다 — 임의의 외부 주소를 열지 않도록.
+        await chrome.tabs.create({ url: base + (path.startsWith('/') ? path : `/${path}`) })
+        return { ok: true }
+      }
+
       case 'openTabs': {
         const urls = (msg.payload?.urls ?? []).slice(0, 20)
         for (const url of urls) {

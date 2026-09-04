@@ -79,6 +79,25 @@ const KBPanel = (() => {
   white-space: nowrap; font-variant-numeric: tabular-nums; }
 .prow .pv { font-size: 11px; font-weight: 700; color: #f04452; white-space: nowrap; display: block; text-align: right; }
 .wline { font-size: 11px; color: #8b95a1; margin-top: 6px; }
+/* 바로가기 만들기 — 패널 맨 위 띠 */
+.shortcut { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box;
+            padding: 10px 14px; border: 0; border-bottom: 1px solid #d0e2ff; cursor: pointer;
+            background: linear-gradient(90deg, #eaf2ff, #f4f8ff); text-align: left; }
+.shortcut b { font-size: 13px; color: #0b57d0; flex: 1; line-height: 1.4; }
+.shortcut small { display: block; font-weight: 500; color: #4e5968; font-size: 11.5px; margin-top: 1px; }
+.shortcut .chev { color: #0b57d0; font-size: 12px; }
+.sc-how { padding: 11px 14px; background: #f8fbff; border-bottom: 1px solid #e5e8eb;
+          font-size: 12.5px; color: #333d4b; line-height: 1.65; }
+.sc-how ol { margin: 6px 0 0; padding-left: 18px; }
+.sc-how li { margin-bottom: 3px; }
+.sc-how .addr { display: block; margin-top: 7px; padding: 7px 9px; background: #fff;
+                border: 1px solid #d7dbe0; border-radius: 7px; font-size: 12.5px;
+                word-break: break-all; color: #0b57d0; font-weight: 700; }
+.sc-act { display: flex; gap: 6px; margin-top: 9px; }
+.sc-act button { flex: 1; padding: 9px 6px; border-radius: 8px; font-size: 12.5px;
+                 font-weight: 700; cursor: pointer; border: 1px solid #d7dbe0; background: #fff; color: #4e5968; }
+.sc-act button.go { background: #0b57d0; border-color: #0b57d0; color: #fff; }
+
 /* 몇 개짜리 견적인지 — 금액 바로 위에 눈에 띄게 */
 .qtyline { font-size: 12.5px; color: #0b57d0; background: #eef4ff; border-radius: 7px;
            padding: 6px 9px; margin: 6px 0 2px; font-weight: 600; }
@@ -366,21 +385,25 @@ const KBPanel = (() => {
     const label = state.track === 'forwarding' ? '담아두기' : '대신 사달라고 담아두기'
 
     /**
-     * 제휴 버튼 — 배송대행(고객 본인 결제) 전용.
-     * 파트너스 규정: 사용자 클릭으로만 이동 + 고지 문구를 버튼 옆에 항상 표시.
-     * 구매대행은 본인 구매(self-referral)라 절대 붙이지 않습니다 (운영자 확정 26-08-30).
+     * 배송만 — 담은 뒤 고객이 어차피 해야 하는 일이 "쿠팡에서 결제" 입니다.
+     * 그 버튼 하나로 합쳤습니다 (운영자 지시 26-09-04: 별도 제휴 버튼은 화면에서 제외).
+     *
+     * ⚠️ 고지 한 줄은 뺄 수 없습니다.
+     *    쿠팡 파트너스·크롬 웹스토어가 금지하는 것은 제휴 링크 자체가 아니라
+     *    (1) 고지 없이 (2) 사용자 클릭 없이 (3) 몰래 URL 을 바꾸는 것입니다.
+     *    버튼을 없애고 뒤에서 자동으로 붙이면 그 세 가지를 모두 어겨
+     *    파트너스 계정 해지 + 확장 삭제 사유가 됩니다.
+     *    구매하고 배송까지(구매대행)는 본인 구매라 어떤 경우에도 붙이지 않습니다.
      */
-    const affiliateBlock = state.track === 'forwarding'
-      ? `<button class="btn ghost" data-act="affiliate">🔗 제휴 링크로 열고 구매 진행</button>
-        <div class="disc">이 버튼은 쿠팡 파트너스 제휴 링크로 연결됩니다. 이를 통해 구매하시면
-        저희가 일정액의 수수료를 받으며, 고객님이 지불하시는 금액은 동일합니다.</div>`
+    const buyAtCoupang = state.track === 'forwarding'
+      ? `<button class="btn ghost" data-act="affiliate">🛒 쿠팡에서 결제하기 →</button>
+        <div class="disc">제휴 링크로 열립니다 · 고객님이 내시는 금액은 똑같습니다</div>`
       : ''
 
     // 담기 전 — 담기 버튼 하나. 견적함에 이미 담긴 게 있으면 개수만 살짝.
     if (!state.added) {
       return `<div class="btns">
         <button class="btn" data-act="add">${label}</button>
-        ${affiliateBlock}
         ${state.cartCount > 0 ? `<div class="disc">🧺 견적함에 ${state.cartCount}개 담겨 있어요</div>` : ''}
       </div>`
     }
@@ -390,8 +413,56 @@ const KBPanel = (() => {
       <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
       <button class="btn" data-act="checkout">주문서 바로 작성 →</button>
       <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
-      ${affiliateBlock}
+      ${buyAtCoupang}
       <div class="disc">담긴 상품은 브라우저 오른쪽 위 확장 아이콘(🇻🇳, 숫자 배지)에서 언제든 볼 수 있어요.</div>
+    </div>`
+  }
+
+  /**
+   * 바로가기 만들기 — 패널 맨 위 띠.
+   *
+   * 왜 필요한가: 이 확장은 쿠팡 페이지에서만 뜹니다. 폰에서 쿠팡 앱을
+   * 쓰거나 PC를 껐다 켜면 우리 서비스로 돌아올 길이 없습니다.
+   * 바탕화면·홈 화면에 아이콘이 하나 있으면 그 길이 생깁니다.
+   *
+   * 한 번 "다음에"를 누르면 다시 조르지 않습니다 — 매번 뜨는 안내는
+   * 도움이 아니라 방해입니다. (쿠팡 도메인 localStorage 에 기억)
+   */
+  const SC_KEY = 'kbShortcutDismissed'
+  const scDismissed = () => {
+    try { return localStorage.getItem(SC_KEY) === '1' } catch { return false }
+  }
+  const scDismiss = () => {
+    try { localStorage.setItem(SC_KEY, '1') } catch { /* 사생활 보호 모드 등 */ }
+  }
+
+  function renderShortcut() {
+    if (state.view !== 'quote' || scDismissed()) return ''
+    const bar = `<button class="shortcut" data-act="sc-toggle">
+      <span>🔖</span>
+      <b>바로가기 만들기<small>앞으로는 배송 걱정 끝 — 한 번만 눌러두세요</small></b>
+      <span class="chev">${state.shortcutOpen ? '▴' : '▾'}</span>
+    </button>`
+    if (!state.shortcutOpen) return bar
+
+    const site = state.siteUrl ?? ''
+    return bar + `<div class="sc-how">
+      <b>💻 이 컴퓨터 (크롬)</b>
+      <ol>
+        <li>아래 <b>바로가기 열기</b>를 누르세요</li>
+        <li>주소창 오른쪽 <b>⋮</b> → <b>저장 및 공유</b> → <b>바로가기 만들기</b></li>
+        <li>바탕화면에 아이콘이 생깁니다</li>
+      </ol>
+      <b style="display:block;margin-top:9px">📱 휴대폰</b>
+      <ol>
+        <li>폰 브라우저에 아래 주소를 입력하세요</li>
+        <li>안드로이드: <b>⋮</b> → <b>홈 화면에 추가</b> · 아이폰: <b>공유</b> → <b>홈 화면에 추가</b></li>
+      </ol>
+      ${site ? `<span class="addr">${esc(site)}</span>` : ''}
+      <div class="sc-act">
+        <button class="go" data-act="sc-open">바로가기 열기</button>
+        <button data-act="sc-dismiss">다음에</button>
+      </div>
     </div>`
   }
 
@@ -414,11 +485,23 @@ const KBPanel = (() => {
 
     wrap.innerHTML = `<div class="card">
       <div class="head"><b>🇻🇳 하노이 도착 견적</b><button data-act="close" aria-label="닫기">✕</button></div>
+      ${renderShortcut()}
       ${renderBody()}${renderButtons()}
     </div>`
 
     wrap.querySelector('[data-act="close"]').addEventListener('click', () => {
       open = false
+      render()
+    })
+    wrap.querySelector('[data-act="sc-toggle"]')?.addEventListener('click', () => {
+      state.shortcutOpen = !state.shortcutOpen
+      handlers.onShortcutOpen?.()
+      render()
+    })
+    wrap.querySelector('[data-act="sc-open"]')?.addEventListener('click', () => handlers.onOpenSite?.())
+    wrap.querySelector('[data-act="sc-dismiss"]')?.addEventListener('click', () => {
+      scDismiss()
+      state.shortcutOpen = false
       render()
     })
     wrap.querySelectorAll('[data-track]').forEach((b) =>
@@ -457,6 +540,10 @@ const KBPanel = (() => {
     expand() {
       open = true
       render()
+    },
+    /** 지금 상태 읽기 — 같은 값을 두 번 받아오지 않으려고 씁니다 */
+    getState() {
+      return state
     },
     destroy() {
       host?.remove()
