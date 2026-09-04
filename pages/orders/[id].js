@@ -122,13 +122,12 @@ export default function OrderPage() {
 
   return (
     <Layout title={`주문 ${order.orderNo}`}>
-      {/* 상태는 고객이 읽을 쉬운 말로 (운영자 화면·물류사 문서는 정식 용어 그대로) */}
       <div className="hero">
-        <h1 className="hero__title">{order.stateInfo.plain?.label ?? order.stateInfo.label}</h1>
+        <h1 className="hero__title">{order.stateInfo.label}</h1>
         <p className="hero__desc">
-          신청번호 <strong>{order.orderNo}</strong>
+          주문번호 <strong>{order.orderNo}</strong>
           <br />
-          {order.stateInfo.plain?.description ?? order.stateInfo.description}
+          {order.stateInfo.description}
         </p>
       </div>
 
@@ -364,7 +363,7 @@ export default function OrderPage() {
               return (
                 <div className="row" key={state} style={{ opacity: done ? 1 : 0.35 }}>
                   <span className="row__label">
-                    {done ? (current ? '🔵' : '✅') : '⚪'} {ORDER_STATES[state].plain?.label ?? ORDER_STATES[state].label}
+                    {done ? (current ? '🔵' : '✅') : '⚪'} {ORDER_STATES[state].label}
                   </span>
                   <span className="row__value" style={{ fontWeight: current ? 800 : 500, fontSize: 12 }}>
                     {order.history.find((h) => h.state === state)
