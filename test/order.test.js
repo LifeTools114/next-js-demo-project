@@ -369,3 +369,37 @@ test('허용오차: 흡수해도 고객 청구액은 최초 견적 그대로다'
   assert.equal(s.action, 'none')
   assert.equal(s.quotedTotalKrw, o.quote.total)
 })
+
+test('정산 적용을 두 번 눌러도 청구가 늘지 않는다 (원장 오염 금지)', async () => {
+  /**
+   * 실제로 있던 사고: 원장 기록이 상태 검증보다 먼저 실행돼, [정산 적용]을
+   * 두 번 누르면 화면에는 409 오류만 뜨는데 고객 청구액은 조용히 두 배가 됐습니다.
+   * 운영자가 폰에서 응답을 못 받고 다시 누르는 것만으로 재현됩니다.
+   */
+  const order = createOrder({
+    items: [{ productId: 'p1', productName: '수분크림 100ml', productPrice: 30000, quantity: 1 }],
+    zone: 'hanoi',
+    track: 'forwarding',
+    customer: { name: '박하노', phone: '0912345678', address: 'Hà Nội' },
+    consents: ALL_CONSENTS,
+  })
+  confirmPayment(order.id, { confirmedBy: '운영자', amountKrw: order.invoice.amountKrw })
+  startPurchase(order.id, '운영자')
+  recordPurchase(order.id, { coupangOrderNo: '30001234567890', amountKrw: 30000, by: '운영자' })
+  // 추정보다 훨씬 무겁게 실측 → 추가 청구가 생기는 상황
+  recordWeighing(order.id, { actualWeightG: 3200, by: '운영자', autoSettle: false })
+
+  const charges = (o) => o.ledger.customer.filter((e) => e.type === 'ADDITIONAL_CHARGE')
+  const applied = applySettlement(order.id, '운영자')
+  const lines = charges(applied).length
+  const amount = charges(applied).reduce((s, e) => s + e.amountKrw, 0)
+  assert.ok(lines >= 1, '추가 청구가 한 줄 생겨야 합니다')
+  assert.equal(applied.state, 'SETTLEMENT_DUE')
+
+  await assert.rejects(async () => applySettlement(order.id, '운영자'), /변경할 수 없습니다/)
+
+  const after = getOrder(order.id)
+  assert.equal(charges(after).length, lines, '두 번째 시도로 청구 줄이 늘면 안 됩니다')
+  assert.equal(charges(after).reduce((s, e) => s + e.amountKrw, 0), amount, '청구액이 그대로여야 합니다')
+  assert.equal(customerView(after).balance.krw, customerView(applied).balance.krw, '고객이 볼 잔액도 그대로')
+})
