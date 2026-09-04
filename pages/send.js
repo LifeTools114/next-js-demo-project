@@ -21,34 +21,19 @@ import Layout from '../components/Layout'
 import { WAREHOUSE, detailAddressFor } from '../config/warehouse'
 import { TRACKS } from '../config/tracks'
 import { krw, vnd } from '../lib/format'
+import { copyText } from '../lib/copy'
 
 const RECIPIENT_KEY = 'kbeauty-hanoi:recipient'
 
 /** 눌러서 복사되는 한 줄 — 폰에서 손가락으로 누르기 좋은 크기로. */
 function CopyRow({ label, value, hint, disabled, danger }) {
-  const [done, setDone] = useState(false)
+  const [state, setState] = useState('')
+  const done = state === 'ok'
   const copy = async () => {
     if (disabled || !value) return
-    try {
-      await navigator.clipboard.writeText(value)
-    } catch {
-      // HTTPS 가 아니거나 권한이 없으면 클립보드가 막힙니다 —
-      // 그때는 글자를 선택 상태로 만들어 길게 눌러 복사할 수 있게 합니다.
-      try {
-        const ta = document.createElement('textarea')
-        ta.value = value
-        ta.style.position = 'fixed'
-        ta.style.opacity = '0'
-        document.body.appendChild(ta)
-        ta.select()
-        document.execCommand('copy')
-        ta.remove()
-      } catch {
-        return // 그래도 안 되면 화면의 글자를 직접 복사하시면 됩니다
-      }
-    }
-    setDone(true)
-    setTimeout(() => setDone(false), 1600)
+    // 복사가 막히는 환경에서도 조용히 실패하지 않습니다 (lib/copy.js 참고)
+    setState((await copyText(value)) ? 'ok' : 'fail')
+    setTimeout(() => setState(''), 1800)
   }
 
   return (
@@ -57,7 +42,7 @@ function CopyRow({ label, value, hint, disabled, danger }) {
         display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
         padding: '14px 14px', marginBottom: 8, borderRadius: 12, cursor: disabled ? 'default' : 'pointer',
         border: `2px ${danger ? 'solid #ef4a76' : 'solid #e5e8eb'}`,
-        background: disabled ? '#f6f7f9' : done ? '#e6f6f0' : '#fff',
+        background: disabled ? '#f6f7f9' : done ? '#e6f6f0' : state === 'fail' ? '#fff8e6' : '#fff',
         font: 'inherit',
       }}>
       <span style={{ flex: 1, minWidth: 0 }}>
@@ -76,7 +61,7 @@ function CopyRow({ label, value, hint, disabled, danger }) {
         flexShrink: 0, fontSize: 14, fontWeight: 800,
         color: done ? '#17916b' : disabled ? '#b0b8c1' : '#3182f6',
       }}>
-        {done ? '✓ 복사됨' : '복사'}
+        {done ? '✓ 복사됨' : state === 'fail' ? '길게 눌러 복사' : '복사'}
       </span>
     </button>
   )

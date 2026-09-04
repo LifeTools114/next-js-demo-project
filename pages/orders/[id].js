@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import { PROGRESS_ORDER, ORDER_STATES } from '../../lib/order/states'
 import { krw, vnd, weight, formatDateTime } from '../../lib/format'
+import CopyButton from '../../components/CopyButton'
 import { REFUND_DAYS, RETURN_POLICY } from '../../config/payment'
 import { RETURN_SHIPPING, estimateReturnShippingUsd } from '../../config/shipping'
 import { FX } from '../../config/fx'
@@ -121,12 +122,13 @@ export default function OrderPage() {
 
   return (
     <Layout title={`주문 ${order.orderNo}`}>
+      {/* 상태는 고객이 읽을 쉬운 말로 (운영자 화면·물류사 문서는 정식 용어 그대로) */}
       <div className="hero">
-        <h1 className="hero__title">{order.stateInfo.label}</h1>
+        <h1 className="hero__title">{order.stateInfo.plain?.label ?? order.stateInfo.label}</h1>
         <p className="hero__desc">
-          주문번호 <strong>{order.orderNo}</strong>
+          신청번호 <strong>{order.orderNo}</strong>
           <br />
-          {order.stateInfo.description}
+          {order.stateInfo.plain?.description ?? order.stateInfo.description}
         </p>
       </div>
 
@@ -148,7 +150,7 @@ export default function OrderPage() {
         <section className="panel">
           <div className="panel__head">
             <span>{order.state === 'SETTLEMENT_DUE' ? '차액 보내기' : '여기로 보내주세요'}</span>
-            <span className="tag tag--warn">미납</span>
+            <span className="tag tag--warn">아직 안 보내심</span>
           </div>
           <div className="panel__body">
             {/* 선택한 수단의 통화를 앞세워 보여줍니다 (KRW 계좌면 원화 먼저) */}
@@ -184,31 +186,27 @@ export default function OrderPage() {
                     </div>
                     <div style={{ padding: 14 }}>
                       <div style={{ fontSize: 15, color: '#4e5968' }}>{bank}</div>
-                      <button type="button"
-                        onClick={async (e) => {
-                          try {
-                            await navigator.clipboard.writeText(account.replace(/[^0-9]/g, ''))
-                            const b = e.currentTarget
-                            const t = b.textContent
-                            b.textContent = '✓ 복사되었습니다'
-                            setTimeout(() => { b.textContent = t }, 1500)
-                          } catch { /* 권한 없으면 화면의 번호를 보고 입력 */ }
-                        }}
+                      <CopyButton value={account.replace(/[^0-9]/g, '')} label={account}
                         style={{
                           display: 'block', width: '100%', marginTop: 6, padding: '12px 10px',
                           border: '2px dashed #3182f6', borderRadius: 10, background: '#f2f6fb',
                           fontSize: 24, fontWeight: 800, color: '#191f28', cursor: 'pointer',
-                        }}>
-                        {account}
-                      </button>
+                        }} />
                       <div style={{ fontSize: 15, color: '#4e5968', marginTop: 6 }}>예금주 : <b>{holder}</b></div>
                       <div style={{
                         marginTop: 12, padding: '10px 12px', borderRadius: 10,
                         background: '#fff0f0', color: '#c92a2a', fontSize: 15, fontWeight: 700, lineHeight: 1.6,
                       }}>
-                        보낼 때 메모(내용)에 <b style={{ fontSize: 17 }}>{order.orderNo}</b> 를 꼭 적어주세요.
-                        <br />
-                        <span style={{ fontWeight: 500, fontSize: 13.5 }}>적지 않으면 누가 보내셨는지 확인이 늦어집니다.</span>
+                        보낼 때 메모(내용)에 이 번호를 꼭 적어주세요.
+                        <CopyButton value={order.orderNo}
+                          style={{
+                            display: 'block', width: '100%', marginTop: 8, padding: '10px',
+                            border: '2px dashed #c92a2a', borderRadius: 10, background: '#fff',
+                            fontSize: 20, fontWeight: 800, color: '#c92a2a', cursor: 'pointer',
+                          }} />
+                        <span style={{ display: 'block', marginTop: 8, fontWeight: 500, fontSize: 13.5 }}>
+                          적지 않으면 누가 보내셨는지 확인이 늦어집니다.
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -366,7 +364,7 @@ export default function OrderPage() {
               return (
                 <div className="row" key={state} style={{ opacity: done ? 1 : 0.35 }}>
                   <span className="row__label">
-                    {done ? (current ? '🔵' : '✅') : '⚪'} {ORDER_STATES[state].label}
+                    {done ? (current ? '🔵' : '✅') : '⚪'} {ORDER_STATES[state].plain?.label ?? ORDER_STATES[state].label}
                   </span>
                   <span className="row__value" style={{ fontWeight: current ? 800 : 500, fontSize: 12 }}>
                     {order.history.find((h) => h.state === state)
@@ -384,7 +382,7 @@ export default function OrderPage() {
       {order.settlement && (
         <section className="panel">
           <div className="panel__head">
-            <span>실측 정산</span>
+            <span>실제로 달아본 무게</span>
             <span className={`tag ${order.settlement.action === 'none' ? 'tag--ok' : 'tag--weight'}`}>
               {order.settlement.label}
             </span>
@@ -417,7 +415,7 @@ export default function OrderPage() {
 
       {/* 결제 내역 (고객 원장) */}
       <section className="panel">
-        <div className="panel__head">결제 내역</div>
+        <div className="panel__head">주고받은 내역</div>
         <div className="panel__body">
           {order.ledger.customer.map((e) => (
             <div className="row" key={e.id}>
@@ -435,7 +433,7 @@ export default function OrderPage() {
           ))}
           <div className="row row--total">
             <span className="row__label">
-              {balance > 0 ? '미납 잔액' : balance < 0 ? '환불 예정' : '정산 완료'}
+              {balance > 0 ? '아직 보내실 금액' : balance < 0 ? '돌려드릴 금액' : '정리 끝'}
             </span>
             <span className="row__value">{balance === 0 ? '0원' : krw(Math.abs(balance))}</span>
           </div>
@@ -473,7 +471,7 @@ export default function OrderPage() {
           {cancelError && <p className="note note--danger">{cancelError}</p>}
           <button type="button" className="btn btn--ghost" disabled={cancelling} onClick={cancelNow}
             style={{ color: '#c92a2a', borderColor: '#ffc9c9', width: '100%' }}>
-            {cancelling ? '취소 중…' : '이 주문 취소하기'}
+            {cancelling ? '취소 중…' : '이 신청 취소하기'}
           </button>
           <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-500)', marginTop: 6 }}>
             보내시기 전에는 비용 없이 바로 취소됩니다 · 실수로 두 번 신청한 것도 여기서 정리하세요
