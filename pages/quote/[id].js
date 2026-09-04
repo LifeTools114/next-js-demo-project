@@ -175,7 +175,7 @@ export default function QuotePage() {
               {' · '}차액 {doc.diffKrw > 0 ? '+' : ''}{won(doc.diffKrw)} ({doc.diffVnd > 0 ? '+' : ''}{dong(doc.diffVnd)})
             </div>
             <div style={{ marginTop: 2, color: '#4e5968', fontSize: 12 }}>
-              기준: 차액 {dong(doc.thresholdVnd)} 이상일 때만 추가 청구 또는 환불합니다.
+              기준: 차액 {dong(doc.thresholdVnd)} ({won(doc.thresholdKrw)}) 이상일 때만 추가 청구 또는 환불합니다.
             </div>
           </div>
         ) : null}

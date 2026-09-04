@@ -2,14 +2,17 @@
  * 견적서(임시·최종) — 발행 흐름과 무게 차이 판정
  *
  * 운영자 지시(26-09-01): 임시 견적서를 고객에게 전달하고, 물류사 청구서를
- * 받으면 실측 무게로 최종 견적서를 만든다. 차액이 20,000동 이상이면
+ * 받으면 실측 무게로 최종 견적서를 만든다. 차액이 기준 금액 이상이면
  * 추가청구·환불 대상이고, 그 미만이면 임시 견적서 금액대로 확정한다.
+ *
+ * 기준 금액(26-09-04 운영자 확정): 3,000~10,000원 — 무게 추정 신뢰도별.
+ * 견적서와 장부가 **같은 기준**을 쓰는지가 이 파일의 핵심 검사입니다.
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createOrder, saveDebitNote, getOrder } from '../lib/order/store.js'
 import { buildProvisionalQuote, buildFinalQuote, buildQuoteDoc } from '../lib/quote-doc.js'
-import { QUOTE } from '../config/quote.js'
+import { computeSettlement, settlementToleranceKrw } from '../lib/order/settlement.js'
 import { ALL_CONSENTS } from './helpers/consents.js'
 
 const newOrder = () => createOrder({ consents: ALL_CONSENTS,
@@ -51,7 +54,7 @@ test('최종 견적서 — 무게가 늘어 차액이 기준 이상이면 추가
 
   assert.equal(doc.adjust, true)
   assert.ok(doc.diffKrw > 0)
-  assert.ok(Math.abs(doc.diffVnd) >= QUOTE.adjustThresholdVnd)
+  assert.ok(Math.abs(doc.diffKrw) >= doc.thresholdKrw)
   assert.equal(doc.totalKrw, doc.recalculatedKrw, '조정 대상이면 재계산 금액으로 청구')
   assert.match(doc.adjustLabel, /추가 청구/)
 })
@@ -85,4 +88,62 @@ test('청구서를 저장하면 이후 문서는 최종 견적서가 된다', ()
 test('실측 무게가 없으면 최종 견적서를 만들지 않는다', () => {
   const order = newOrder()
   assert.throws(() => buildFinalQuote(order, {}), /실측 무게/)
+})
+
+
+/* ─────────── 견적서와 장부가 같은 기준을 쓰는가 ─────────── */
+
+test('조정 기준은 견적서와 장부가 같은 곳에서 가져온다', () => {
+  const order = newOrder()
+  const doc = buildFinalQuote(order, { chargeableWeightKg: order.quote.weight.chargeableG / 1000 })
+  assert.equal(doc.thresholdKrw, settlementToleranceKrw(order))
+  assert.ok(doc.thresholdKrw >= 3_000 && doc.thresholdKrw <= 10_000, '3,000~10,000원 범위')
+  // 고객이 보는 동화 표기도 같은 값에서 환산됩니다.
+  assert.equal(doc.thresholdVnd, Math.round(doc.thresholdKrw * order.fx.effectiveRate))
+})
+
+test('견적서의 조정 판정과 장부의 정산 판정이 언제나 일치한다', () => {
+  // 예전에는 견적서만 20,000동(약 1,081원)이라는 별도 기준을 들고 있어,
+  // 문서는 "추가 청구 대상"이라 적고 장부는 아무 일도 하지 않는 구간이
+  // 있었습니다. 무게를 넓게 훑어 그 틈이 없는지 확인합니다.
+  const order = newOrder()
+  const estKg = order.quote.weight.chargeableG / 1000
+
+  let sawAdjust = false
+  let sawKeep = false
+  for (let g = 100; g <= 6000; g += 50) {
+    const kg = Math.round((estKg * 1000 + (g - 3000)) ) / 1000
+    if (kg <= 0) continue
+    const doc = buildFinalQuote(order, { chargeableWeightKg: kg })
+    const s = computeSettlement(order, Math.round(kg * 1000))
+
+    assert.equal(doc.adjust, s.action !== 'none',
+      `실측 ${kg}kg — 견적서는 ${doc.adjust ? '조정' : '유지'}, 장부는 ${s.action}`)
+    if (doc.adjust) {
+      assert.equal(doc.diffKrw > 0, s.action === 'additional', `실측 ${kg}kg — 방향도 같아야 합니다`)
+      assert.equal(Math.abs(doc.diffKrw), s.absKrw, `실측 ${kg}kg — 금액도 같아야 합니다`)
+      assert.equal(doc.totalKrw, s.finalTotalKrw, '조정하면 재계산 금액으로 청구')
+      sawAdjust = true
+    } else {
+      assert.equal(doc.totalKrw, order.quote.total, '조정 안 하면 임시 견적 금액 그대로')
+      sawKeep = true
+    }
+  }
+  assert.ok(sawAdjust && sawKeep, '조정하는 구간과 유지하는 구간을 모두 지나야 검사가 성립')
+})
+
+test('경계값 — 기준 금액 바로 아래는 흡수, 바로 위는 조정', () => {
+  const order = newOrder()
+  const tol = settlementToleranceKrw(order)
+
+  // 차액이 기준과 정확히 같으면 조정합니다(>= 기준). 그 1원 아래는 흡수.
+  const at = { diffKrw: tol }
+  const below = { diffKrw: tol - 1 }
+  assert.ok(Math.abs(at.diffKrw) >= tol, '기준과 같으면 조정 대상')
+  assert.ok(Math.abs(below.diffKrw) < tol, '기준보다 1원 적으면 흡수')
+
+  // 실제 판정에서도 같은 방향인지 — 무게 한 칸(약 12,420원)은 어떤 신뢰도에서도 조정.
+  const step = buildFinalQuote(order, { chargeableWeightKg: order.quote.shipping.billableKg + 1 })
+  assert.equal(step.adjust, true, '청구 kg 한 칸 차이는 항상 조정 대상')
+  assert.ok(Math.abs(step.diffKrw) > tol)
 })

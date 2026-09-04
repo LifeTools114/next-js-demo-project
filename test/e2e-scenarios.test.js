@@ -24,7 +24,7 @@ import { checkEligibility } from '../lib/eligibility.js'
 import { estimateItemWeight } from '../lib/weight/estimate.js'
 import { QUOTE } from '../config/quote.js'
 import { SHIPPING } from '../config/shipping.js'
-import { RETURN_POLICY } from '../config/payment.js'
+import { RETURN_POLICY, SETTLEMENT_RULES } from '../config/payment.js'
 import { ALL_CONSENTS } from './helpers/consents.js'
 
 // ── 공통 도우미 ───────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ test('S03 무게 증가 → 차액 기준 이상 → 추가 청구 대상', () =
   const { doc } = uploadDebitNote(order, order.quote.weight.chargeableG / 1000 + 3)
   assert.equal(doc.adjust, true)
   assert.ok(doc.diffKrw > 0)
-  assert.ok(Math.abs(doc.diffVnd) >= QUOTE.adjustThresholdVnd)
+  assert.ok(Math.abs(doc.diffKrw) >= doc.thresholdKrw)
   assert.equal(doc.totalKrw, doc.recalculatedKrw, '조정 대상이면 재계산 금액 청구')
   assert.ok(doc.totalKrw > before)
   assert.match(doc.adjustLabel, /추가 청구/)
@@ -147,7 +147,7 @@ test('S04 무게 감소 → 환불 대상', () => {
   assert.equal(doc.totalKrw, doc.recalculatedKrw)
 })
 
-test('S05 차액이 기준(20,000동) 미만 → 임시 견적서 금액 그대로 확정', () => {
+test('S05 차액이 기준 미만 → 임시 견적서 금액 그대로 확정', () => {
   const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
@@ -319,13 +319,18 @@ test('S20 정책 값이 문서·요금에 일관되게 적용된다', () => {
   // 국제배송비 단가와 반송 정책은 설정 한 곳에서 나옵니다.
   assert.ok(SHIPPING.zones.hanoi, '하노이 구간 요율 존재')
   assert.equal(RETURN_POLICY.forwardingRefundFeeUsd, 1)
-  assert.equal(QUOTE.adjustThresholdVnd, 20000)
+  // 조정 기준은 config/payment.js 한 곳에서만 나옵니다 — 견적서에 별도 기준을
+  // 두었다가 장부와 어긋난 적이 있어(26-09-04) 통일했습니다.
+  assert.equal(QUOTE.adjustThresholdVnd, undefined, '견적서에 별도 기준을 두지 않습니다')
+  assert.deepEqual(SETTLEMENT_RULES.toleranceByConfidence, { high: 10_000, medium: 6_000, low: 3_000 })
 
   const order = createOrder({ consents: ALL_CONSENTS,
     items: [item('토리든 세럼 50ml', 18900)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
   })
   const prov = buildProvisionalQuote(order)
-  assert.ok(prov.notes.some((n) => n.includes('20,000')), '임시 견적서에 조정 기준 안내')
+  assert.ok(prov.thresholdKrw >= 3_000 && prov.thresholdKrw <= 10_000, '조정 기준은 3,000~10,000원')
+  assert.ok(prov.notes.some((n) => n.includes(prov.thresholdKrw.toLocaleString('ko-KR'))),
+    '임시 견적서에 그 주문의 조정 기준 금액을 적어 줍니다')
   assert.ok(prov.notes.some((n) => n.includes('최종 견적서')), '최종 견적서 예고 안내')
   assert.ok(prov.validUntil, '유효기간 표기')
   assert.equal(prov.customer.address, undefined, '견적서에 배송지 주소를 싣지 않습니다')

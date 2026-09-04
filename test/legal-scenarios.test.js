@@ -18,7 +18,7 @@ import {
 import { buildProvisionalQuote, buildFinalQuote } from '../lib/quote-doc.js'
 import { checkEligibility } from '../lib/eligibility.js'
 import { estimateItemWeight } from '../lib/weight/estimate.js'
-import { QUOTE } from '../config/quote.js'
+import { settlementToleranceKrw } from '../lib/order/settlement.js'
 import { REFUND_DAYS, RETURN_POLICY } from '../config/payment.js'
 import { RETURN_SHIPPING } from '../config/shipping.js'
 
@@ -70,12 +70,14 @@ test('L04 부피무게 청구를 고지하고, 실제로 그렇게 계산한다'
   assert.ok(w.chargeableG > w.actualG)
 })
 
-test('L05 실측 차액 재정산을 고지하고, 그 기준(20,000동)대로 판정한다', () => {
-  assert.ok(noticeSays('reweigh', /20,000동/))
+test('L05 실측 차액 재정산을 고지하고, 고지한 기준대로 판정한다', () => {
+  assert.ok(noticeSays('reweigh', /3,000~10,000원/))
   const o = order()
   const same = buildFinalQuote(o, { chargeableWeightKg: o.quote.weight.chargeableG / 1000 })
   assert.equal(same.adjust, false)
-  assert.equal(same.thresholdVnd, QUOTE.adjustThresholdVnd)
+  // 견적서에 찍히는 기준이 고지문의 범위 안에 있어야 합니다.
+  assert.equal(same.thresholdKrw, settlementToleranceKrw(o))
+  assert.ok(same.thresholdKrw >= 3_000 && same.thresholdKrw <= 10_000)
   const heavier = buildFinalQuote(o, { chargeableWeightKg: o.quote.weight.chargeableG / 1000 + 3 })
   assert.equal(heavier.adjust, true)
 })
