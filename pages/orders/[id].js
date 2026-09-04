@@ -15,8 +15,8 @@ import { FX } from '../../config/fx'
 
 /** 상태 → 지금 물건이 있는 곳 (📍 위치 배너) */
 const LOCATION_BY_STATE = {
-  REQUESTED: '주문 접수 — 입금 확인 대기',
-  AWAITING_PAYMENT: '주문 접수 — 입금 확인 대기',
+  REQUESTED: '신청 완료 — 보내주시면 시작해요',
+  AWAITING_PAYMENT: '신청 완료 — 보내주시면 시작해요',
   PAID: '한국 — 상품 준비 중',
   PURCHASING: '한국 — 쿠팡 구매 진행 중',
   PURCHASED: '한국 — 창고(서울 강서)로 이동 중',
@@ -41,7 +41,7 @@ export default function OrderPage() {
 
   /** 고객 셀프 취소 — 입금 확인 전(주문 접수·입금 대기)에만 서버가 허용합니다. */
   const cancelNow = async () => {
-    if (!window.confirm('이 주문을 취소할까요?\n입금 전이라 비용 없이 바로 취소되며, 같은 상품을 다시 주문할 수 있습니다.')) return
+    if (!window.confirm('이 신청을 취소할까요?\n아직 돈을 안 보내셨으니 비용 없이 바로 취소됩니다. 같은 상품으로 다시 신청하실 수 있습니다.')) return
     setCancelling(true)
     setCancelError(null)
     try {
@@ -147,13 +147,13 @@ export default function OrderPage() {
       {order.payable && balance > 0 && (
         <section className="panel">
           <div className="panel__head">
-            <span>{order.state === 'SETTLEMENT_DUE' ? '차액 입금 안내' : '입금 안내'}</span>
+            <span>{order.state === 'SETTLEMENT_DUE' ? '차액 보내기' : '여기로 보내주세요'}</span>
             <span className="tag tag--warn">미납</span>
           </div>
           <div className="panel__body">
             {/* 선택한 수단의 통화를 앞세워 보여줍니다 (KRW 계좌면 원화 먼저) */}
             <div className="row row--total" style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}>
-              <span className="row__label">입금하실 금액</span>
+              <span className="row__label">보내실 금액</span>
               <span className="row__value">
                 {order.paymentRequest?.chargeCurrency === 'KRW' ? krw(balance) : vnd(order.balance.vnd)}
               </span>
@@ -208,7 +208,7 @@ export default function OrderPage() {
                       }}>
                         보낼 때 메모(내용)에 <b style={{ fontSize: 17 }}>{order.orderNo}</b> 를 꼭 적어주세요.
                         <br />
-                        <span style={{ fontWeight: 500, fontSize: 13.5 }}>적지 않으면 누구 입금인지 확인이 늦어집니다.</span>
+                        <span style={{ fontWeight: 500, fontSize: 13.5 }}>적지 않으면 누가 보내셨는지 확인이 늦어집니다.</span>
                       </div>
                     </div>
                   </div>
@@ -399,7 +399,7 @@ export default function OrderPage() {
               <span className="row__value">{weight(order.settlement.actualWeightG)} → {order.settlement.finalBillableKg}kg 청구</span>
             </div>
             <div className="row">
-              <span className="row__label">최초 청구액</span>
+              <span className="row__label">처음 안내한 금액</span>
               <span className="row__value">{krw(order.settlement.quotedTotalKrw)}</span>
             </div>
             <div className="row row--total">
@@ -408,7 +408,7 @@ export default function OrderPage() {
             </div>
             {order.settlement.action === 'none' && (
               <p className="note" style={{ marginTop: 10 }}>
-                차액이 크지 않아 추가 정산 없이 최초 청구액으로 확정되었습니다.
+                차액이 크지 않아 처음 안내한 금액 그대로 확정되었습니다.
               </p>
             )}
           </div>
@@ -476,7 +476,7 @@ export default function OrderPage() {
             {cancelling ? '취소 중…' : '이 주문 취소하기'}
           </button>
           <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-500)', marginTop: 6 }}>
-            입금 전에는 비용 없이 바로 취소됩니다 · 실수로 두 번 접수한 주문도 여기서 정리하세요
+            보내시기 전에는 비용 없이 바로 취소됩니다 · 실수로 두 번 신청한 것도 여기서 정리하세요
           </p>
         </div>
       )}

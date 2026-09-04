@@ -23,17 +23,17 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         <div className="panel__body">
           <div className="row">
             <span className="row__label">
-              <strong>배송대행</strong>
+              <strong>📦 배송만</strong>
               <br />
-              <small style={{ color: 'var(--ink-500)' }}>쿠팡에서 직접 결제하고 배송만 맡기기</small>
+              <small style={{ color: 'var(--ink-500)' }}>쿠팡에서 직접 사고, 하노이까지 배송만 맡기기</small>
             </span>
             <span className="row__value">${ratePerKgUsd}/kg</span>
           </div>
           <div className="row">
             <span className="row__label">
-              <strong>구매대행</strong>
+              <strong>🛒 구매하고 배송까지</strong>
               <br />
-              <small style={{ color: 'var(--ink-500)' }}>한국 카드가 없어도 결제까지 대신</small>
+              <small style={{ color: 'var(--ink-500)' }}>한국 카드가 없어도 저희가 대신 사서 보내드리기</small>
             </span>
             <span className="row__value">
               ${ratePerKgUsd}/kg + 수수료 {krw(agencyBaseKrw)}~

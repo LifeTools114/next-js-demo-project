@@ -289,10 +289,10 @@ export default function Checkout() {
           <div className="section" style={{ paddingTop: 0 }}>
             <p className="note" style={{ fontSize: 12.5, lineHeight: 1.8 }}>
               💳 환불은 <b style={{ color: '#3182f6' }}>영업일 기준 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내
-              지급됩니다 (계좌 입금·카드결제 취소 동일).
+              돌려드립니다 (계좌로 보내드리거나 카드결제 취소, 같습니다).
               <br />
-              ⛔ 반품·변심 취소 환불: <b>구매대행은 대행수수료를 제외한 나머지</b>를 환불하고,{' '}
-              <b>배송대행은 처리 수수료 {'$' + RETURN_POLICY.forwardingRefundFeeUsd} 차감</b> 후 환불합니다.
+              ⛔ 반품·변심 취소 환불: <b>대신 사드린 건은 수수료를 뺀 나머지</b>를 돌려드리고,{' '}
+              <b>배송만 맡기신 건은 처리비 {'$' + RETURN_POLICY.forwardingRefundFeeUsd}를 뺀</b> 나머지를 돌려드립니다.
               품절·가격 인상 등 당사 사유 취소는 <b style={{ color: '#17916b' }}>전액 환불</b>.
               <br />
               ↩️ 하노이 도착 후 교환·반품 시{' '}
@@ -333,7 +333,7 @@ export default function Checkout() {
       {overLimit && (
         <div className="section" style={{ paddingTop: 0 }}>
           <p className="note note--danger">
-            🚫 구매대행은 1회 상품가 합계{' '}
+            🚫 대신 사드리는 건 한 번에 상품값 합계{' '}
             <b>{krw(quote.agentLimit.maxGoodsKrw)}</b>까지 접수합니다. 나눠서 신청해 주세요.
           </p>
         </div>
@@ -438,7 +438,7 @@ export default function Checkout() {
                       <span style={{ fontSize: 30 }}>{m.currency === 'KRW' ? '🇰🇷' : '🇻🇳'}</span>
                       <span style={{ flex: 1 }}>
                         <span style={{ display: 'block', fontSize: 17, fontWeight: 800, color: '#191f28' }}>
-                          {m.currency === 'KRW' ? '한국 계좌로 원화 입금' : '베트남 계좌로 동화 입금'}
+                          {m.currency === 'KRW' ? '한국 계좌로 원화 보내기' : '베트남 계좌로 동화 보내기'}
                         </span>
                         <span style={{ display: 'block', fontSize: 13.5, color: '#4e5968' }}>{m.label}</span>
                       </span>

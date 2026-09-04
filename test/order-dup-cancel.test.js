@@ -190,7 +190,8 @@ test('변심 취소: 구매대행은 대행수수료만 남기고 환불한다',
   assert.equal(s.balanceKrw, 0, '잔액은 0으로 끝나야 합니다 (유령 환불 예정 금지)')
   const refund = cancelled.ledger.customer.find((e) => e.type === 'REFUND')
   assert.equal(refund.amountKrw, cancelled.quote.total - fee)
-  assert.match(refund.memo, /구매대행 수수료/)
+  // 고객에게 보이는 말이라 쉬운 말로 바꿨습니다 (config/words.js 방침)
+  assert.match(refund.memo, /대신 구매 수수료/)
 })
 
 test('변심 취소: 배송대행은 $1 만 차감한다', async () => {

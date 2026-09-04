@@ -124,7 +124,7 @@
       '<b style="font-size:14px">✅ 쿠팡 결제 완료</b>' +
       '<div id="kb-fwd-msg" style="margin-top:8px;padding:10px;border-radius:10px;background:#e8f1ff;' +
       'font-weight:800;color:#1b64da;animation:kbBlink .9s ease-in-out infinite">' +
-      '🇻🇳 배송대행 결제창으로 연결됩니다…</div>' +
+      '🇻🇳 배송비 보내는 화면으로 연결됩니다…</div>' +
       '<div style="margin-top:8px;font-size:11.5px;color:#4e5968">이 쿠팡 화면은 사라지지 않고 그대로 유지됩니다.</div>'
     document.body.appendChild(card)
     return card
@@ -136,7 +136,7 @@
     const msg = card.querySelector('#kb-fwd-msg')
     if (msg) {
       msg.style.animation = 'none'
-      msg.textContent = '🇻🇳 배송대행 결제창이 새 탭에 열렸습니다'
+      msg.textContent = '🇻🇳 배송비 보내는 화면이 새 탭에 열렸습니다'
     }
     if (card.querySelector('#kb-fwd-reopen')) return
     const wrap = document.createElement('div')
@@ -1038,9 +1038,9 @@
       ? '<div style="margin-top:8px;color:#4e5968;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
         '금액 계산과 자동 신청이 가능합니다.</div>'
       : '<div style="margin-top:8px;border:1.5px solid #dbe4f0;border-radius:12px;overflow:hidden;background:#fff">' +
-        priceRow('forwarding', '배송대행', '쿠팡 결제는 직접 · 배송만 맡김', quotes.fwd) +
+        priceRow('forwarding', '📦 배송만', '쿠팡 결제는 직접 · 배송만', quotes.fwd) +
         '<div style="border-top:1px solid #f2f4f6"></div>' +
-        priceRow('agent', '구매대행', '결제까지 맡김 · 쿠팡 결제 없음', quotes.agent) +
+        priceRow('agent', '🛒 구매하고 배송까지', '저희가 대신 사드려요', quotes.agent) +
         '</div>'
 
     // ── 선택한 방식의 다음 행동 — 카드가 결제/신청으로 유도합니다 ──
@@ -1048,15 +1048,15 @@
       ? ''
       : helperTrack === 'agent' && quotes.agent?.agentLimit?.exceeded
         ? '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff0f0;color:#c92a2a;' +
-          'font-size:11.5px;font-weight:700">구매대행은 1회 상품가 합계 ' +
+          'font-size:11.5px;font-weight:700">한 번에 상품값 합계 ' +
           `${won(quotes.agent.agentLimit.maxGoodsKrw)}까지 접수합니다 — 나눠서 신청해 주세요.</div>`
         : helperTrack === 'agent'
         ? '<style>@keyframes kbPulse{0%,100%{box-shadow:0 0 0 0 rgba(49,130,246,.55)}50%{box-shadow:0 0 0 7px rgba(49,130,246,0)}}</style>' +
           '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:46px;border:0;border-radius:10px;' +
           'background:#3182f6;color:#fff;font-weight:800;font-size:15px;cursor:pointer;' +
-          'animation:kbPulse 1.5s ease-in-out infinite">구매대행 신청서 작성 →</button>' +
+          'animation:kbPulse 1.5s ease-in-out infinite">🛒 대신 사달라고 신청하기</button>' +
           '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">' +
-          '쿠팡 결제 없이 입금 · 개인 쿠폰 사용 불가</div>'
+          '쿠팡 결제 없이 보내기 · 개인 쿠폰은 못 씁니다</div>'
         : onCart
           ? '<div style="margin-top:8px;padding:10px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
             'font-size:12.5px;font-weight:800;text-align:center">다음: [주문하기]로 이동하세요</div>'
@@ -1115,20 +1115,20 @@
           ? `<div style="margin-top:6px;font-size:10.5px;color:#17916b">🛒 이 화면의 상품 ${cart.length}개 기준</div>`
           : '') +
         weightLine +
-        detailHead('배송대행 — 결제는 내가, 배송만 맡김') +
-        steps('쿠팡 결제 후 <b>① 배송 신청서 자동 열림</b> → ② 배송비 입금(원화/동화) → ' +
+        detailHead('📦 배송만 — 쿠팡 결제는 내가') +
+        steps('쿠팡 결제 후 <b>① 신청서가 저절로 열림</b> → ② 배송비 보내기(원화/동화) → ' +
           `③ 한국창고 도착 <b>1~3영업일</b> → ④ 하노이 도착 <b>+${lt.min}~${lt.max}영업일</b>`) +
         steps('본인 결제라 <b>쿠폰·회원 할인을 모두 그대로</b> 쓸 수 있습니다.') +
         steps('무게 기준: 1kg까지 기본요금 · 이후 kg 단위(0.5 이하 버림·초과 올림)') +
         bdRows(quotes.fwd) +
-        detailHead('구매대행 — 결제까지 맡김') +
-        steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 입금 → ③ 저희가 대신 주문 → ' +
+        detailHead('🛒 구매하고 배송까지 — 결제도 저희가') +
+        steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 보내기 → ③ 저희가 대신 주문 → ' +
           `④ 한국창고 <b>1~3영업일</b> → ⑤ 하노이 <b>+${lt.min}~${lt.max}영업일</b>`) +
         steps('수수료: <b>기본 5,000원</b>(상품가 10만원·5종까지) — 대리 주문·검수·발주 실비. ' +
           '초과분은 10만원 초과금액의 5% + 종류 초과 종당 1,000원.') +
         steps('와우회원가는 되도록 반영합니다. <b>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>, ' +
           '타임세일·마감임박 등 기간 한정 할인가는 발주 시점에 끝나면 반영되지 않을 수 있습니다.') +
-        steps(`1회 접수 한도: 상품가 합계 ${won(quotes.agent?.agentLimit?.maxGoodsKrw ?? 1_000_000)} (초과 시 나눠서 신청).`) +
+        steps(`한 번에 신청할 수 있는 한도: 상품값 합계 ${won(quotes.agent?.agentLimit?.maxGoodsKrw ?? 1_000_000)} (넘으면 나눠서).`) +
         bdRows(quotes.agent) +
         '<div style="margin-top:7px;padding:7px 9px;border-radius:9px;background:#fff8e6;color:#d9480f;' +
         'font-size:10.5px;font-weight:700;line-height:1.6">📦 배송 기간은 모두 영업일 기준(주말·공휴일 제외) · ' +
@@ -1136,9 +1136,9 @@
         // 환불·교환·반품 — 최종 결제 전 인지 (운영자 확정 26-08-30)
         '<div style="margin-top:7px;padding:7px 9px;border-radius:9px;background:#fff0f0;color:#c92a2a;' +
         'font-size:10.5px;font-weight:700;line-height:1.6">💳 환불은 영업일 3~7일 내 지급 · ' +
-        '반품·변심 취소는 구매대행 수수료 제외 / 배송대행 $1 차감 후 환불 (당사 사유는 전액 환불)<br>' +
+        '반품·변심 취소는 대신 사드린 수수료 제외 / 배송만 $1 차감 후 돌려드립니다 (당사 사유는 전액)<br>' +
         '↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국)·쿠팡 반품비는 전액 구매자 부담 — ' +
-        '2kg까지 $20 · 이후 kg당 $11 · 구매대행은 처리 기본 5,000원 추가 · 사전 접수 필수. ' +
+        '2kg까지 $20 · 이후 kg당 $11 · 대신 사드린 건은 처리비 5,000원 추가 · 미리 알려주셔야 합니다. ' +
         '교환은 반송비 + 재배송비(위 국제배송비)를 상품가와 비교하세요<br>' +
         '⚠️ 액체(스킨·세럼 등)·배터리 내장 제품·현금·대량 화물은 반송 불가 — 교환·반품이 불가합니다</div>'
 
@@ -1299,12 +1299,12 @@
       // 카드에 보인 금액 그대로 신청서로 — 지금 화면의 상품을 들려 보냅니다.
       const res = await send('openCheckout', { track: 'agent', items: cart })
       if (res?.ok) {
-        toast('🛒 구매대행 신청서를 새 탭에 열었습니다 — 저장하면 입금 안내가 나옵니다.', true)
+        toast('🛒 신청서를 새 탭에 열었습니다 — 저장하면 어디로 보낼지 알려드립니다.', true)
       } else {
         toast(res?.error ?? '신청서를 열지 못했습니다 — 다시 눌러주세요.', false)
       }
       btn.disabled = false
-      btn.textContent = '구매대행 신청서 작성 →'
+      btn.textContent = '🛒 대신 사달라고 신청하기'
     })
     card.querySelectorAll('[data-kb-sel]').forEach((b) =>
       b.addEventListener('click', () => {

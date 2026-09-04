@@ -157,7 +157,7 @@ const KBPanel = (() => {
   function agentLimitNote(q) {
     const al = q?.agentLimit
     if (!al?.exceeded) return ''
-    return `<div class="note warn">🚫 구매대행은 1회 상품가 합계 <b>${esc(state.fmt.krw(al.maxGoodsKrw))}</b>까지
+    return `<div class="note warn">🚫 대신 사드리는 건 한 번에 상품값 합계 <b>${esc(state.fmt.krw(al.maxGoodsKrw))}</b>까지
       접수합니다 — 나눠서 신청해 주세요.</div>`
   }
 
@@ -313,8 +313,8 @@ const KBPanel = (() => {
       ${banner}${opHint}
       <p class="name">${esc(state.productName)}</p>
       <div class="pricebox">
-        ${priceRow('forwarding', '배송대행', '배송비 · 쿠팡 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
-        ${priceRow('agent', '구매대행', '총액 · 결제까지 맡김', qs.agent ?? (state.track === 'agent' ? q : null))}
+        ${priceRow('forwarding', '📦 배송만', '배송비 · 쿠팡 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
+        ${priceRow('agent', '🛒 구매하고 배송까지', '총액 · 저희가 대신', qs.agent ?? (state.track === 'agent' ? q : null))}
       </div>
       <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}<b style="color:#d9480f">영업일</b></div>
       ${agentLimitNote(q)}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
@@ -331,9 +331,9 @@ const KBPanel = (() => {
              한국창고→하노이 <b>${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}영업일</b>
              <br><b style="color:#d9480f">모두 영업일 기준(주말·공휴일 제외)</b> ·
              해외직구 상품은 창고 도착까지 <b style="color:#d9480f">+2~3영업일</b></div>
-           <div class="note">💳 환불은 <b>영업일 3~7일</b> 내 지급 · 반품·변심 취소는 구매대행 수수료 제외 /
-           배송대행 $1 차감 후 환불 · ↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국,
-           2kg까지 $20·이후 kg당 $11 · 구매대행은 처리 5,000원 추가)는
+           <div class="note">💳 환불은 <b>영업일 3~7일</b> 내 지급 · 반품·변심 취소는 대신 사드린 수수료 제외 /
+           배송만 $1 차감 후 돌려드립니다 · ↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국,
+           2kg까지 $20·이후 kg당 $11 · 대신 사드린 건은 처리비 5,000원 추가)는
            <b style="color:#c92a2a">전액 구매자 부담</b> —
            교환은 반송비+재배송비를 상품가와 비교하세요.
            <b style="color:#c92a2a">액체·배터리 내장 제품 등은 반송 불가(교환·반품 불가)</b>.</div>
@@ -345,7 +345,7 @@ const KBPanel = (() => {
 
   function renderButtons() {
     if (state.view !== 'quote') return ''
-    const label = state.track === 'forwarding' ? '견적함에 담기' : '구매대행 견적함에 담기'
+    const label = state.track === 'forwarding' ? '담아두기' : '대신 사달라고 담아두기'
 
     /**
      * 제휴 버튼 — 배송대행(고객 본인 결제) 전용.
