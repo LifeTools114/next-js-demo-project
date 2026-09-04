@@ -87,7 +87,7 @@ export default function RatesPage() {
                 </tr>
                 <tr>
                   <td>대행 수수료</td>
-                  <td>없음</td>
+                  <td>{krw(FEES.forwardingFeeKrw)}<br /><small>건당 정액 — 입고 확인·검수·재포장·통관 서류</small></td>
                   <td>기본 {krw(FEES.agencyBaseKrw)}<br />
                     <small>상품가 {krw(FEES.agencyBaseMaxGoodsKrw)}·{FEES.agencyBaseMaxItems}종까지 —
                       초과분 {Math.round(FEES.agencyExcessRate * 100)}% + 종당 {krw(FEES.agencyPerExtraItemKrw)}</small></td>
@@ -173,8 +173,8 @@ export default function RatesPage() {
                 </tr>
                 <tr>
                   <td>반품 환불액</td>
-                  <td>낸 금액 − 대신 구매 수수료<br />
-                    <small>배송만 맡기신 건은 ${RETURN_POLICY.forwardingRefundFeeUsd} 차감 · 품절 등 당사 사유는 전액</small></td>
+                  <td>낸 금액 − 수수료<br />
+                    <small>대신 구매 수수료 또는 배송만 수수료({krw(FEES.forwardingFeeKrw)})만 제외 · 품절 등 당사 사유는 전액</small></td>
                 </tr>
                 <tr>
                   <td>환불 지급</td>
@@ -206,23 +206,25 @@ export default function RatesPage() {
             const F = (w) => usdToKrw(SHIPPING.ratePerKgUsd * w) // 국제배송비(원)
             const U = (u) => usdToKrw(u)
             const base = FEES.agencyBaseKrw
+            const fwd = FEES.forwardingFeeKrw
             // 예시 4: 상품가 15만·6종 — 기본 + 10만 초과분 5% + 5종 초과 종당 1,000
             const fee4 = base + Math.round(50000 * FEES.agencyExcessRate) + FEES.agencyPerExtraItemKrw
             const dev = ITEM_SURCHARGES.device.usd
             const rows = [
-              ['📦 배송만 · 화장품 1kg', `배송비 1kg × $${SHIPPING.ratePerKgUsd}`, krw(F(1))],
-              ['📦 배송만 · 2kg', `2kg × $${SHIPPING.ratePerKgUsd}`, krw(F(2))],
+              ['📦 배송만 · 화장품 1kg', `배송비 1kg × $${SHIPPING.ratePerKgUsd} + 수수료 ${krw(fwd)}`, krw(F(1) + fwd)],
+              ['📦 배송만 · 2kg', `2kg × $${SHIPPING.ratePerKgUsd} + 수수료 ${krw(fwd)}`, krw(F(2) + fwd)],
               ['🛒 대신 구매 · 상품 50,000원 · 1kg', `상품가 + 수수료 ${krw(base)} + 배송 ${krw(F(1))}`, krw(50000 + base + F(1))],
               ['🛒 대신 구매 · 상품 150,000원 · 6종 · 2kg', `수수료 ${krw(fee4)} (기본+초과분 5%+종당 1,000) + 배송 ${krw(F(2))}`, krw(150000 + fee4 + F(2))],
               ['🛒 대신 구매 · 무선청소기 89,000원 · 1kg', `+ 기기 취급 $${dev} (${krw(U(dev))})`, krw(89000 + base + F(1) + U(dev))],
-              ['📦 배송만 · 도자기 그릇 2개 · 2kg', `+ 파손주의 $${ITEM_SURCHARGES.fragile.usd}×2`, krw(F(2) + U(ITEM_SURCHARGES.fragile.usd * 2))],
+              ['📦 배송만 · 도자기 그릇 2개 · 2kg', `+ 파손주의 $${ITEM_SURCHARGES.fragile.usd}×2`, krw(F(2) + fwd + U(ITEM_SURCHARGES.fragile.usd * 2))],
               ['📦 배송만 · 대형 12kg', `12kg × $${SHIPPING.ratePerKgUsd} + 대형 $${ITEM_SURCHARGES.bulky.usd}`, krw(F(12) + U(ITEM_SURCHARGES.bulky.usd))],
-              ['교환 왕복 · 배송만 1kg', `반송 $${estimateReturnShippingUsd(1)} + 재배송 ${krw(F(1))}`, krw(U(estimateReturnShippingUsd(1)) + F(1))],
+              ['교환 왕복 · 배송만 1kg', `반송 $${estimateReturnShippingUsd(1)} + 재배송 ${krw(F(1) + fwd)}`, krw(U(estimateReturnShippingUsd(1)) + F(1) + fwd)],
               ['교환 왕복 · 대신 구매 1kg', `+ 처리 ${krw(RETURN_SHIPPING.agentHandlingKrw)} + 수수료 ${krw(base)}`,
                 krw(U(estimateReturnShippingUsd(1)) + RETURN_SHIPPING.agentHandlingKrw + F(1) + base)],
               ['반품 환불 · 대신 구매 (67,420원 결제)', `수수료 ${krw(base)} 제외 환불 · 반송비 별도 본인 부담`, krw(67420 - base)],
-              ['반품 환불 · 배송만 (12,420원 결제)', `$${RETURN_POLICY.forwardingRefundFeeUsd} 차감 · 반송비 별도 → 실익 확인 필요`,
-                krw(12420 - U(RETURN_POLICY.forwardingRefundFeeUsd))],
+              [`반품 환불 · 배송만 (${krw(F(1) + FEES.forwardingFeeKrw)} 결제)`,
+                `배송만 수수료 ${krw(FEES.forwardingFeeKrw)} 제외 · 반송비 별도 → 실익 확인 필요`,
+                krw(F(1))],
             ]
             return (
               <div style={{ overflowX: 'auto' }}>

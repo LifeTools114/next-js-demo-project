@@ -152,9 +152,11 @@ test('L15 입금 전 취소는 전액·즉시 (고지대로)', () => {
   assert.equal(orderView(c).ledgerSummary.netReceivedKrw, 0, '받은 돈이 없으니 남는 것도 없어야 합니다')
 })
 
-test('L16 배송대행 변심 취소는 $1 차감 — 고지와 코드가 일치', () => {
-  assert.equal(RETURN_POLICY.forwardingRefundFeeUsd, 1)
-  assert.ok(noticeSays('cancel', /1달러|\$1/))
+test('L16 배송만 변심 취소는 수수료만 차감 — 고지와 코드가 일치', () => {
+  // 26-09-04: 배송만에도 수수료(3,000원)가 생겨, 별도 처리비 $1 은 없앴습니다.
+  assert.equal(RETURN_POLICY.forwardingRetainsFee, true)
+  assert.equal(RETURN_POLICY.forwardingRefundFeeUsd, undefined, '처리비를 두 번 받지 않습니다')
+  assert.ok(noticeSays('cancel', /배송만 수수료/))
   const o = order()
   confirmPayment(o.id, { confirmedBy: 'op' })
   const c = cancelOrder(o.id, { reason: '변심', by: 'op', customerFault: true })

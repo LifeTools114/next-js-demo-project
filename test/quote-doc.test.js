@@ -142,8 +142,43 @@ test('경계값 — 기준 금액 바로 아래는 흡수, 바로 위는 조정'
   assert.ok(Math.abs(at.diffKrw) >= tol, '기준과 같으면 조정 대상')
   assert.ok(Math.abs(below.diffKrw) < tol, '기준보다 1원 적으면 흡수')
 
-  // 실제 판정에서도 같은 방향인지 — 무게 한 칸(약 12,420원)은 어떤 신뢰도에서도 조정.
+  // 실제 판정에서도 같은 방향인지 — 무게 한 칸(약 11,040원)은 어떤 신뢰도에서도 조정.
   const step = buildFinalQuote(order, { chargeableWeightKg: order.quote.shipping.billableKg + 1 })
   assert.equal(step.adjust, true, '청구 kg 한 칸 차이는 항상 조정 대상')
   assert.ok(Math.abs(step.diffKrw) > tol)
+})
+
+
+/* ─────────── 배송만 수수료가 끝까지 살아남는가 (26-09-04 신설) ─────────── */
+
+test('배송만 수수료는 실측 정산 후에도 그대로 청구된다', async () => {
+  // 정산 재계산에서 빠뜨리면 최종 청구서가 3,000원 적게 나오고,
+  // 그 차액이 주문마다 "환불 대상" 으로 잡힙니다.
+  const { FEES } = await import('../config/fees.js')
+  const order = newOrder() // track: forwarding
+  assert.equal(order.quote.forwardingFeeKrw, FEES.forwardingFeeKrw)
+
+  const sameKg = order.quote.weight.chargeableG / 1000
+  const s = computeSettlement(order, Math.round(sameKg * 1000))
+  assert.equal(s.diffKrw, 0, '무게가 같으면 차액이 0이어야 합니다')
+  assert.equal(s.final.forwardingFee, FEES.forwardingFeeKrw)
+
+  const doc = buildFinalQuote(order, { chargeableWeightKg: sameKg })
+  const fee = doc.lines.find((l) => l.key === 'forwarding')
+  assert.ok(fee, '최종 견적서에 배송만 수수료 줄이 있어야 합니다')
+  assert.equal(fee.krw, FEES.forwardingFeeKrw)
+  assert.equal(doc.totalKrw, order.quote.total)
+})
+
+test('구매하고 배송까지에는 배송만 수수료를 붙이지 않는다', async () => {
+  const { FEES } = await import('../config/fees.js')
+  const { createOrder } = await import('../lib/order/store.js')
+  const order = createOrder({ consents: ALL_CONSENTS,
+    items: [{ productName: '토리든 다이브인 세럼 50ml', productPrice: 18000, quantity: 1 }],
+    zone: 'hanoi', track: 'agent',
+    customer: { name: '박하노', phone: '0901234567', address: '하노이시 하동구' },
+  })
+  assert.equal(order.quote.forwardingFeeKrw, 0, '두 수수료를 겹쳐 받지 않습니다')
+  assert.ok(!order.quote.breakdown.some((r) => r.key === 'forwarding'))
+  assert.equal(order.quote.agency.fee, FEES.agencyBaseKrw)
 })

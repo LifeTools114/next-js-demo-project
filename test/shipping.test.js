@@ -73,13 +73,13 @@ test('청구 규칙 문장이 기본요금과 반내림을 설명한다', () => 
   assert.match(text, /0\.5 이하 버림/)
 })
 
-test('배송비: kg당 $9 정액 × 청구무게', () => {
+test('배송비: kg당 $8 정액 × 청구무게 (26-09-04 $9→$8 인하)', () => {
   const r = calculateShipping(1600) // 소수 0.6 → 2kg
   assert.equal(r.billableKg, 2)
-  assert.equal(r.ratePerKgUsd, 9)
-  assert.equal(r.freightUsd, 18)
-  assert.equal(r.totalUsd, 18)
-  assert.equal(r.totalKrw, usdToKrw(18))
+  assert.equal(r.ratePerKgUsd, 8)
+  assert.equal(r.freightUsd, 16)
+  assert.equal(r.totalUsd, 16)
+  assert.equal(r.totalKrw, usdToKrw(16))
 })
 
 test('배송비: 구간 없이 무게에 정비례한다', () => {

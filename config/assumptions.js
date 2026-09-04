@@ -17,7 +17,7 @@
 export const ASSUMPTIONS = [
   {
     id: 'shipping-rate',
-    label: '국제배송 요율 $9/kg (원가 $7 = S1 기본 $6 + 유류 임시조정 $1)',
+    label: '국제배송 요율 $8/kg (원가 $7 = S1 기본 $6 + 유류 임시조정 $1) — 마진 $1/kg',
     where: 'config/shipping.js · ratePerKgUsd / config/costs.server.js',
     status: 'confirmed',
     source: '고객가: 운영자 제시 · 원가: S1 EXPRESS 견적서 26.08.28 (FSC·VN통관료 포함 ALL IN)',
@@ -126,7 +126,7 @@ export const ASSUMPTIONS = [
   },
   {
     id: 'refund-policy',
-    label: '환불 영업일 3~7일 · 변심 취소: 구매대행 수수료 제외 / 배송대행 $1 차감 · 반품 비용 전액 구매자 부담',
+    label: '환불 영업일 3~7일 · 변심 취소: 두 트랙 모두 수수료만 제외 · 반품 비용 전액 구매자 부담',
     where: 'config/payment.js · REFUND_DAYS / RETURN_POLICY',
     status: 'confirmed',
     source: '운영자 확정 (26-08-30) — 당사 사유(품절·가격 인상) 취소는 전액 환불 유지',
@@ -163,7 +163,7 @@ export const ASSUMPTIONS = [
     where: 'config/fees.js · ORDER_MIN.goodsKrw = 0',
     status: 'confirmed',
     source: '운영자 확정 (26-08-29) — 진입장벽 제거 우선. 금액을 넣으면 안내·거절이 다시 살아납니다.',
-    risk: '소액 주문은 최소 청구 1kg(12,420원) 배송비가 상품가보다 클 수 있으나, 그 금액 자체에 마진이 있어 역마진은 아닙니다.',
+    risk: '소액 주문은 최소 청구 1kg(11,040원) 배송비 + 배송만 수수료 3,000원이 상품가보다 클 수 있으나, 그 금액 자체에 마진이 있어 역마진은 아닙니다.',
   },
 ]
 

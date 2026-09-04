@@ -24,6 +24,7 @@ import { checkEligibility } from '../lib/eligibility.js'
 import { estimateItemWeight } from '../lib/weight/estimate.js'
 import { QUOTE } from '../config/quote.js'
 import { SHIPPING } from '../config/shipping.js'
+import { FEES } from '../config/fees.js'
 import { RETURN_POLICY, SETTLEMENT_RULES } from '../config/payment.js'
 import { ALL_CONSENTS } from './helpers/consents.js'
 
@@ -318,7 +319,10 @@ test('S19 고객 화면·견적서에 원가·마진이 없다', () => {
 test('S20 정책 값이 문서·요금에 일관되게 적용된다', () => {
   // 국제배송비 단가와 반송 정책은 설정 한 곳에서 나옵니다.
   assert.ok(SHIPPING.zones.hanoi, '하노이 구간 요율 존재')
-  assert.equal(RETURN_POLICY.forwardingRefundFeeUsd, 1)
+  // 26-09-04: 배송만 수수료 3,000원 신설 · 배송비 $9→$8 · 별도 처리비 $1 폐지
+  assert.equal(RETURN_POLICY.forwardingRetainsFee, true)
+  assert.equal(FEES.forwardingFeeKrw, 3_000)
+  assert.equal(SHIPPING.ratePerKgUsd, 8)
   // 조정 기준은 config/payment.js 한 곳에서만 나옵니다 — 견적서에 별도 기준을
   // 두었다가 장부와 어긋난 적이 있어(26-09-04) 통일했습니다.
   assert.equal(QUOTE.adjustThresholdVnd, undefined, '견적서에 별도 기준을 두지 않습니다')
