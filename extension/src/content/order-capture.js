@@ -380,6 +380,54 @@
     String(x.tagName === 'INPUT' ? (x.value ?? '') : (x.textContent || x.getAttribute?.('aria-label') || ''))
       .replace(/\s+/g, '')
 
+  /**
+   * 쿠팡 화면의 진짜 버튼을 **짚어줍니다**.
+   *
+   * "직접 눌러주세요" 라고 글로만 쓰면 고객은 결제 화면 어디를 봐야 할지
+   * 모릅니다 (26-09-04 운영자 확인 — 배송지 창이 이미 열려 있는데도 다른
+   * 버튼을 찾고 있었습니다). 빨간 테두리와 손가락 표시를 그 버튼 위에
+   * 직접 얹어, 눈이 바로 가게 합니다.
+   *
+   * 겹쳐 그리기만 하고 클릭은 통과시킵니다(pointer-events:none) —
+   * 우리가 만든 안내가 정작 버튼을 가리면 안 됩니다.
+   */
+  let spotEl = null
+  function clearSpotlight() {
+    document.getElementById('kb-spot')?.remove()
+    spotEl = null
+  }
+  function spotlight(el, label) {
+    if (!el || !el.getBoundingClientRect) return clearSpotlight()
+    const r = el.getBoundingClientRect()
+    if (r.width === 0 && r.height === 0) return clearSpotlight()
+    let box = document.getElementById('kb-spot')
+    if (!box) {
+      box = document.createElement('div')
+      box.id = 'kb-spot'
+      box.dataset.kbUi = '1'
+      box.innerHTML =
+        '<style>@keyframes kbSpot{0%,100%{box-shadow:0 0 0 0 rgba(217,45,32,.55)}' +
+        '50%{box-shadow:0 0 0 10px rgba(217,45,32,0)}}</style>' +
+        '<div class="kb-spot-ring"></div><div class="kb-spot-tip"></div>'
+      box.style.cssText = 'position:fixed;left:0;top:0;z-index:2147483646;pointer-events:none'
+      document.body.appendChild(box)
+    }
+    const ring = box.querySelector('.kb-spot-ring')
+    const tip = box.querySelector('.kb-spot-tip')
+    ring.style.cssText =
+      `position:fixed;left:${r.left - 4}px;top:${r.top - 4}px;width:${r.width + 8}px;height:${r.height + 8}px;` +
+      'border:3px solid #d92d20;border-radius:10px;animation:kbSpot 1.2s ease-out infinite;pointer-events:none'
+    // 버튼 위쪽에 공간이 없으면 아래에 붙입니다.
+    const above = r.top > 46
+    tip.textContent = label
+    tip.style.cssText =
+      `position:fixed;left:${Math.max(8, r.left - 4)}px;` +
+      `top:${above ? r.top - 40 : r.bottom + 10}px;` +
+      'padding:7px 11px;border-radius:9px;background:#d92d20;color:#fff;font:800 13px/1.3 sans-serif;' +
+      'box-shadow:0 4px 14px rgba(0,0,0,.28);pointer-events:none;white-space:nowrap'
+    spotEl = el
+  }
+
   /** 이 문구로 잡히는 요소 수 (보이는 것만) — 자가진단·진단 복사 공통 */
   function countMatches(key) {
     const max = lenOf(key)
@@ -894,6 +942,9 @@
        * 순간 이어서 자동 진행. (테스트에서 __kbAddrWatchMs 로 단축 가능)
        */
       const setWait = (stage, msg) => {
+        // 단계가 바뀌면 옛 표시부터 지웁니다 — 창이 열렸는데 뒤에 있는
+        // [배송지 변경]을 계속 짚고 있으면 오히려 헷갈립니다.
+        if (stage !== helperAddrWaitManual) clearSpotlight()
         helperAddrWaitManual = stage
         card.dataset.kbHtml = ''
         renderCheckoutHelper()
@@ -926,17 +977,26 @@
             askedAdd = true
             setWait('add', '쿠팡 창에서 [+ 배송지 추가]를 직접 한 번 눌러주세요 — 누르면 나머지는 자동으로 진행됩니다.')
           }
+          // 창이 열려 있는 동안에는 [+ 배송지 추가]를 계속 짚어줍니다.
+          // (버튼이 스크롤로 움직여도 테두리가 따라갑니다)
+          if (askedAdd) spotlight(addBtn, '👆 여기를 눌러주세요')
         } else if (Date.now() - started < AUTO_MS) {
           clickExact('openAddr')
-        } else if (!askedOpen) {
-          askedOpen = true
-          setWait('open', '쿠팡 [배송지 변경]을 직접 한 번 눌러주세요 — 창이 열리면 나머지는 자동으로 진행됩니다.')
+        } else {
+          if (!askedOpen) {
+            askedOpen = true
+            setWait('open', '쿠팡 [배송지 변경]을 직접 한 번 눌러주세요 — 창이 열리면 나머지는 자동으로 진행됩니다.')
+          }
+          // 글로만 "직접 눌러주세요" 하면 고객은 어디를 볼지 모릅니다.
+          // 실제 [배송지 변경] 버튼에 빨간 테두리를 얹어 눈이 바로 가게 합니다.
+          spotlight(findExact('openAddr'), '👆 여기를 눌러주세요')
         }
         await sleep(400)
       }
-      if (mode) setWait('', '')
+      if (mode) { clearSpotlight(); setWait('', '') }
 
       const finish = (failed, msg, good) => {
+        clearSpotlight()
         helperAddrBusy = false
         helperAddrWaitManual = ''
         helperAddrFailed = failed
@@ -1217,32 +1277,66 @@
               '<span style="font-weight:700;font-size:11px">누르면 나머지는 자동으로 진행됩니다</span></div>'
             : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
               'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>')
-        : '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:46px;border:0;border-radius:10px;' +
-          'background:#17916b;color:#fff;font-weight:800;font-size:15px;cursor:pointer">' +
-          (helperAddrFailed ? '⚡ 배송지 자동 등록 — 다시 시도' : '⚡ 배송지 자동 등록') + '</button>' +
-          (helperAddrFailed || helperAddrHelpOpen
-            ? '<button id="kb-addr-help" style="margin-top:5px;width:100%;min-height:30px;border:1px solid #e5e8eb;' +
-              'border-radius:8px;background:#fff;color:#4e5968;font-size:11.5px;font-weight:700;cursor:pointer">' +
-              (helperAddrHelpOpen ? '직접 입력 방법 접기 ▴' : '📖 직접 입력 방법 보기 ▾') + '</button>' +
-              (helperAddrHelpOpen ? addrHelpBody : '')
-            : '') +
+        : '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:52px;border:0;border-radius:10px;' +
+          // 주소가 틀린 동안에는 빨강 — 초록은 "다 됐다" 는 뜻이라 여기서는 거짓말입니다.
+          'background:#d92d20;color:#fff;font-weight:900;font-size:15.5px;cursor:pointer;' +
+          'animation:kbAlert 1.6s ease-out 3">' +
+          (helperAddrFailed ? '⚡ 배송지 자동 등록 — 다시 시도' : '⚡ 배송지 자동 등록') +
+          '<span style="display:block;font-size:11px;font-weight:700;opacity:.9;margin-top:2px">' +
+          '한 번만 누르시면 됩니다</span></button>' +
+          // 직접 입력은 항상 보이게 — 자동이 안 될 때만 숨겨두면 막힌 고객이
+          // 빠져나갈 길을 못 찾습니다 (운영자 지시 26-09-04).
+          '<button id="kb-addr-help" style="margin-top:5px;width:100%;min-height:36px;border:1.5px solid #d92d20;' +
+          'border-radius:8px;background:#fff;color:#d92d20;font-size:12.5px;font-weight:800;cursor:pointer">' +
+          (helperAddrHelpOpen ? '직접 입력 방법 접기 ▴' : '✍️ 직접 입력할게요 ▾') + '</button>' +
+          (helperAddrHelpOpen ? addrHelpBody : '') +
           (helperAddrFailed
             ? '<button id="kb-diag" style="margin-top:5px;width:100%;min-height:28px;border:1px dashed #c9d3e0;' +
               'border-radius:8px;background:#f9fafb;color:#8b95a1;font-size:10.5px;cursor:pointer">' +
               '🩺 진단 정보 복사 — 붙여넣어 관리자에게 보내주세요</button>'
             : '')
 
-    // 장바구니 화면에는 배송지가 아직 없으므로 검사하지 않습니다.
-    // 상태는 한 줄 배너로만 — 입력 안내는 자동 등록 실패 시에만 펼쳐집니다.
+    /**
+     * 배송지 경고 — 이 서비스에서 **가장 비싼 실수**를 막는 자리입니다.
+     *
+     * 배송지가 우리 창고가 아닌 채로 결제되면 물건은 고객의 한국 주소로
+     * 갑니다. 하노이로 보내려면 그 주소에서 창고까지 다시 부치는 비용을
+     * 고객이 또 내야 하고, 대부분은 그냥 주문이 깨집니다.
+     *
+     * 예전에는 이 경고가 연한 주황색 한 줄이라 결제 화면의 다른 정보에
+     * 묻혔습니다 (26-09-04 운영자 지적). 지금은:
+     *   · 카드 테두리 전체가 빨갛게 변하고
+     *   · 결과("하노이로 못 갑니다")를 먼저 말하고
+     *   · 금액은 흐리게 — 주소가 틀리면 금액은 의미가 없습니다
+     *   · 고칠 방법 두 가지를 바로 아래 큰 버튼으로 놓습니다
+     */
     const statusBlock = onCart
       ? ''
       : ok
         ? '<div style="margin-top:7px;padding:7px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;font-size:12px">' +
-          '<b>✓ 배송지 확인됨</b></div>'
-        : '<div style="margin-top:7px;padding:7px 10px;border-radius:9px;background:#fff3e6;color:#a05a12;font-size:12px">' +
-          '<b>⚠️ 배송지가 한국 창고가 아닙니다</b></div>'
+          '<b>✓ 배송지 확인됨 — 이대로 결제하세요</b></div>'
+        : '<style>@keyframes kbAlert{0%,100%{box-shadow:0 0 0 0 rgba(217,45,32,.5)}' +
+          '50%{box-shadow:0 0 0 8px rgba(217,45,32,0)}}</style>' +
+          '<div style="margin-top:7px;padding:11px 12px;border-radius:11px;background:#fff0f0;' +
+          'border:2px solid #d92d20;animation:kbAlert 1.6s ease-out 3">' +
+          '<div style="font-size:14px;font-weight:900;color:#d92d20;line-height:1.4">' +
+          '🚨 이대로 결제하면<br>하노이로 못 갑니다</div>' +
+          '<div style="margin-top:6px;font-size:12px;color:#912018;line-height:1.6">' +
+          '지금 배송지가 <b>한국 창고가 아닙니다.</b><br>' +
+          '이대로 결제하시면 물건이 <b>한국에서 멈춥니다.</b> ' +
+          '하노이로 보내시려면 창고까지 다시 부치는 비용을 또 내셔야 합니다.</div>' +
+          '<div style="margin-top:7px;font-size:12px;font-weight:800;color:#d92d20">' +
+          '↓ 아래 버튼으로 배송지를 바꿔주세요</div></div>'
 
-    const cartLine = priceBlock + miniForm + ctaBlock +
+    /**
+     * 주소가 틀렸을 때는 순서를 바꿉니다 — 고칠 방법이 금액보다 위에.
+     * 금액은 흐리게 둡니다: 주소가 틀리면 그 금액은 성립하지 않습니다.
+     */
+    const wrongAddr = !onCart && !ok && helperTrack === 'forwarding'
+    const dimmedPrice = wrongAddr
+      ? `<div style="opacity:.45;filter:grayscale(.5)">${priceBlock}</div>`
+      : priceBlock
+    const cartLine = (wrongAddr ? miniForm + dimmedPrice : priceBlock + miniForm) + ctaBlock +
       (cart.length > 0
         ? '<button id="kb-detail" style="margin-top:7px;width:100%;min-height:32px;border:1px solid #e5e8eb;' +
           'border-radius:8px;background:#fff;color:#4e5968;font-weight:700;font-size:12px;cursor:pointer">' +
@@ -1255,6 +1349,12 @@
       cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
       'background:#f9fafb;color:#8b95a1;cursor:pointer">닫기</button>'
+
+    // 카드 테두리 — 주소가 틀리면 곁눈으로도 보이게 빨갛게 바꿉니다.
+    card.style.border = wrongAddr ? '2.5px solid #d92d20' : '1px solid #dbe4f0'
+    card.style.boxShadow = wrongAddr
+      ? '0 8px 28px rgba(217,45,32,.28)'
+      : '0 8px 28px rgba(0,0,0,.18)'
 
     // 내용이 그대로면 다시 그리지 않습니다 — 주기 갱신 때 깜박이지 않게.
     if (card.dataset.kbHtml === html) return

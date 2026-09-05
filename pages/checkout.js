@@ -384,7 +384,13 @@ export default function Checkout() {
 
       <form onSubmit={submit}>
         <section className="panel">
-          <div className="panel__head">2. 받으실 분 (하노이)</div>
+          {/*
+            하노이 주소를 적는 자리라는 것이 한눈에 보여야 합니다 —
+            여기에 한국 주소를 적는 분이 실제로 계십니다 (운영자 지시 26-09-04).
+          */}
+          <div className="panel__head panel__head--accent">
+            2. 받으실 분<span className="hint-strong">🇻🇳 하노이 주소 입력</span>
+          </div>
           <div className="panel__body">
             {/*
               다시 오신 분은 같은 정보를 또 치지 않습니다 — 저장된 값이 다 차 있으면
@@ -416,7 +422,7 @@ export default function Checkout() {
             {[
               ['name', '받는 분 이름 *', 'Nguyễn Thị Mai / 홍길동', 'text'],
               ['phone', '베트남 전화번호 *', '09xx xxx xxx', 'tel'],
-              ['address', '베트남(하노이) 배송 주소 *', 'Số nhà, đường, phường, quận', 'text'],
+              ['address', '🇻🇳 하노이 주소 * (한국 주소 아님)', 'Số nhà, đường, phường, quận', 'text'],
               ['email', '이메일 (선택 — 진행 알림 수신)', 'you@example.com', 'email'],
             ].map(([key, label, ph, type]) => (
               <div className="field" key={key}>

@@ -205,6 +205,23 @@ img { max-width: 100%; display: block; }
   font-size: 13.5px; font-weight: 700;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
+/*
+ * 꼭 짚어야 하는 제목 — "여기는 하노이 주소" 처럼 틀리면 주문이 깨지는 자리.
+ * 파란 왼쪽 띠와 진한 글씨로, 다른 제목과 확실히 구분합니다.
+ */
+.panel__head--accent {
+  background: #eef4ff;
+  border-left: 5px solid #3182f6;
+  color: #0b3d91;
+  font-size: 15px; font-weight: 800;
+}
+.panel__head--accent .hint-strong {
+  flex-shrink: 0;
+  padding: 4px 9px; border-radius: 999px;
+  background: #3182f6; color: #fff;
+  font-size: 12.5px; font-weight: 800; letter-spacing: -.2px;
+}
+
 .panel__body { padding: 12px 14px; }
 
 .row {

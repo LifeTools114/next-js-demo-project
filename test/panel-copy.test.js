@@ -41,3 +41,38 @@ test('바로가기 만들기 안내가 패널 맨 위에 있다', () => {
   const body = panel.indexOf('${renderBody()}')
   assert.ok(head > 0 && head < body, '바로가기 띠가 본문보다 위에 있어야 합니다')
 })
+
+test('배송지가 틀리면 강하게 알리고, 고칠 방법을 바로 준다', () => {
+  // 이 서비스에서 가장 비싼 실수입니다 — 창고가 아닌 주소로 결제되면
+  // 물건이 한국에서 멈추고, 반송비를 고객이 또 내야 합니다.
+  // 예전에는 연한 주황색 한 줄이라 결제 화면에 묻혔습니다 (26-09-04).
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+
+  assert.ok(cap.includes('하노이로 못 갑니다'), '결과를 먼저 말해야 합니다')
+  assert.ok(cap.includes('#d92d20'), '경고는 빨간색이어야 합니다')
+  assert.ok(cap.includes("card.style.border = wrongAddr"), '카드 테두리 전체가 빨개져야 합니다')
+  assert.ok(cap.includes('grayscale'), '주소가 틀리면 금액은 흐리게 — 그 금액은 성립하지 않습니다')
+  assert.ok(cap.includes('wrongAddr ? miniForm + dimmedPrice'), '고칠 방법이 금액보다 위에 와야 합니다')
+  assert.ok(cap.includes('✍️ 직접 입력할게요'), '직접 입력 길이 항상 보여야 합니다')
+})
+
+test('직접 눌러달라고 할 때는 그 버튼을 화면에서 짚어준다', () => {
+  // 글로만 "직접 눌러주세요" 하면 고객은 결제 화면 어디를 볼지 모릅니다.
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  assert.ok(cap.includes('function spotlight'), '버튼에 표시를 얹는 기능이 있어야 합니다')
+  assert.ok(cap.includes('👆 여기를 눌러주세요'), '무엇을 하라는지 버튼 옆에 써야 합니다')
+  assert.ok(cap.includes('pointer-events:none'), '표시가 정작 버튼 클릭을 막으면 안 됩니다')
+  assert.ok(cap.includes("spotlight(findExact('openAddr')"), '[배송지 변경] 을 짚어야 합니다')
+  assert.ok(cap.includes('spotlight(addBtn'), '[+ 배송지 추가] 도 짚어야 합니다')
+  assert.ok(cap.includes('clearSpotlight()'), '끝나면 표시를 지워야 합니다')
+})
+
+test('결제 화면 2번 칸이 "하노이 주소" 임을 눈에 띄게 알린다', () => {
+  // 여기에 한국 주소를 적는 분이 실제로 계십니다 (운영자 지시 26-09-04).
+  const checkout = readFileSync(new URL('../pages/checkout.js', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../styles/globals.css', import.meta.url), 'utf8')
+  assert.ok(checkout.includes('하노이 주소 입력'), '제목에 "하노이 주소 입력" 이 보여야 합니다')
+  assert.ok(checkout.includes('panel__head--accent'), '다른 칸과 구분되는 강조 제목이어야 합니다')
+  assert.ok(checkout.includes('한국 주소 아님'), '입력칸 라벨에서도 못 박아야 합니다')
+  assert.ok(css.includes('.panel__head--accent'), '강조 제목 스타일이 있어야 합니다')
+})
