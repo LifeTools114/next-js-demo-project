@@ -62,11 +62,15 @@
 
   /**
    * 고객 흐름 — 쿠팡 결제가 먼저입니다.
-   * 주문완료 트랜잭션(주문번호)을 받아 [하노이 배송 신청] 버튼을 띄우고,
-   * 누르면 견적함의 배송대행 상품 + 쿠팡 주문번호를 들고 배송비 결제
-   * (체크아웃)로 넘어갑니다. 자동으로 열지 않습니다 — 사용자 클릭만.
+   * 보통은 아래 autoForward 가 주문완료를 감지해 신청서를 새 탭에 저절로
+   * 엽니다. 이 카드는 그게 안 됐을 때(견적함 비었음·서버 응답 없음)의
+   * 대비책입니다 — [하노이 배송 신청] 을 누르면 견적함의 배송만 상품 +
+   * 쿠팡 주문번호를 들고 배송비 결제(체크아웃)로 넘어갑니다.
+   *
+   * @param reason 자동으로 열지 못한 이유 — 있으면 버튼 위에 먼저 보여줍니다.
+   *        (예전에는 삼켰다가 버튼을 다시 눌러야 알려줬습니다 — 검토 26-09-04)
    */
-  function offerForwarding(coupangOrderNo) {
+  function offerForwarding(coupangOrderNo, reason) {
     const guard = `kb-offered-${coupangOrderNo}`
     try {
       if (sessionStorage.getItem(guard)) return
@@ -85,6 +89,14 @@
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">하노이 배송 신청</button>' +
       '<button id="kb-fwd-x" style="margin-top:6px;width:100%;min-height:30px;border:0;border-radius:9px;' +
       'background:transparent;color:#8b95a1;cursor:pointer">닫기</button>'
+    if (reason) {
+      // 서버 주소가 섞일 수 있어 textContent 로만 넣습니다.
+      const why = document.createElement('div')
+      why.id = 'kb-fwd-why'
+      why.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff4e5;color:#9a5b00;font-size:12px;line-height:1.5'
+      why.textContent = reason
+      card.insertBefore(why, card.querySelector('#kb-fwd-go'))
+    }
     document.body.appendChild(card)
     card.querySelector('#kb-fwd-x').addEventListener('click', () => card.remove())
     card.querySelector('#kb-fwd-go').addEventListener('click', async () => {
@@ -172,7 +184,7 @@
       forwardNoticeDone(notice, res.url, coupangOrderNo)
     } else {
       notice.remove()
-      offerForwarding(coupangOrderNo)
+      offerForwarding(coupangOrderNo, res?.error)
     }
   }
 
@@ -1445,7 +1457,11 @@
        * 서버 응답이 없다는 뜻이므로, 죽은 탭 대신 이유를 알려줍니다.
        */
       if (quotes.agent?.local || quotes.fwd?.local) {
-        toast('⚠️ 백엔드 서버가 꺼져 있어 신청서를 열 수 없습니다 — PowerShell에서 npm run dev 를 켠 뒤 다시 눌러주세요.', false)
+        // 고객에게는 쉬운 말, 운영자 브라우저(토큰 있음)에는 고칠 방법.
+        const st = await send('getAdminState')
+        toast(st?.hasToken
+          ? '⚠️ 백엔드 서버가 꺼져 있어 신청서를 열 수 없습니다 — start-server 를 실행한 뒤 다시 눌러주세요.'
+          : '지금은 연결이 안 됩니다. 잠시 후 다시 눌러 주세요. 계속 안 되면 저희에게 알려 주세요.', false)
         return
       }
       btn.disabled = true

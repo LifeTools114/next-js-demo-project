@@ -245,7 +245,8 @@ export default function Checkout() {
           <div className="empty__icon">🧾</div>
           주문할 상품이 없습니다.
           <br />
-          <small>확장프로그램의 견적함에서 &quot;주문 요청하기&quot;를 눌러주세요.</small>
+          <small>배송만은 쿠팡 결제가 끝난 주문완료 화면에서 저절로 열리고,
+            구매하고 배송까지는 확장프로그램 견적함의 &quot;주문 요청하기&quot;로 열립니다.</small>
           {error && <p className="note note--danger" style={{ marginTop: 16 }}>{error}</p>}
           <div style={{ marginTop: 20 }}>
             <Link href="/" className="btn">홈으로</Link>

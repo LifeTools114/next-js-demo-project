@@ -162,6 +162,10 @@ function render() {
 
   $('cart-quote').innerHTML = parts.join('')
   $('btn-order').disabled = total === 0 || belowMin
+  // 담긴 게 배송만뿐이면 버튼도 그렇게 말합니다 — 누르면 순서 안내가 펼쳐집니다.
+  const onlyForwarding = cart.length > 0 && !cart.some((i) => i.track === 'agent')
+  $('btn-order').textContent = onlyForwarding ? '쿠팡에서 먼저 결제하세요 — 순서 보기' : '주문 요청하기'
+  if (!onlyForwarding) $('order-note').hidden = true
 }
 
 document.querySelectorAll('.tabs button').forEach((b) =>
@@ -272,25 +276,40 @@ $('btn-clear').addEventListener('click', async () => {
 
 /**
  * [주문 요청하기]
- *   구매하고 배송까지 → 신청서로 (결제는 저희가 하므로 바로)
- *   배송만           → 쿠팡 결제가 먼저입니다. 신청서는 결제가 끝난
- *                     주문완료 화면의 [하노이 배송 신청] 으로 엽니다.
- *                     (운영자 확정 26-09-04) 결제를 마쳤는데 그 화면을
- *                     놓친 분을 위해 작은 글씨로 여는 길만 남깁니다.
- * 예전에는 트랙을 안 가리고 견적함 전체를 /checkout 에 그대로 실었습니다 —
- * 두 방식이 섞인 견적함이 첫 상품 기준으로만 계산되는 원인이었습니다.
- * 이제 백그라운드 openCheckout 이 트랙별로 걸러 엽니다.
+ *   판단은 **견적함에 실제로 담긴 상품의 방식**으로 합니다. 설정의 "기본 이용
+ *   방식"(prefs.track)은 상품 화면의 첫 선택값일 뿐이라, 그걸로 가르면
+ *   구매하고 배송까지 상품만 담은 분이 "쿠팡 결제가 먼저" 안내에 막히고
+ *   (검토 26-09-04), 반대로 배송만 상품이 구매대행으로 둔갑합니다.
+ *
+ *   구매하고 배송까지 상품 → 그 상품들만 골라 신청서로 (결제는 저희가 하므로 바로)
+ *   배송만 상품          → 쿠팡 결제가 먼저입니다. 신청서는 결제가 끝난
+ *                         주문완료 화면에서 저절로 열립니다 (운영자 확정 26-09-04).
+ *                         결제를 마쳤는데 그 화면을 놓친 분은 쿠팡 주문번호를
+ *                         적고 여는 길을 남깁니다 — 번호가 있어야 결제 후라는
+ *                         뜻이고, 같은 번호는 두 번 접수되지 않습니다.
+ *
+ * 백그라운드에는 골라낸 상품을 그대로 실어 보냅니다. items 없이 보내면
+ * 백그라운드가 견적함 대신 최근 결제창 초안을 집어 다른 상품이 열릴 수 있고,
+ * track:'agent' 는 실린 상품을 통째로 구매대행으로 바꿔 열기 때문입니다.
  */
+const agentItemsInCart = () => cart.filter((i) => i.track === 'agent')
+const hasForwardingInCart = () => cart.some((i) => i.track !== 'agent')
+
 $('btn-order').addEventListener('click', async () => {
-  if (prefs.track === 'forwarding') {
-    $('order-note').hidden = false
-    return
-  }
-  const res = await send('openCheckout', { track: 'agent' })
+  if (hasForwardingInCart()) $('order-note').hidden = false // 배송만 상품은 쿠팡 결제가 먼저
+  const items = agentItemsInCart()
+  if (items.length === 0) return
+  const res = await send('openCheckout', { track: 'agent', items })
   if (!res?.ok) alert(res?.error ?? '신청서를 열지 못했습니다.')
 })
 $('order-late').addEventListener('click', async () => {
-  const res = await send('openCheckout', { track: 'forwarding' })
+  // 결제 후에만 열립니다 — 쿠팡 주문번호가 그 증거입니다 (주문완료 화면과 같은 9자리 이상).
+  const coupangOrderNo = $('late-no').value.replace(/\D/g, '')
+  if (coupangOrderNo.length < 9) {
+    alert('쿠팡 주문번호를 적어주세요. (쿠팡 > 마이쿠팡 > 주문목록에서 볼 수 있습니다)')
+    return
+  }
+  const res = await send('openCheckout', { track: 'forwarding', coupangOrderNo })
   if (!res?.ok) alert(res?.error ?? '신청서를 열지 못했습니다.')
 })
 

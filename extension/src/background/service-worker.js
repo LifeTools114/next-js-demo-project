@@ -301,9 +301,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           clearTimeout(timer)
           if (!ping.ok) throw new Error(`HTTP ${ping.status}`)
         } catch {
+          // 고객 브라우저(운영자 토큰 없음)에는 쉬운 말만 — 서버 주소·명령어는
+          // 고객이 할 수 있는 일이 아니라서 오히려 겁만 줍니다. 운영자 브라우저에는
+          // 고칠 방법을 그대로 알려줍니다.
+          const { adminToken } = await storage.get('adminToken')
           return {
             ok: false,
-            error: `서버(${base})에 연결되지 않습니다. 사장님 컴퓨터에서 start-server 를 실행한 뒤 다시 눌러주세요.`,
+            error: adminToken
+              ? `서버(${base})에 연결되지 않습니다. 사장님 컴퓨터에서 start-server 를 실행한 뒤 다시 눌러주세요.`
+              : '지금은 연결이 안 됩니다. 잠시 후 다시 눌러 주세요. 계속 안 되면 저희에게 알려 주세요.',
           }
         }
         const url = `${base}/checkout?cart=${payload}${!asAgent && no ? `&coupang=${no}` : ''}`

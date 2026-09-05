@@ -407,14 +407,15 @@ const KBPanel = (() => {
      * 예전에는 담자마자 [주문서 바로 작성] 이 떠서, 고객이 쿠팡 결제도 하기
      * 전에 신청서부터 쓰게 됐습니다. 순서가 뒤집히면 쿠팡 주문번호가 없는
      * 신청서가 생기고, 결제 화면의 배송지 검사도 건너뛰게 됩니다.
-     * 신청서는 결제가 끝난 **주문완료 화면**에서 [하노이 배송 신청] 으로만
-     * 엽니다 — 그래서 여기서는 주문서 버튼을 아예 그리지 않습니다.
+     * 신청서는 결제가 끝난 **주문완료 화면**에서 새 탭으로 저절로 열립니다
+     * (order-capture.js autoForward). 못 열면 [하노이 배송 신청] 카드가 대신
+     * 뜹니다 — 그래서 여기서는 주문서 버튼을 아예 그리지 않습니다.
      */
     const fwdSteps = state.track === 'forwarding'
       ? `<ol class="steps">
           <li${state.added ? ' class="done"' : ''}>담아두기</li>
-          <li>쿠팡에서 <b>직접 결제</b> — 배송지는 저희 창고로 (결제 화면에서 도와드립니다)</li>
-          <li>결제가 끝나면 뜨는 <b>[하노이 배송 신청]</b> 누르기</li>
+          <li>쿠팡에서 <b>직접 결제</b> — 아래 버튼을 누르면 새 창이 열립니다. 거기서 쿠팡 <b>[바로구매]</b>, 배송지는 저희 창고로 (결제 화면에서 도와드립니다)</li>
+          <li>결제가 끝나면 배송 신청서가 <b>새 탭에 저절로 열립니다</b><br><small>안 열리면 화면 오른쪽 아래 [하노이 배송 신청] 을 누르세요</small></li>
         </ol>`
       : ''
     const notice = state.notice
@@ -436,7 +437,7 @@ const KBPanel = (() => {
       return `<div class="btns">
         <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
         ${fwdSteps}
-        <button class="btn" data-act="affiliate">🛒 쿠팡에서 결제하기 →</button>
+        <button class="btn" data-act="affiliate">🛒 쿠팡에서 결제하기 → 새 창이 열립니다</button>
         <div class="disc">제휴 링크로 열립니다 · 고객님이 내시는 금액은 똑같습니다</div>
         <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
         ${notice}

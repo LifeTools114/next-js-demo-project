@@ -32,8 +32,13 @@
       <div id="order-note" hidden style="margin-top:8px;padding:10px;border-radius:9px;background:#f2f6fb;font-size:12px;line-height:1.6;color:#333d4b">
         <b>배송만은 쿠팡 결제가 먼저입니다.</b><br>
         ① 쿠팡에서 직접 결제 (배송지는 저희 창고로)<br>
-        ② 결제가 끝나면 뜨는 <b>[하노이 배송 신청]</b> 을 누르세요<br>
-        <button id="order-late" style="margin-top:6px;border:0;background:none;color:#8b95a1;font-size:11px;text-decoration:underline;cursor:pointer;padding:0">이미 결제를 마쳤는데 그 화면을 놓쳤어요 → 신청서 열기</button>
+        ② 결제가 끝나면 배송 신청서가 <b>새 탭에 저절로 열립니다</b> (안 열리면 화면 오른쪽 아래 [하노이 배송 신청] 을 누르세요)<br>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #d7dbe0">
+          이미 쿠팡에서 결제를 마치셨나요? 주문번호를 적고 여세요.<br>
+          <input id="late-no" inputmode="numeric" placeholder="쿠팡 주문번호 (숫자만)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:7px 8px;border:1px solid #d7dbe0;border-radius:7px;font-size:12.5px">
+          <button id="order-late" style="margin-top:6px;width:100%;min-height:32px;border:1px solid #3182f6;border-radius:7px;background:#fff;color:#3182f6;font-weight:700;font-size:12px;cursor:pointer">이 주문번호로 신청서 열기</button>
+          <div style="margin-top:3px;font-size:10.5px;color:#8b95a1">주문번호는 쿠팡 &gt; 마이쿠팡 &gt; 주문목록에서 볼 수 있습니다</div>
+        </div>
       </div>
       <button id="btn-clear" class="btn ghost">견적함 비우기</button>
     </div>

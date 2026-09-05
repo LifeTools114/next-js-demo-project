@@ -59,6 +59,9 @@
     onTrackChange: (t) => {
       track = t
       send('setPreference', { track: t })
+      // 서버 꺼짐 안내는 [주문서] 를 누른 그 방식에서만 — 방식을 바꾸면 지웁니다.
+      // (compute 안에서 지우면 안 됩니다: 쿠팡 화면 변화로 0.6초마다 다시 계산돼 곧바로 사라집니다)
+      KBPanel.setState({ notice: '' })
       compute()
     },
     onAdd: async () => {
@@ -72,7 +75,10 @@
       // 견적함 내용을 그대로 들고 주문서(신청서)로 — 배송지 입력만 하면 됩니다.
       // (배송만은 이 버튼이 없습니다 — 쿠팡 결제 후 주문완료 화면에서 엽니다)
       const c = await send('getCart')
-      const items = c?.cart ?? []
+      // 지금 고른 방식의 상품만 실어 보냅니다 — 통째로 보내면 백그라운드가
+      // 배송만 상품까지 구매대행으로 바꿔 열어, 고객이 직접 사려던 물건을
+      // 저희가 대신 사는 신청서가 됩니다 (검토 26-09-04).
+      const items = (c?.cart ?? []).filter((i) => i.track === track)
       if (items.length === 0) return
       const res = await send('openCheckout', { track, items })
       // 서버가 꺼져 있으면 빈 탭 대신 이유를 보여줍니다 — "에러 페이지" 의 정체입니다.
@@ -275,6 +281,7 @@
   const onNav = () => {
     if (location.href === lastHref) return
     lastHref = location.href
+    KBPanel.setState({ notice: '' }) // 다른 상품으로 넘어가면 이전 상품의 안내는 지웁니다
     refetchStructuredData().then(compute)
   }
   for (const fn of ['pushState', 'replaceState']) {

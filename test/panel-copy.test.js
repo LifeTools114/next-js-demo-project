@@ -114,45 +114,117 @@ test('입력폼까지 와서 멈춰도 [우편번호 찾기] 를 짚어준다 + 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/)
 })
 
+
+/** 테스트 기준점이 사라지면 조용히 통과하지 말고 이름을 대며 실패합니다 (검토 26-09-04). */
+const at = (src, needle) => {
+  const i = src.indexOf(needle)
+  assert.notEqual(i, -1, `테스트 기준점이 사라졌습니다: ${needle}`)
+  return i
+}
+const stripComments = (src) => src
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+
 test('배송만은 쿠팡 결제가 먼저 — 상품 화면에 주문서 버튼을 두지 않는다', () => {
   /*
    * 운영자 확정 (26-09-04): "배송대행은 계산(결제)까지 마무리된 후에 주문서
-   * 작성이 나와야 함". 신청서는 결제가 끝난 주문완료 화면의 [하노이 배송 신청]
-   * 으로만 엽니다. 담자마자 주문서를 열면 쿠팡 주문번호 없는 신청서가 생기고,
-   * 결제 화면의 배송지 검사도 건너뛰게 됩니다.
+   * 작성이 나와야 함". 신청서는 결제가 끝난 주문완료 화면에서 저절로 열립니다.
+   * 담자마자 주문서를 열면 쿠팡 주문번호 없는 신청서가 생기고, 결제 화면의
+   * 배송지 검사도 건너뛰게 됩니다.
    */
   const src = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
-  const fn = src.slice(src.indexOf('function renderButtons'), src.indexOf('function render()'))
-  const fwd = fn.slice(fn.indexOf("if (state.track === 'forwarding') {"), fn.indexOf('// 담은 후 · 구매하고 배송까지'))
-  const agent = fn.slice(fn.indexOf('// 담은 후 · 구매하고 배송까지'))
-
-  assert.ok(!fwd.includes('data-act="checkout"'), '배송만 분기에는 주문서 버튼이 없어야 합니다')
-  assert.ok(fwd.includes('data-act="affiliate"'), '배송만의 다음 행동은 [쿠팡에서 결제하기] 뿐입니다')
-  assert.ok(agent.includes('data-act="checkout"'), '구매하고 배송까지는 바로 신청서로 갑니다')
-  // 순서를 눈에 보이게 — ① 담기 ② 쿠팡 직접 결제 ③ 결제 후 [하노이 배송 신청]
-  assert.ok(fn.includes('직접 결제'), '"직접 결제" 가 먼저라고 적혀야 합니다')
-  assert.ok(fn.includes('[하노이 배송 신청]'), '결제 후 무엇을 누를지 미리 알려야 합니다')
+  const raw = src.slice(at(src, 'function renderButtons'), at(src, 'function render()'))
+  // 구매하고 배송까지 분기 표식(주석)을 기준으로 앞뒤를 나눈 뒤, 각각 주석을 걷어내고 봅니다.
+  const agentAt = at(raw, '// 담은 후 · 구매하고 배송까지')
+  const before = stripComments(raw.slice(0, agentAt))   // 배송만 (담기 전·담은 후) 이 그려지는 쪽
+  const after = stripComments(raw.slice(agentAt))        // 구매하고 배송까지 분기
+  // 주문서 버튼은 구매하고 배송까지 분기에만, 딱 한 번.
+  assert.equal((after.match(/data-act=["']?checkout["']?/g) ?? []).length, 1, '주문서 버튼은 구매하고 배송까지 분기에 한 번만')
+  assert.ok(!/checkout/i.test(before), '배송만 쪽 어디에도 checkout 을 부르는 코드가 없어야 합니다')
+  // 배송만의 다음 행동은 [쿠팡에서 결제하기] 뿐입니다.
+  const fwd = before.slice(at(before, "if (state.track === 'forwarding') {"))
+  assert.ok(/data-act=["']affiliate["']/.test(fwd), '배송만의 다음 행동은 [쿠팡에서 결제하기] 뿐입니다')
+  // 순서를 눈에 보이게 — 그려지는 템플릿만 봅니다 (주석은 걷어냈습니다).
+  const steps = before.slice(at(before, 'const fwdSteps'), at(before, 'const notice ='))
+  assert.ok(steps.includes('<b>직접 결제</b>'), '"직접 결제" 가 먼저라고 적혀야 합니다')
+  assert.ok(steps.includes('저절로 열립니다'), '결제 후 신청서가 저절로 열린다고 알려야 합니다 (autoForward)')
+  assert.ok(steps.includes('[하노이 배송 신청]'), '안 열렸을 때 누를 것도 알려야 합니다')
 })
 
-test('팝업도 배송만은 결제 먼저 · 견적함을 트랙 안 가리고 /checkout 에 싣지 않는다', () => {
+test('팝업 [주문 요청하기]: 담긴 상품의 방식으로 판단하고, 탭은 백그라운드만 연다', async () => {
   const popup = readFileSync(new URL('../extension/src/popup/popup.js', import.meta.url), 'utf8')
   const html = readFileSync(new URL('../extension/src/popup/popup.html', import.meta.url), 'utf8')
-  // 두 방식이 섞인 견적함이 첫 상품 기준으로만 계산되던 원인 — 직접 URL 조립 금지.
-  assert.ok(!popup.includes('/checkout?cart=${payload}'), '팝업이 /checkout 주소를 직접 만들면 안 됩니다')
-  assert.ok(popup.includes("send('openCheckout', { track: 'agent' })"), '구매하고 배송까지는 백그라운드가 트랙별로 걸러 엽니다')
-  assert.ok(popup.includes("prefs.track === 'forwarding'"), '배송만이면 결제 먼저 안내')
+  // 어떤 철자로든 팝업이 /checkout 주소를 직접 만들면 안 됩니다 — 트랙 걸러내기·서버 확인을 건너뜁니다.
+  assert.ok(!/\/checkout\?/.test(stripComments(popup)), '팝업이 /checkout 주소를 직접 만들면 안 됩니다')
+  assert.ok(!popup.includes('chrome.tabs.create'), '팝업은 탭을 직접 열지 않고 openCheckout 으로 보냅니다')
   assert.ok(html.includes('쿠팡 결제가 먼저입니다'), '팝업 안내 문구')
-  assert.ok(html.includes('order-late'), '결제 후 화면을 놓친 분을 위한 길은 남겨둡니다')
+  assert.ok(html.includes('id="late-no"'), '결제 후 화면을 놓친 분은 주문번호를 적어야 엽니다')
+
+  // 실제 핸들러를 실행합니다 — return 하나가 빠져도 배송만 견적함이 구매대행 신청서로 열립니다.
+  const vm = await import('node:vm')
+  const run = async (cart, lateNo = '') => {
+    const sent = [], alerts = []
+    const notes = { 'order-note': { hidden: true }, 'late-no': { value: lateNo } }
+    const ctx = vm.createContext({
+      cart, send: async (type, payload) => { sent.push({ type, payload }); return { ok: true } },
+      alert: (m) => alerts.push(m), $: (id) => notes[id],
+      handlers: {},
+    })
+    const body = popup.slice(at(popup, 'const agentItemsInCart'), at(popup, "$('zone').addEventListener"))
+      .replace("$('btn-order').addEventListener('click', ", 'handlers.order = (')
+      .replace("$('order-late').addEventListener('click', ", 'handlers.late = (')
+    vm.runInContext(body, ctx)
+    await ctx.handlers.order()
+    // vm 안에서 만든 객체는 프로토타입이 달라 deepStrictEqual 이 실패합니다 — JSON 으로 평평하게.
+    const flat = () => JSON.parse(JSON.stringify(sent))
+    return { get sent() { return flat() }, alerts, note: !notes['order-note'].hidden, late: ctx.handlers.late }
+  }
+  const F = { productName: 'x', productPrice: 1000, quantity: 1, track: 'forwarding' }
+  const A = { productName: 'y', productPrice: 2000, quantity: 1, track: 'agent' }
+
+  const onlyFwd = await run([F])
+  assert.equal(onlyFwd.sent.length, 0, '배송만만 담겼으면 신청서를 열지 않습니다')
+  assert.equal(onlyFwd.note, true, '대신 "결제가 먼저" 안내를 펼칩니다')
+
+  const onlyAgent = await run([A])
+  assert.deepEqual(onlyAgent.sent, [{ type: 'openCheckout', payload: { track: 'agent', items: [A] } }],
+    '구매하고 배송까지만 담겼으면 그 상품을 실어 바로 신청서로')
+  assert.equal(onlyAgent.note, false)
+
+  const mixed = await run([F, A])
+  assert.deepEqual(mixed.sent[0].payload.items, [A], '섞여 있으면 구매하고 배송까지 상품만 실어 보냅니다')
+  assert.equal(mixed.note, true, '배송만 상품에 대해서는 결제 먼저 안내')
+
+  // 결제 후 경로 — 주문번호 없이는 열리지 않습니다.
+  const late = await run([F], '12')
+  const before = late.sent.length
+  await late.late()
+  assert.equal(late.sent.length, before, '주문번호가 짧으면 열지 않습니다')
+  assert.ok(late.alerts.some((m) => m.includes('주문번호')), '주문번호를 적으라고 말합니다')
+  const late2 = await run([F], '1788621755836')
+  await late2.late()
+  assert.deepEqual(late2.sent.at(-1), { type: 'openCheckout', payload: { track: 'forwarding', coupangOrderNo: '1788621755836' } })
 })
 
-test('서버가 꺼져 있으면 빈 탭 대신 이유를 돌려준다', () => {
-  // 패널은 캐시로 멀쩡해 보여도 서버가 꺼져 있으면 /checkout 탭이
-  // "사이트에 연결할 수 없음" 이 됩니다 — 고객에게는 그냥 에러 페이지입니다.
-  const sw = readFileSync(new URL('../extension/src/background/service-worker.js', import.meta.url), 'utf8')
-  const oc = sw.slice(sw.indexOf("case 'openCheckout'"), sw.indexOf("case 'quoteCart'"))
-  assert.ok(oc.includes('/api/extension/config'), '탭을 열기 전에 서버를 찔러봐야 합니다')
-  assert.ok(oc.indexOf('fetch(') < oc.indexOf('chrome.tabs.create'), '확인이 탭 열기보다 먼저')
-  assert.ok(oc.includes('start-server'), '고칠 방법(서버 켜기)을 알려줘야 합니다')
+test('상품 화면 [주문서]는 고른 방식의 상품만 싣고, 방식·상품이 바뀌면 서버 안내를 지운다', () => {
   const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
-  assert.ok(main.includes('notice: res?.ok'), '패널이 그 이유를 보여줘야 합니다')
+  const oc = main.slice(at(main, 'onCheckout:'), at(main, 'onShortcutOpen:'))
+  assert.ok(oc.includes("filter((i) => i.track === track)"), '통째로 보내면 배송만 상품이 구매대행으로 바뀝니다')
+  assert.ok(oc.includes('notice: res?.ok'), '실패 이유를 패널에 보여줍니다')
+  const tc = main.slice(at(main, 'onTrackChange:'), at(main, 'onAdd:'))
+  assert.ok(tc.includes("notice: ''"), '방식을 바꾸면 이전 안내를 지웁니다')
+  const nav = main.slice(at(main, 'const onNav ='), at(main, "for (const fn of ['pushState'"))
+  assert.ok(nav.includes("notice: ''"), '다른 상품으로 가면 이전 안내를 지웁니다')
+  // compute 안에서 지우면 쿠팡 화면 변화로 0.6초마다 다시 계산돼 곧바로 사라집니다.
+  const compute = main.slice(at(main, 'async function compute()'), at(main, 'compute()\n\n'))
+  assert.ok(!/notice: ''/.test(compute), 'compute 안에서는 지우지 않습니다')
+})
+
+test('주문완료 화면에서 저절로 열지 못하면 그 이유를 카드에 먼저 보여준다', () => {
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  assert.ok(cap.includes('function offerForwarding(coupangOrderNo, reason)'), '이유를 받는 자리')
+  assert.ok(cap.includes('why.textContent = reason'), '서버 주소가 섞이니 textContent 로만')
+  assert.ok(cap.includes('offerForwarding(coupangOrderNo, res?.error)'), 'autoForward 가 이유를 넘겨야 합니다')
+  // 실패 안내는 고객에게 쉬운 말, 운영자에게 고칠 방법.
+  assert.ok(cap.includes('잠시 후 다시 눌러 주세요'), '고객 브라우저에는 쉬운 말')
 })
