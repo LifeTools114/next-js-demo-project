@@ -350,6 +350,9 @@
    * document 만 봐서는 창이 "안 열린 것"처럼 보입니다. 교차 출처(다음
    * 우편번호 등)는 접근 불가라 건너뜁니다 — 그쪽은 postcode-fill.js 담당.
    */
+  /** 확장 버전 — 화면 표시·진단 문구가 같은 값을 쓰도록 한 곳에서 읽습니다. */
+  const ver = (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })()
+
   function allDocs() {
     const list = [document]
     for (const f of document.querySelectorAll('iframe')) {
@@ -449,7 +452,6 @@
    * 개인정보는 담지 않습니다 — 태그·클래스 이름과 개수, 문구 주변 40자만.
    */
   function addrDiagnostics() {
-    const ver = (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })()
     const out = { v: ver, path: location.pathname, at: new Date().toISOString(), frames: [], matches: {}, near: [] }
     // 접근 못 하는(교차 출처) 프레임 수 — 배송지 창이 그 안에 있으면 자동화 불가.
     const cross = [...document.querySelectorAll('iframe')].filter((f) => {
@@ -529,7 +531,7 @@
       found,
       host: location.host,
       path: location.pathname.slice(0, 80),
-      ext: (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })(),
+      ext: ver,
       pat: PAT?.info().version ?? -1,
       patSource: PAT?.info().source ?? 'bundled',
       rejected: PAT?.info().rejected ?? [],
@@ -883,7 +885,6 @@
       }
 
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-      const ver = (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })()
       const fireClick = (el) => {
         const win = el.ownerDocument?.defaultView ?? window
         const opts = { bubbles: true, cancelable: true, view: win }
@@ -1080,16 +1081,26 @@
         } else if (daumOpen()) {
           break // 이름을 모르면 상세주소는 고객 몫 — 검색창이 열린 것까지만 확인
         }
-        if (!zipAsked && !daumOpen() && Date.now() - zipStart > 2400) {
-          zipAsked = true
-          setWait('zip', '쿠팡 [우편번호 찾기]를 직접 한 번 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 진행됩니다.')
+        if (!daumOpen()) {
+          // 여기서도 짚어줍니다 — 입력폼까지 와서 멈추면 고객은
+          // [우편번호 찾기] 가 어디인지 몰라 그대로 포기합니다.
+          spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요')
+          if (!zipAsked && Date.now() - zipStart > 1200) {
+            zipAsked = true
+            setWait('zip', '쿠팡 [우편번호 찾기]를 직접 한 번 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 진행됩니다.')
+            spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요')
+          }
+        } else {
+          clearSpotlight() // 검색창이 열렸으면 표시는 방해만 됩니다
         }
       }
       if (detailDone) return finish(false, '✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.', true)
       if (daumOpen()) return finish(false, '주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
-      return finish(true,
+      finish(true,
         `받는사람·전화는 입력했습니다. [우편번호 찾기]만 직접 눌러주세요 — 검색·선택·상세주소는 자동으로 이어집니다. (도우미 v${ver})`,
         false)
+      spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요')
+      return
     }
 
     // ── 가격 두 줄이 카드의 전부 — 행을 눌러 진행 방식을 고릅니다 ──
@@ -1363,8 +1374,15 @@
         : '') +
       detailBlock
 
+    /**
+     * 도우미 버전 — 사장님이 [git pull → 확장 🔄] 을 하셨는지 화면에서
+     * 바로 확인할 수 있어야 합니다. 이게 없어서 "고쳤는데 그대로다" 인지
+     * "아직 옛 버전이다" 인지 두 번이나 헷갈렸습니다 (26-09-04).
+     */
+
     const html =
-      '<b>🇻🇳 하노이 배송</b>' + statusBlock +
+      `<b>🇻🇳 하노이 배송</b><span style="float:right;font-size:10px;color:#b0b8c1">v${ver}</span>` +
+      statusBlock +
       cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
       'background:#f9fafb;color:#8b95a1;cursor:pointer">닫기</button>'

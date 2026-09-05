@@ -96,3 +96,17 @@ test('배송지 창이 열리면 표시가 곧바로 [+ 배송지 추가]로 옮
   assert.ok(branch.indexOf('spotlight(addBtn') < branch.indexOf('askedAdd = true'),
     '표시가 문구보다 먼저 옮겨가야 합니다')
 })
+
+test('입력폼까지 와서 멈춰도 [우편번호 찾기] 를 짚어준다 + 버전이 카드에 보인다', () => {
+  // "배송지 입력부분까지 들어가서 멈춘다" (26-09-04 운영자) — 거기서 고객이
+  // 눌러야 할 것은 [우편번호 찾기] 하나인데, 글로만 안내하고 있었습니다.
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const zipStage = cap.slice(cap.indexOf('const zipStart = Date.now()'), cap.indexOf("'✓ 배송지 자동입력 완료!"))
+  assert.ok(zipStage.includes("spotlight(findExact('zipSearch')"), '[우편번호 찾기] 를 짚어야 합니다')
+  assert.ok(zipStage.includes('clearSpotlight()'), '검색창이 열리면 표시를 치워야 합니다')
+
+  // 사장님이 새 버전을 받으셨는지 화면에서 바로 알 수 있어야 합니다.
+  assert.ok(/v\$\{ver\}/.test(cap), '카드에 도우미 버전이 보여야 합니다')
+  const manifest = JSON.parse(readFileSync(new URL('../extension/manifest.json', import.meta.url), 'utf8'))
+  assert.match(manifest.version, /^\d+\.\d+\.\d+$/)
+})
