@@ -11,6 +11,15 @@
  * 재배포 없이 갱신할 수 있습니다.
  */
 ;(() => {
+  /**
+   * 이 스크립트가 최상위 화면에서 도는지, 안쪽 프레임에서 도는지.
+   * 쿠팡이 배송지 창을 **다른 출처 iframe** 으로 띄우면 최상위에서는 창 안이
+   * 안 보입니다(26-09-06 운영자 화면: 창이 열려 있는데 [선택]·[배송지 추가]를
+   * 못 찾음). 그래서 manifest 의 all_frames 로 프레임 안에서도 실행하고,
+   * 프레임 쪽은 아래 frameAddressHelper 만 돕니다 (카드·수집은 최상위만).
+   */
+  const IS_TOP = (() => { try { return window.top === window } catch { return false } })()
+
   const send = (type, payload) =>
     new Promise((resolve) => chrome.runtime.sendMessage({ type, payload }, (r) => resolve(r ?? { ok: false })))
 
@@ -389,6 +398,8 @@
   // 자동 클릭이 통하지 않아 고객의 진짜 클릭을 기다리는 단계:
   //   '' 없음 · 'open' [배송지 변경] · 'zip' [우편번호 찾기]
   let helperAddrWaitManual = ''
+  /** 마지막 렌더에서 배송지가 창고로 확인됐는가 — 자동 등록 루프가 끝낼 때를 알기 위해 */
+  let helperAddrOk = false
 
   /**
    * 검색 대상 문서들 — 최상위 + 같은 출처 iframe 안까지.
@@ -408,6 +419,23 @@
       } catch { /* 교차 출처 — 접근 불가 */ }
     }
     return list
+  }
+
+  /**
+   * 검색 대상 뿌리들 — 문서들 + 그 안의 **열린 shadow root** 까지.
+   * 쿠팡이 웹 컴포넌트로 창을 그리면 document.querySelectorAll 은 그 안을
+   * 못 봅니다. 닫힌(closed) shadow root 는 어떤 방법으로도 못 보므로 제외.
+   */
+  function allRoots() {
+    const roots = []
+    const visit = (root) => {
+      roots.push(root)
+      let els
+      try { els = root.querySelectorAll('*') } catch { return }
+      for (const el of els) if (el.shadowRoot) visit(el.shadowRoot)
+    }
+    for (const d of allDocs()) visit(d)
+    return roots
   }
 
   /**
@@ -477,11 +505,77 @@
     spotEl = el
   }
 
+  // ── 자동 등록 도우미 — 최상위 화면과 배송지 창 프레임이 함께 씁니다 ──
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+  const fireClick = (el) => {
+    const win = el.ownerDocument?.defaultView ?? window
+    const opts = { bubbles: true, cancelable: true, view: win }
+    for (const t of ['pointerover', 'pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
+      try {
+        el.dispatchEvent(t.startsWith('pointer') ? new win.PointerEvent(t, opts) : new win.MouseEvent(t, opts))
+      } catch { /* PointerEvent 미지원 무시 */ }
+    }
+    el.click()
+  }
+  // 짧은 정확 문구로 클릭 대상 찾기 — 겹겹이 매치되면(버튼>스팬) 가장
+  // 안쪽을 눌러야 위임된 실제 핸들러까지 이벤트가 닿습니다.
+  const findExact = (key) => {
+    const max = lenOf(key)
+    for (const doc of allRoots()) {
+      const hits = [...doc.querySelectorAll(CAND_SEL)].filter((x) => {
+        if (!x.offsetParent || x.closest('[data-kb-ui]')) return false
+        const t = candText(x)
+        return t.length > 0 && t.length <= max && hitsKey(key, t)
+      })
+      const leaf = hits.find((h) => !hits.some((o) => o !== h && h.contains(o))) ?? hits[0]
+      if (leaf) return leaf
+    }
+    return null
+  }
+  const clickExact = (key) => { const el = findExact(key); if (el) fireClick(el); return Boolean(el) }
+  /**
+   * 주소록에 창고 배송지가 이미 있으면 새로 만들지 않고 그 행의 [선택]을
+   * 누릅니다 — 두 번째 이용부터는 이게 정답 경로이고 중복 등록도 막습니다.
+   * 코드(YS-ECOM)가 적힌 가장 작은 행 컨테이너 안의 [선택]만 인정합니다.
+   */
+  const findSavedSelect = (code) => {
+    for (const doc of allRoots()) {
+      const rows = [...doc.querySelectorAll('li, div, section, article')]
+        .filter((el) => {
+          if (!el.offsetParent || el.closest('[data-kb-ui]')) return false
+          const t = el.innerText ?? ''
+          return t.includes(code) && t.length < 800
+        })
+        .sort((a, b) => (a.innerText ?? '').length - (b.innerText ?? '').length)
+      for (const row of rows) {
+        const sels = [...row.querySelectorAll(CAND_SEL)]
+          .filter((b) => b.offsetParent && hitsKey('pick', candText(b)))
+        const sel = sels.find((h) => !sels.some((o) => o !== h && h.contains(o))) ?? sels[0]
+        if (sel) return sel
+      }
+    }
+    return null
+  }
+  const daumOpen = () => allRoots().some((d) =>
+    [...d.querySelectorAll('iframe')].some((f) => /daum|postcode/i.test(f.src ?? '')))
+  /** 다음 우편번호 프레임(postcode-fill.js)에 남기는 검색 요청 */
+  const postcodeQuery = (addr1) => ({ q: addr1, road: addr1.split(/\s+/).slice(-3).join(' '), at: Date.now() })
+  /**
+   * "주소를 골랐다"는 신호 ② — 보이는 입력칸에 창고 도로명(마지막 세 토큰, 공백
+   * 무시)이 들어가 있는가. 상세주소가 처음부터 차 있는 폼에서도 판단이 됩니다.
+   */
+  const addressChosen = (addr1) => {
+    const tok = squash(String(addr1 ?? '').split(/\s+/).slice(-3).join(' '))
+    if (!tok) return false
+    return allRoots().some((d) =>
+      [...d.querySelectorAll('input')].some((i) => i.offsetParent && squash(i.value).includes(tok)))
+  }
+
   /** 이 문구로 잡히는 요소 수 (보이는 것만) — 자가진단·진단 복사 공통 */
   function countMatches(key) {
     const max = lenOf(key)
     let n = 0
-    for (const d of allDocs()) {
+    for (const d of allRoots()) {
       for (const el of d.querySelectorAll(CAND_SEL)) {
         if (!el.offsetParent || el.closest('[data-kb-ui]')) continue
         const t = candText(el)
@@ -516,10 +610,19 @@
       })
     }
     out.crossFrames = cross
+    out.isTop = IS_TOP
+    // 열린 shadow root 수 — 0 이 아니면 쿠팡이 웹 컴포넌트로 그리는 부분이 있습니다.
+    out.shadowRoots = Math.max(0, allRoots().length - allDocs().length)
+    // 손이 안 닿는(다른 출처) 프레임의 주소 호스트 — 배송지 창이 여기 있으면 프레임 도우미 몫.
+    out.crossHosts = [...document.querySelectorAll('iframe')].filter((f) => {
+      try { return !f.contentDocument } catch { return true }
+    }).map((f) => { try { return new URL(f.src, location.href).host } catch { return '?' } }).slice(0, 8)
+    // 프레임 도우미가 마지막으로 보고한 것 (없으면 프레임이 창을 못 봤거나 스크립트가 안 실림)
+    out.frameState = lastFrameState
     const scan = (key) => {
       const found = []
       const max = lenOf(key)
-      for (const d of allDocs()) {
+      for (const d of allRoots()) {
         for (const el of d.querySelectorAll(CAND_SEL)) {
           if (el.closest('[data-kb-ui]')) continue
           const t = candText(el)
@@ -534,6 +637,27 @@
     out.matches = {
       open: scan('openAddr'), add: scan('addAddr'), zip: scan('zipSearch'), pick: scan('pick'),
     }
+    /**
+     * 느슨한 검색 — 태그·길이·보임 조건을 다 풀고 "문구가 문서에 있긴 한가"만 봅니다.
+     * matches 는 비었는데 loose 에 잡히면 문구는 맞고 후보 조건이 문제, loose 도
+     * 비면 문구 자체가 다르거나 안 보이는 곳(다른 출처 프레임·닫힌 shadow)에 있는 것.
+     */
+    const loose = (key) => {
+      const found = []
+      for (const d of allRoots()) {
+        let els
+        try { els = d.querySelectorAll('*') } catch { continue }
+        for (const el of els) {
+          if (el.closest?.('[data-kb-ui]') || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue
+          const t = squash(el.textContent).slice(0, 60)
+          if (!t || t.length > 40 || !hitsKey(key, t)) continue
+          found.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 24)}(${t.length}${el.offsetParent ? '' : ',숨김'})`)
+          if (found.length >= 4) return found
+        }
+      }
+      return found
+    }
+    out.loose = { add: loose('addAddr'), pick: loose('pick'), zip: loose('zipSearch') }
     for (const d of allDocs()) {
       const body = (d.body?.innerText ?? '').replace(/\s+/g, '')
       const nearRe = new RegExp((PAT?.list('openAddr') ?? []).map((r) => r.source).join('|') || '배송지변경', 'g')
@@ -691,7 +815,7 @@
   function fillDialogInputs(selector, value, { force = false } = {}) {
     if (!value || !selector) return 0
     let filled = 0
-    for (const doc of allDocs()) {
+    for (const doc of allRoots()) {
       for (const input of doc.querySelectorAll(selector)) {
         if (!input.offsetParent) continue
         const dialog = input.closest('[role="dialog"], form') ?? input.parentElement?.parentElement
@@ -714,13 +838,189 @@
   }
 
   /** 받는사람·휴대폰·상세주소를 한 번에. 상세주소는 이름을 알 때만. */
-  function autofillAddressDialog({ code, phone, force = false } = {}) {
-    const name = getRecipientName()
+  function autofillAddressDialog({ code, phone, name: nameIn, force = false } = {}) {
+    // 프레임 안에서는 최상위의 localStorage(이름)를 못 읽으므로 작업 요청에 실린 이름을 씁니다.
+    const name = nameIn ?? getRecipientName()
     let n = 0
     n += fillDialogInputs(DIALOG_FIELDS.name, code, { force })
     n += fillDialogInputs(DIALOG_FIELDS.phone, phone, { force })
     if (name) n += fillDialogInputs(DIALOG_FIELDS.detail, `${code} ${name}`, { force })
     return n
+  }
+
+  /* ═══════════════ 배송지 창이 다른 출처 프레임일 때 ═══════════════
+   *
+   * 26-09-06 운영자 화면: 배송지 선택 창이 분명히 열려 있고 저장된 YS-ECOM
+   * 행과 [+ 배송지 추가]가 보이는데, 확장은 ① [배송지 변경] 열기에서 멈춰
+   * 창 뒤에 가려진 버튼을 짚고 있었습니다. 최상위 문서에서 창 안이 안 보인
+   * 것입니다 — 창이 **다른 출처 iframe** 이면 어떤 방법으로도 못 봅니다.
+   *
+   * 그래서 이 스크립트를 프레임 안에서도 실행하고(manifest all_frames),
+   * 프레임 쪽은 아래 도우미만 돕니다. 둘은 chrome.storage 로 말합니다.
+   *
+   *   최상위  →  kbAddrJob       { code, phone, name, addr1, at }   "이 작업을 도와줘"
+   *   프레임  →  kbAddrJobState  { jobAt, step, manual, at, host }  "지금 이 단계, 직접 눌러야 함"
+   *
+   * 최상위는 감시 루프에서 kbAddrJobState 를 읽어 단계 표에 그대로 비추고,
+   * 프레임 안의 클릭이 안 통하면(쿠팡은 신뢰 이벤트만 받는 버튼이 있음)
+   * 프레임이 그 버튼을 직접 짚어 줍니다 — 표시는 버튼이 있는 문서에 그려야
+   * 정확한 자리에 놓입니다.
+   *
+   * 같은 출처 iframe 은 최상위가 allDocs 로 이미 보므로 프레임 쪽은 손대지
+   * 않습니다 (둘이 같은 버튼을 두 번 누르지 않게).
+   */
+  const JOB_KEY = 'kbAddrJob'
+  const JOB_STATE_KEY = 'kbAddrJobState'
+  const JOB_FRESH_MS = 150_000
+  /** 프레임이 맡았을 때 최상위가 더 기다려 주는 시간 (입력·검색까지) */
+  const FRAME_EXTRA_MS = 60_000
+  /** 최상위가 마지막으로 본 프레임 보고 — 진단 정보에 실립니다 */
+  let lastFrameState = null
+
+  /** 최상위가 읽습니다 — 지금 작업(jobAt)에 대한 프레임 보고만 인정 */
+  async function readFrameState(jobAt) {
+    try {
+      const st = (await chrome.storage.local.get(JOB_STATE_KEY))?.[JOB_STATE_KEY]
+      if (!st || st.jobAt !== jobAt) return null
+      lastFrameState = st
+      return st
+    } catch { return null }
+  }
+
+  /** 최상위 문서에 손이 닿는가 — 닿으면(같은 출처) 최상위가 이 프레임을 이미 봅니다 */
+  const topReachable = () => { try { return Boolean(window.top.document) } catch { return false } }
+
+  /**
+   * 프레임 안 도우미 — 이 프레임에 배송지 창의 요소가 보일 때만 움직입니다.
+   * 광고·결제 위젯 프레임에서는 아무것도 찾지 못해 조용히 기다릴 뿐입니다.
+   */
+  async function frameAddressHelper() {
+    if (IS_TOP || topReachable()) return
+    const readJob = async () => {
+      try { return (await chrome.storage.local.get(JOB_KEY))?.[JOB_KEY] ?? null } catch { return null }
+    }
+    const fresh = (j) => Boolean(j?.at && j.code && Date.now() - j.at < JOB_FRESH_MS)
+    const report = async (job, step, manual) => {
+      try {
+        await chrome.storage.local.set({
+          [JOB_STATE_KEY]: { jobAt: job.at, step, manual: Boolean(manual), at: Date.now(), host: location.host },
+        })
+      } catch { /* 저장 불가 — 최상위는 자기 눈으로만 판단 */ }
+    }
+    let running = 0
+    const work = async (job) => {
+      if (running === job.at) return
+      running = job.at
+      // 서버 문구 설정 — 최상위가 캐시해 둔 것을 씁니다 (여기서 네트워크를 기다리지 않음)
+      try { PAT?.apply((await chrome.storage.local.get('config'))?.config?.coupang) } catch { /* 번들 기본값 */ }
+      const { code, phone, name, addr1 } = job
+      const alive = async () => { const j = await readJob(); return Boolean(j) && j.at === job.at && fresh(j) }
+      let step = ''
+      let manual = false
+      const set = async (st, m = false) => {
+        if (step === st && manual === m) return
+        step = st; manual = m
+        await report(job, st, m)
+      }
+      const started = Date.now()
+      let hadPick = false
+      let pickAt = 0
+      let goneSince = 0 // [선택]이 안 보이기 시작한 시각 — 목록이 잠깐 다시 그려지는 것과 구분
+      let listSeen = 0
+      let lastAdd = 0
+      let formSeen = 0
+      let zipAt = 0
+      let daumSeen = false
+      while (Date.now() - started < JOB_FRESH_MS) {
+        if (!(await alive())) { clearSpotlight(); running = 0; return }
+        // ① 저장된 창고 주소가 있으면 그 행의 [선택] 하나로 끝 (두 번째 이용부터)
+        const sel = findSavedSelect(code)
+        if (sel) {
+          hadPick = true
+          goneSince = 0
+          if (!pickAt) { fireClick(sel); pickAt = Date.now(); await set('pick') }
+          else if (Date.now() - pickAt > 1600) { spotlight(sel, '👆 여기를 눌러주세요'); await set('pick', true) }
+          await sleep(400)
+          continue
+        }
+        if (hadPick && !findExact('zipSearch') && !findExact('addAddr')) {
+          // [선택]이 사라졌다 = 눌렸다 (창이 닫히거나 목록이 바뀜). 목록이 잠깐
+          // 다시 그려지는 순간을 "끝"으로 오판하지 않게 0.8초는 계속 없어야 합니다.
+          if (!goneSince) goneSince = Date.now()
+          if (Date.now() - goneSince > 800) {
+            clearSpotlight()
+            await set('done-pick')
+            running = 0
+            return
+          }
+          await sleep(300)
+          continue
+        }
+        // ② 입력폼 — 받는사람·휴대폰 채우고 우편번호 검색
+        const zipEl = findExact('zipSearch')
+        if (zipEl) {
+          if (!formSeen) {
+            formSeen = Date.now()
+            clearSpotlight()
+            await set('fill')
+            autofillAddressDialog({ code, phone, name, force: true })
+            try { await chrome.storage.local.set({ kbPostcodeQuery: postcodeQuery(addr1) }) } catch { /* 수동 검색 폴백 */ }
+            fireClick(zipEl)
+            zipAt = Date.now()
+            await set('zip')
+          }
+          if (daumOpen()) {
+            daumSeen = true
+            clearSpotlight() // 검색창이 열렸으면 표시는 방해만 됩니다
+            await set('search')
+            await sleep(600)
+            continue
+          }
+          if (daumSeen || addressChosen(addr1)) {
+            await set('detail')
+            if (name) fillDialogInputs(DIALOG_FIELDS.detail, `${code} ${name}`, { force: true })
+            await set('save')
+            // 마지막 [저장]은 고객 몫 — 짚어 두고, 폼이 사라지면(눌렀으면) 표시를 거둡니다.
+            spotlight(findExact('save'), '👆 저장을 눌러주세요')
+            const until = Date.now() + 120_000
+            while (Date.now() < until && findExact('save')) await sleep(1000)
+            clearSpotlight()
+            running = 0
+            return
+          }
+          if (Date.now() - zipAt > 1200) { spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요'); await set('zip', true) }
+          await sleep(600)
+          continue
+        }
+        // ③ 목록 창 — 저장된 창고 주소가 없으니 [+ 배송지 추가]로 입력폼 열기
+        const addBtn = findExact('addAddr')
+        if (addBtn) {
+          if (!listSeen) { listSeen = Date.now(); await set('add') }
+          if (Date.now() - lastAdd > 1200) { fireClick(addBtn); lastAdd = Date.now() }
+          // 스크립트 클릭이 안 통하면 그 버튼을 이 문서 안에서 짚습니다.
+          if (Date.now() - listSeen > 600) { spotlight(addBtn, '👆 여기를 눌러주세요'); await set('add', true) }
+          await sleep(400)
+          continue
+        }
+        // 이 프레임에는 (아직) 배송지 창이 없습니다.
+        await sleep(500)
+      }
+      clearSpotlight()
+      if (step && (await alive())) await set('failed')
+      running = 0
+    }
+
+    // 프레임이 창과 함께 나중에 만들어지는 경우(흔함): 이미 걸려 있는 작업을 바로 잇습니다.
+    const job = await readJob()
+    if (fresh(job)) work(job)
+    // 프레임이 먼저 있고 [자동입력]이 나중에 눌리는 경우: 작업이 걸리는 순간 시작합니다.
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local' || !changes[JOB_KEY]) return
+        const j = changes[JOB_KEY].newValue
+        if (fresh(j)) work(j)
+      })
+    } catch { /* onChanged 없음(테스트 스텁) — 처음 읽은 것만 */ }
   }
 
   /**
@@ -863,6 +1163,7 @@
     }
 
     const ok = okAddr && okCode
+    helperAddrOk = ok && !onCart
     if (ok) { helperAddrStep = ''; clearSpotlight() } // 주소가 맞아졌으면 단계 표시도 끝
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
@@ -914,7 +1215,9 @@
      * 배송지 자동 등록 — [배송대행]을 누르면 실행되는 핵심 흐름.
      * - 버튼이 <div>/<span>/<input> 인 화면 대응: 태그 무관 짧은 문구 매칭
      *   + pointer→mouse→click 이벤트 시퀀스.
-     * - 같은 출처 iframe 안에 뜨는 배송지 창까지 스캔 (allDocs).
+     * - 같은 출처 iframe·열린 shadow root 안의 창까지 스캔 (allRoots).
+     * - 다른 출처 iframe 에 뜨는 창은 프레임 쪽 도우미(frameAddressHelper)가
+     *   이어받고, 여기서는 그 보고(kbAddrJobState)를 단계 표에 비춥니다.
      * - 쿠팡이 스크립트 클릭을 무시하면(신뢰 이벤트만 처리) 강요하지 않고
      *   "직접 눌러주세요"로 전환한 뒤 계속 감시하다가, 창이 열리는 순간
      *   나머지(선택/입력/검색)를 이어서 자동 진행합니다.
@@ -939,59 +1242,18 @@
         name = (window.prompt('소포 주인 확인용 — 본인 이름을 입력하세요 (신청서의 받는 분과 동일하게)', '') ?? '').trim()
         if (name) { try { localStorage.setItem(NAME_KEY, name) } catch { /* 무시 */ } }
       }
-
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-      const fireClick = (el) => {
-        const win = el.ownerDocument?.defaultView ?? window
-        const opts = { bubbles: true, cancelable: true, view: win }
-        for (const t of ['pointerover', 'pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
-          try {
-            el.dispatchEvent(t.startsWith('pointer') ? new win.PointerEvent(t, opts) : new win.MouseEvent(t, opts))
-          } catch { /* PointerEvent 미지원 무시 */ }
-        }
-        el.click()
-      }
-      // 짧은 정확 문구로 클릭 대상 찾기 — 겹겹이 매치되면(버튼>스팬) 가장
-      // 안쪽을 눌러야 위임된 실제 핸들러까지 이벤트가 닿습니다.
-      const findExact = (key) => {
-        const max = lenOf(key)
-        for (const doc of allDocs()) {
-          const hits = [...doc.querySelectorAll(CAND_SEL)].filter((x) => {
-            if (!x.offsetParent || x.closest('[data-kb-ui]')) return false
-            const t = candText(x)
-            return t.length > 0 && t.length <= max && hitsKey(key, t)
-          })
-          const leaf = hits.find((h) => !hits.some((o) => o !== h && h.contains(o))) ?? hits[0]
-          if (leaf) return leaf
-        }
-        return null
-      }
-      const clickExact = (key) => { const el = findExact(key); if (el) fireClick(el); return Boolean(el) }
       /**
-       * 주소록에 창고 배송지가 이미 있으면 새로 만들지 않고 그 행의 [선택]을
-       * 누릅니다 — 두 번째 이용부터는 이게 정답 경로이고 중복 등록도 막습니다.
-       * 코드(YS-ECOM)가 적힌 가장 작은 행 컨테이너 안의 [선택]만 인정합니다.
+       * 배송지 창이 다른 출처 프레임에 그려지면 최상위는 창 안을 못 봅니다.
+       * 프레임 쪽 도우미(frameAddressHelper)가 이어받을 수 있게 작업을 남깁니다.
+       * 이름도 함께 — 프레임은 이 화면의 localStorage 를 못 읽습니다.
        */
-      const findSavedSelect = () => {
-        for (const doc of allDocs()) {
-          const rows = [...doc.querySelectorAll('li, div, section, article')]
-            .filter((el) => {
-              if (!el.offsetParent || el.closest('[data-kb-ui]')) return false
-              const t = el.innerText ?? ''
-              return t.includes(code) && t.length < 800
-            })
-            .sort((a, b) => (a.innerText ?? '').length - (b.innerText ?? '').length)
-          for (const row of rows) {
-            const sels = [...row.querySelectorAll(CAND_SEL)]
-              .filter((b) => b.offsetParent && hitsKey('pick', candText(b)))
-            const sel = sels.find((h) => !sels.some((o) => o !== h && h.contains(o))) ?? sels[0]
-            if (sel) return sel
-          }
-        }
-        return null
-      }
-      const daumOpen = () => allDocs().some((d) =>
-        [...d.querySelectorAll('iframe')].some((f) => /daum|postcode/i.test(f.src ?? '')))
+      const jobAt = Date.now()
+      lastFrameState = null
+      try {
+        await chrome.storage.local.remove(JOB_STATE_KEY)
+        await chrome.storage.local.set({ [JOB_KEY]: { code, phone, name, addr1, at: jobAt } })
+      } catch { /* 저장 불가 — 최상위 눈으로만 진행 */ }
+
 
       /**
        * 감시 루프: 처음 몇 초는 자동으로 열어보고, 안 열리면 "직접 눌러주세요"
@@ -1008,6 +1270,13 @@
         if (msg) toast(msg, false)
       }
 
+      /** "직접 눌러주세요" 단계별 안내 — 최상위가 찾았든 프레임이 보고했든 같은 말 */
+      const MANUAL_MSG = {
+        open: '쿠팡 [배송지 변경]을 직접 한 번 눌러주세요 — 창이 열리면 나머지는 자동으로 진행됩니다.',
+        add: '쿠팡 창에서 [+ 배송지 추가]를 직접 한 번 눌러주세요 — 누르면 나머지는 자동으로 진행됩니다.',
+        zip: '쿠팡 [우편번호 찾기]를 직접 한 번 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 진행됩니다.',
+        pick: `배송지 목록에서 ${code} 옆 [선택]을 직접 눌러주세요 — 누르면 바로 끝납니다.`,
+      }
       const WATCH_MS = globalThis.__kbAddrWatchMs ?? 75_000
       const AUTO_MS = 2_600 // 이 시간 안에 반응이 없으면 직접 눌러달라고 안내
       const started = Date.now()
@@ -1016,8 +1285,32 @@
       let lastAdd = 0
       let askedOpen = false
       let askedAdd = false
-      while (Date.now() - started < WATCH_MS && !mode) {
-        const savedSel = findSavedSelect()
+      // 루프 밖(select 모드)에서도 씁니다 — 블록 안 const 였을 때는 ReferenceError 로
+      // 저장된 창고 주소가 있는 고객에게서 "등록 중…" 이 영영 안 끝났습니다.
+      let savedSel = null
+      let frameSeen = false  // 배송지 창이 다른 출처 프레임이라 프레임 쪽 도우미가 맡았는가
+      let frameFinal = null  // 프레임이 보고한 마지막 상태 (done-pick / save / failed)
+      while (!mode) {
+        // 프레임이 맡았으면 그쪽의 입력·검색 시간까지 더 기다립니다.
+        if (Date.now() - started >= WATCH_MS + (frameSeen ? FRAME_EXTRA_MS : 0)) break
+        /**
+         * 주소가 이미 창고로 바뀌었으면 더 기다릴 이유가 없습니다 — 프레임 안에서
+         * [선택]이 눌려 창이 통째로 사라지면 프레임은 마지막 보고를 못 남깁니다.
+         * 카드는 ✓ 를 보여주는데 "등록 중…" 이 남았다가 실패 문구를 내면 헷갈립니다.
+         */
+        if (helperAddrOk) { mode = 'ok'; break }
+        const fs = await readFrameState(jobAt)
+        if (fs) {
+          if (!frameSeen) { frameSeen = true; clearSpotlight(); if (helperAddrWaitManual) setWait('', '') }
+          if (fs.step === 'done-pick' || fs.step === 'save' || fs.step === 'failed') { frameFinal = fs; mode = 'frame'; break }
+          // 프레임 안의 클릭이 안 통하면 프레임이 그 버튼을 짚고, 여기서는 문구만 맞춥니다.
+          if (fs.manual) { if (helperAddrWaitManual !== fs.step) setWait(fs.step, MANUAL_MSG[fs.step] ?? '') }
+          else if (helperAddrWaitManual) setWait('', '')
+          setStep(fs.step)
+          await sleep(400)
+          continue
+        }
+        savedSel = findSavedSelect(code)
         if (savedSel) { mode = 'select'; helperAddrStep = 'pick'; break }
         if (findExact('zipSearch')) { mode = 'form'; break }
 
@@ -1048,7 +1341,7 @@
            */
           if (!askedAdd && Date.now() - listSeen > 600) {
             askedAdd = true
-            setWait('add', '쿠팡 창에서 [+ 배송지 추가]를 직접 한 번 눌러주세요 — 누르면 나머지는 자동으로 진행됩니다.')
+            setWait('add', MANUAL_MSG.add)
             spotlight(addBtn, '👆 여기를 눌러주세요') // setWait 가 지운 표시를 다시
           }
         } else if (Date.now() - started < AUTO_MS) {
@@ -1056,7 +1349,7 @@
         } else {
           if (!askedOpen) {
             askedOpen = true
-            setWait('open', '쿠팡 [배송지 변경]을 직접 한 번 눌러주세요 — 창이 열리면 나머지는 자동으로 진행됩니다.')
+            setWait('open', MANUAL_MSG.open)
           }
           // 글로만 "직접 눌러주세요" 하면 고객은 어디를 볼지 모릅니다.
           // 실제 [배송지 변경] 버튼에 빨간 테두리를 얹어 눈이 바로 가게 합니다.
@@ -1068,6 +1361,8 @@
 
       const finish = (failed, msg, good) => {
         clearSpotlight()
+        // 프레임 쪽 도우미도 멈추게 — 남겨 두면 다음에 열리는 창에서 옛 작업을 잇습니다.
+        try { chrome.storage.local.remove([JOB_KEY, JOB_STATE_KEY]) } catch { /* 무시 */ }
         helperAddrBusy = false
         helperAddrWaitManual = ''
         helperAddrFailed = failed
@@ -1077,13 +1372,22 @@
         renderCheckoutHelper()
       }
 
+      if (mode === 'ok') return finish(false, '✓ 배송지가 저희 창고로 바뀌었습니다 — 이대로 결제하세요.', true)
+      if (mode === 'frame') {
+        // 프레임이 끝까지 갔습니다 — 최상위는 결과만 말합니다 (표시는 프레임이 그 안에 그려 둠).
+        const st = frameFinal.step
+        if (st === 'done-pick') return finish(false, `✓ 저장된 ${code} 배송지를 선택했습니다 — 새로 입력할 필요 없습니다.`, true)
+        if (st === 'save') return finishSaved()
+        return finish(true,
+          `배송지 창 안에서 멈췄습니다 — [🩺 진단 정보 복사]를 눌러 내용을 관리자에게 보내주세요. (도우미 v${ver})`, false)
+      }
       if (mode === 'select') {
         if (savedSel) fireClick(savedSel)
         // 눌림 확인 — 목록이 그대로면(스크립트 클릭 무시) 직접 누르라고 안내.
         let applied = false
         for (let i = 0; i < 9 && !applied; i++) {
           await sleep(400)
-          const still = findSavedSelect()
+          const still = findSavedSelect(code)
           applied = !still
           // 두 번째 이용부터는 이 [선택] 하나만 누르면 끝입니다 — 짚어줍니다.
           if (still && i >= 1) spotlight(still, '👆 여기를 눌러주세요')
@@ -1092,7 +1396,7 @@
         finish(true,
           `[선택]이 자동으로 눌리지 않습니다 — 목록에서 ${code} 옆 [선택]을 직접 눌러주세요. (도우미 v${ver})`, false)
         // finish 가 표시를 지우므로, 어디를 눌러야 하는지는 다시 짚어 둡니다.
-        spotlight(findSavedSelect(), '👆 여기를 눌러주세요')
+        spotlight(findSavedSelect(code), '👆 여기를 눌러주세요')
         return
       }
       if (mode !== 'form') {
@@ -1103,7 +1407,7 @@
         const found = {}
         for (const key of ['openAddr', 'addAddr', 'zipSearch', 'pick']) found[key] = countMatches(key)
         const missing = Object.entries(found).filter(([, n]) => n === 0).map(([k]) => k)
-        reportHealth('addrAutofill', missing, found, { stage: helperAddrWaitManual || 'watch', step: helperAddrStep })
+        reportHealth('addrAutofill', missing, found, { stage: helperAddrWaitManual || 'watch', step: helperAddrStep, frame: frameSeen })
         return finish(true,
           `배송지 창을 확인하지 못했습니다 — [🩺 진단 정보 복사]를 눌러 내용을 관리자에게 보내주세요. (도우미 v${ver})`,
           false)
@@ -1113,9 +1417,7 @@
       setStep('fill')
       autofillAddressDialog({ code, phone, force: true })
       try {
-        await chrome.storage.local.set({
-          kbPostcodeQuery: { q: addr1, road: addr1.split(/\s+/).slice(-3).join(' '), at: Date.now() },
-        })
+        await chrome.storage.local.set({ kbPostcodeQuery: postcodeQuery(addr1) })
       } catch { /* 저장 불가 시 수동 검색 폴백 */ }
       const zipEl = findExact('zipSearch')
       if (zipEl) fireClick(zipEl)
@@ -1140,9 +1442,6 @@
        * 있는 폼(쿠팡이 그렇습니다)에서는 이미 채워 둔 탓에 끝났다는 걸 영영
        * 못 알아채고 60초 뒤 엉뚱한 실패 문구를 냈습니다 (가짜 화면 재현 26-09-04).
        */
-      const roadToken = squash(addr1.split(/\s+/).slice(-3).join(' '))
-      const addressChosen = () => allDocs().some((d) =>
-        [...d.querySelectorAll('input')].some((i) => i.offsetParent && squash(i.value).includes(roadToken)))
       while (Date.now() < zipUntil) {
         await sleep(600)
         if (daumOpen()) {
@@ -1152,7 +1451,7 @@
           setStep('search')
           continue
         }
-        if (daumSeen || addressChosen()) {
+        if (daumSeen || addressChosen(addr1)) {
           // 주소를 골랐습니다 — 상세주소를 (다시) 채우고 끝냅니다.
           if (name) fillDialogInputs(DIALOG_FIELDS.detail, `${code} ${name}`, { force: true })
           detailDone = 1
@@ -1164,18 +1463,20 @@
           spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요')
           if (!zipAsked && Date.now() - zipStart > 1200) {
             zipAsked = true
-            setWait('zip', '쿠팡 [우편번호 찾기]를 직접 한 번 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 진행됩니다.')
+            setWait('zip', MANUAL_MSG.zip)
             spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요')
           }
         }
       }
-      if (detailDone) {
+      if (detailDone) return finishSaved()
+      /** 자동입력 끝 — [저장]만 고객 몫. 최상위가 채웠든 프레임이 채웠든 같은 마무리. */
+      function finishSaved() {
         helperAddrStep = 'save'
         finish(false, name
           ? '✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.'
           : `✓ 주소까지 들어갔습니다. 상세주소에 "${code} 본인이름" 을 적고 [저장]을 눌러주세요.`, true)
+        // 프레임 안에 있으면 여기서는 못 찾습니다 — 그때는 프레임이 이미 짚어 두었습니다.
         spotlight(findExact('save'), '👆 저장을 눌러주세요')
-        return
       }
       if (daumOpen()) return finish(false, '주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
       finish(true,
@@ -1385,7 +1686,7 @@
       if (onCart || ok || helperTrack !== 'forwarding' || !helperAddrStep) return ''
       if (helperAddrStep === 'pick') {
         return '<div class="kb-steps"><div class="kb-step now">▶ 저장된 창고 주소의 [선택] 누르기' +
-          (helperAddrFailed ? ' <b style="color:#d92d20">— 직접 눌러주세요</b>' : '') + '</div></div>'
+          (helperAddrFailed || helperAddrWaitManual === 'pick' ? ' <b style="color:#d92d20">— 직접 눌러주세요</b>' : '') + '</div></div>'
       }
       const idx = ADDR_STEPS.findIndex(([id]) => id === helperAddrStep)
       const manualNow = helperAddrWaitManual || (helperAddrFailed && helperAddrStep !== 'save') || helperAddrStep === 'save'
@@ -1400,6 +1701,16 @@
         '</div>'
     })()
 
+    /**
+     * 🩺 진단 — 실패한 뒤에만 보이던 것을 진행 중에도 보입니다. 운영자 화면에서는
+     * 75초를 못 기다리고 캡처만 보내와서, 창이 프레임인지 문구가 바뀐 건지 알 수
+     * 없었습니다 (26-09-06). 멈춘 그 자리에서 바로 복사할 수 있어야 합니다.
+     */
+    const diagBtn = helperAddrBusy || helperAddrFailed
+      ? '<button id="kb-diag" style="margin-top:5px;width:100%;min-height:28px;border:1px dashed #c9d3e0;' +
+        'border-radius:8px;background:#f9fafb;color:#8b95a1;font-size:10.5px;cursor:pointer">' +
+        '🩺 진단 정보 복사 — 붙여넣어 관리자에게 보내주세요</button>'
+      : ''
     const miniForm = onCart || ok || helperTrack !== 'forwarding'
       ? ''
       : helperAddrStep === 'save'
@@ -1411,12 +1722,13 @@
         ? (helperAddrWaitManual
             ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#fff8e6;color:#d9480f;' +
               'font-size:13px;font-weight:800;text-align:center;line-height:1.5">🖱 쿠팡 ' +
-              (helperAddrWaitManual === 'zip' ? '[우편번호 찾기]'
-                : helperAddrWaitManual === 'add' ? '[+ 배송지 추가]'
-                : '[배송지 변경]') + '를 직접 눌러주세요<br>' +
+              (helperAddrWaitManual === 'zip' ? '[우편번호 찾기]를'
+                : helperAddrWaitManual === 'add' ? '[+ 배송지 추가]를'
+                : helperAddrWaitManual === 'pick' ? `${code} 옆 [선택]을`
+                : '[배송지 변경]을') + ' 직접 눌러주세요<br>' +
               '<span style="font-weight:700;font-size:11px">누르면 나머지는 자동으로 진행됩니다</span></div>'
             : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
-              'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>')
+              'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>') + diagBtn
         : '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:52px;border:0;border-radius:10px;' +
           // 주소가 틀린 동안에는 빨강 — 초록은 "다 됐다" 는 뜻이라 여기서는 거짓말입니다.
           'background:#d92d20;color:#fff;font-weight:900;font-size:15.5px;cursor:pointer;' +
@@ -1429,12 +1741,7 @@
           '<button id="kb-addr-help" style="margin-top:5px;width:100%;min-height:36px;border:1.5px solid #d92d20;' +
           'border-radius:8px;background:#fff;color:#d92d20;font-size:12.5px;font-weight:800;cursor:pointer">' +
           (helperAddrHelpOpen ? '수동입력 방법 접기 ▴' : '✍️ 수동입력 ▾') + '</button>' +
-          (helperAddrHelpOpen ? addrHelpBody : '') +
-          (helperAddrFailed
-            ? '<button id="kb-diag" style="margin-top:5px;width:100%;min-height:28px;border:1px dashed #c9d3e0;' +
-              'border-radius:8px;background:#f9fafb;color:#8b95a1;font-size:10.5px;cursor:pointer">' +
-              '🩺 진단 정보 복사 — 붙여넣어 관리자에게 보내주세요</button>'
-            : '')
+          (helperAddrHelpOpen ? addrHelpBody : '') + diagBtn
 
     /**
      * 배송지 경고 — 이 서비스에서 **가장 비싼 실수**를 막는 자리입니다.
@@ -1607,13 +1914,19 @@
     if (MONEY_HOSTS.includes(location.host)) return renderCheckoutHelper()
   }
 
-  // 결제·완료 화면이 SPA 전환으로 나타나는 경우까지 재시도합니다.
-  // 결제창에서는 수량 변경이 금액에 따라오도록 갱신을 멈추지 않습니다.
-  let tries = 0
-  const timer = setInterval(() => {
-    tries += 1
+  if (IS_TOP) {
+    // 결제·완료 화면이 SPA 전환으로 나타나는 경우까지 재시도합니다.
+    // 결제창에서는 수량 변경이 금액에 따라오도록 갱신을 멈추지 않습니다.
+    let tries = 0
+    const timer = setInterval(() => {
+      tries += 1
+      run()
+      if (tries >= 8 && !MONEY_HOSTS.includes(location.host)) clearInterval(timer)
+    }, 1500)
     run()
-    if (tries >= 8 && !MONEY_HOSTS.includes(location.host)) clearInterval(timer)
-  }, 1500)
-  run()
+  } else {
+    // 안쪽 프레임(manifest all_frames): 카드·수집은 하지 않고, 배송지 창이
+    // 이 프레임에 그려질 때만 최상위의 자동 등록을 이어받습니다.
+    frameAddressHelper()
+  }
 })()
