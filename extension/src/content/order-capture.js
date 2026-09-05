@@ -1311,14 +1311,14 @@
           // 주소가 틀린 동안에는 빨강 — 초록은 "다 됐다" 는 뜻이라 여기서는 거짓말입니다.
           'background:#d92d20;color:#fff;font-weight:900;font-size:15.5px;cursor:pointer;' +
           'animation:kbAlert 1.6s ease-out 3">' +
-          (helperAddrFailed ? '⚡ 배송지 자동 등록 — 다시 시도' : '⚡ 배송지 자동 등록') +
+          (helperAddrFailed ? '⚡ 자동입력 — 다시 시도' : '⚡ 자동입력') +
           '<span style="display:block;font-size:11px;font-weight:700;opacity:.9;margin-top:2px">' +
-          '한 번만 누르시면 됩니다</span></button>' +
+          '저희 창고 주소를 자동으로 넣어드립니다</span></button>' +
           // 직접 입력은 항상 보이게 — 자동이 안 될 때만 숨겨두면 막힌 고객이
           // 빠져나갈 길을 못 찾습니다 (운영자 지시 26-09-04).
           '<button id="kb-addr-help" style="margin-top:5px;width:100%;min-height:36px;border:1.5px solid #d92d20;' +
           'border-radius:8px;background:#fff;color:#d92d20;font-size:12.5px;font-weight:800;cursor:pointer">' +
-          (helperAddrHelpOpen ? '직접 입력 방법 접기 ▴' : '✍️ 직접 입력할게요 ▾') + '</button>' +
+          (helperAddrHelpOpen ? '수동입력 방법 접기 ▴' : '✍️ 수동입력 ▾') + '</button>' +
           (helperAddrHelpOpen ? addrHelpBody : '') +
           (helperAddrFailed
             ? '<button id="kb-diag" style="margin-top:5px;width:100%;min-height:28px;border:1px dashed #c9d3e0;' +
@@ -1351,12 +1351,10 @@
           'border:2px solid #d92d20;animation:kbAlert 1.6s ease-out 3">' +
           '<div style="font-size:14px;font-weight:900;color:#d92d20;line-height:1.4">' +
           '🚨 이대로 결제하면<br>하노이로 못 갑니다</div>' +
-          '<div style="margin-top:6px;font-size:12px;color:#912018;line-height:1.6">' +
-          '지금 배송지가 <b>한국 창고가 아닙니다.</b><br>' +
-          '이대로 결제하시면 물건이 <b>한국에서 멈춥니다.</b> ' +
-          '하노이로 보내시려면 창고까지 다시 부치는 비용을 또 내셔야 합니다.</div>' +
-          '<div style="margin-top:7px;font-size:12px;font-weight:800;color:#d92d20">' +
-          '↓ 아래 버튼으로 배송지를 바꿔주세요</div></div>'
+          // 본문은 한 문장 — 운영자 확정 문구 (26-09-04). 길면 읽지 않습니다.
+          '<div style="margin-top:6px;font-size:12.5px;color:#912018;line-height:1.6">' +
+          '지금 배송지가 <b>저희 창고가 아닙니다.</b><br>' +
+          '<b>수동입력</b> 또는 <b>자동입력</b>을 선택하세요.</div></div>'
 
     /**
      * 주소가 틀렸을 때는 순서를 바꿉니다 — 고칠 방법이 금액보다 위에.

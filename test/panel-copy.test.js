@@ -53,7 +53,10 @@ test('배송지가 틀리면 강하게 알리고, 고칠 방법을 바로 준다
   assert.ok(cap.includes("card.style.border = wrongAddr"), '카드 테두리 전체가 빨개져야 합니다')
   assert.ok(cap.includes('grayscale'), '주소가 틀리면 금액은 흐리게 — 그 금액은 성립하지 않습니다')
   assert.ok(cap.includes('wrongAddr ? miniForm + dimmedPrice'), '고칠 방법이 금액보다 위에 와야 합니다')
-  assert.ok(cap.includes('✍️ 직접 입력할게요'), '직접 입력 길이 항상 보여야 합니다')
+  assert.ok(cap.includes('저희 창고가 아닙니다'), '운영자 확정 문구 (26-09-04)')
+  assert.ok(cap.includes('수동입력</b> 또는 <b>자동입력</b>을 선택하세요'), '한 문장으로 선택지를 줍니다')
+  assert.ok(cap.includes('✍️ 수동입력'), '수동입력 길이 항상 보여야 합니다')
+  assert.ok(cap.includes('⚡ 자동입력'), '버튼 이름이 문장과 같은 말이어야 합니다')
 })
 
 test('직접 눌러달라고 할 때는 그 버튼을 화면에서 짚어준다', () => {
