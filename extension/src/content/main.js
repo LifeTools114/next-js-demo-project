@@ -228,6 +228,9 @@
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
       ruleText: K.roundingRuleText(),
+      // 수수료 같은 정책 금액은 문구에 박지 않고 여기서 넘깁니다 —
+      // 서버에서 값을 바꾸면 화면 문구도 함께 따라옵니다.
+      policy: K.currentPolicy(),
       fmt: { krw: K.krw, vnd: K.vnd, weight: K.weight },
     })
   }

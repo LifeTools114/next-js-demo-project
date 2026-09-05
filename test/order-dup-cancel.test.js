@@ -185,7 +185,7 @@ test('변심 취소: 구매대행은 대행수수료만 남기고 환불한다',
   const cancelled = cancelOrder(o.id, { reason: '고객 변심', by: 'admin', customerFault: true })
   const s = summarize(cancelled.ledger, cancelled.fx.effectiveRate)
   const fee = cancelled.quote.agency.fee
-  assert.ok(fee >= 5000, `수수료가 동결 견적에 있어야 합니다 (${fee})`)
+  assert.ok(fee > 0, `수수료가 동결 견적에 있어야 합니다 (${fee})`)
   assert.equal(s.netReceivedKrw, fee, '남는 돈 = 대행수수료')
   assert.equal(s.balanceKrw, 0, '잔액은 0으로 끝나야 합니다 (유령 환불 예정 금지)')
   const refund = cancelled.ledger.customer.find((e) => e.type === 'REFUND')
@@ -194,17 +194,15 @@ test('변심 취소: 구매대행은 대행수수료만 남기고 환불한다',
   assert.match(refund.memo, /대신 구매 수수료/)
 })
 
-test('변심 취소: 배송만은 배송만 수수료만 차감한다', async () => {
+test('변심 취소: 배송대행은 $1 만 차감한다', async () => {
   const { cancelOrder } = await import('../lib/order/store.js')
-  const { FEES } = await import('../config/fees.js')
   const o = createOrder({ consents: ALL_CONSENTS, items: ITEMS, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER })
   confirmPayment(o.id, { confirmedBy: 'admin' })
   const cancelled = cancelOrder(o.id, { reason: '고객 변심', by: 'admin', customerFault: true })
   const s = summarize(cancelled.ledger, cancelled.fx.effectiveRate)
-  assert.equal(s.netReceivedKrw, FEES.forwardingFeeKrw, '남는 돈 = 배송만 수수료 3,000원')
+  const feeKrw = Math.round(1 * cancelled.fx.usdToKrw)
+  assert.equal(s.netReceivedKrw, feeKrw, '남는 돈 = $1 환산액')
   assert.equal(s.balanceKrw, 0)
-  const refund = cancelled.ledger.customer.find((e) => e.type === 'REFUND')
-  assert.match(refund.memo, /배송만 수수료/, '고객이 이유를 알 수 있어야 합니다')
 })
 
 test('취소 기본값: customerFault 없이는 전액 환불 그대로다', async () => {

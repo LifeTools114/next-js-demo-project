@@ -5,6 +5,7 @@ import Layout from '../components/Layout'
 import CostBreakdown from '../components/CostBreakdown'
 import { SHIPPING, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { PAYMENT, REFUND_DAYS, RETURN_POLICY } from '../config/payment'
+import { FEES } from '../config/fees'
 import { REQUIRED_CONSENTS } from '../config/legal'
 import { FX } from '../config/fx'
 import { krw, vnd } from '../lib/format'
@@ -275,15 +276,15 @@ export default function Checkout() {
             title="🛒 대신 사드릴 때 알아두실 것"
             bg="#f2f6fb" border="#dbe4f0"
             summary={<>
-              화면에 보이는 <b>와우회원가 그대로</b> 사드리고, 수수료는 <b>기본 5,000원</b>입니다.
+              화면에 보이는 <b>와우회원가 그대로</b> 사드리고, 수수료는 <b>기본 {krw(FEES.agencyBaseKrw)}</b>입니다.
               <b style={{ color: '#c92a2a' }}> 쿠폰·신규가입 할인은 쓸 수 없습니다.</b>
             </>}>
           <p className="note" style={{ fontSize: 12.5, lineHeight: 1.75 }}>
             🛒 <b style={{ color: '#3182f6' }}>와우회원가 기준, 화면에 표시된 가격 그대로</b> 대리
             주문합니다 (일부 상품은 와우가 미적용 가능).
             <br />
-            💰 수수료 <b style={{ color: '#3182f6' }}>기본 5,000원</b> — 대리 주문·검수·발주 처리
-            실비입니다. 상품가 <b>10만원·5종류까지는 5,000원 고정</b>, 넘는 경우에만 10만원
+            💰 수수료 <b style={{ color: '#3182f6' }}>기본 {krw(FEES.agencyBaseKrw)}</b> — 대리 주문·검수·발주 처리
+            실비입니다. 상품가 <b>10만원·5종류까지는 {krw(FEES.agencyBaseKrw)} 고정</b>, 넘는 경우에만 10만원
             초과분의 5%와 5종 초과 종류당 1,000원이 더해집니다.
             <br />
             <b style={{ color: '#c92a2a' }}>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>,
@@ -545,8 +546,8 @@ export default function Checkout() {
               💳 환불은 <b style={{ color: '#3182f6' }}>영업일 기준 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내
               돌려드립니다 (계좌로 보내드리거나 카드결제 취소, 같습니다).
               <br />
-              ⛔ 반품·변심 취소 환불: <b>받은 수수료만 빼고</b> 나머지를 돌려드립니다
-              (대신 사드린 건은 대신 구매 수수료, 배송만 맡기신 건은 배송만 수수료).
+              ⛔ 반품·변심 취소 환불: <b>대신 사드린 건은 수수료를 뺀 나머지</b>를 돌려드리고,{' '}
+              <b>배송만 맡기신 건은 처리비 {'$' + RETURN_POLICY.forwardingRefundFeeUsd}를 뺀</b> 나머지를 돌려드립니다.
               품절·가격 인상 등 당사 사유 취소는 <b style={{ color: '#17916b' }}>전액 환불</b>.
               <br />
               ↩️ 하노이 도착 후 교환·반품 시{' '}

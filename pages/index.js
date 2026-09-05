@@ -7,7 +7,7 @@ import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
 import { krw, usd } from '../lib/format'
 import { usdToKrw, roundingRuleText } from '../lib/pricing/shipping'
 
-export default function Home({ ratePerKgUsd, agencyBaseKrw, forwardingFeeKrw, blockedCategories, roundingRule }) {
+export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, roundingRule }) {
   return (
     <Layout badge="베트남 하노이">
       <div className="hero">
@@ -43,7 +43,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, forwardingFeeKrw, bl
               <br />
               <small style={{ color: 'var(--ink-500)' }}>쿠팡에서 직접 사고, 하노이까지 배송만 맡기기</small>
             </span>
-            <span className="row__value">${ratePerKgUsd}/kg + 수수료 {krw(forwardingFeeKrw)}</span>
+            <span className="row__value">${ratePerKgUsd}/kg</span>
           </div>
           <div className="row">
             <span className="row__label">
@@ -145,7 +145,6 @@ export async function getStaticProps() {
   return {
     props: {
       ratePerKgUsd: SHIPPING.ratePerKgUsd,
-      forwardingFeeKrw: FEES.forwardingFeeKrw,
       agencyBaseKrw: FEES.agencyBaseKrw,
       blockedCategories: BLOCK_RULES.length,
       roundingRule: roundingRuleText(),

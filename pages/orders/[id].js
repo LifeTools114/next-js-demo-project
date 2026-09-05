@@ -484,7 +484,7 @@ export default function OrderPage() {
           <p className="note" style={{ fontSize: 12 }}>
             취소가 필요하시면 <b>빠르게 연락 주세요</b> — 쿠팡 매입 시작 전에는 취소할 수 있습니다.
             품절·가격 인상 등 당사 사유는 <b style={{ color: '#17916b' }}>전액 환불</b>, 단순 변심은{' '}
-            수수료를 뺀 나머지가
+            {order.track === 'agent' ? '대행수수료 제외' : `처리 수수료 $${RETURN_POLICY.forwardingRefundFeeUsd} 차감`} 후
             환불되며, 지급은 영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일입니다.
           </p>
         </div>
@@ -507,7 +507,7 @@ export default function OrderPage() {
           <div className="section" style={{ paddingBottom: 0 }}>
             <p className="note" style={{ fontSize: 12, lineHeight: 1.75 }}>
               💳 환불은 <b>영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내 지급 · ⛔ 반품·변심 취소는{' '}
-              수수료를 뺀 나머지 환불
+              {order.track === 'agent' ? '대행수수료 제외 후' : `처리 수수료 $${RETURN_POLICY.forwardingRefundFeeUsd} 차감 후`} 환불
               (당사 사유 취소는 전액 환불)
               <br />
               ↩️ 하노이 도착 후 교환·반품 시{' '}
