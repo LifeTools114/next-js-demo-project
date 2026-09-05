@@ -12,19 +12,15 @@ import { readFileSync } from 'node:fs'
 const panel = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
 const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
 
-test('제휴 링크는 배송만에서, 사용자가 누를 때만, 고지와 함께', () => {
+test('제휴 링크: 구매하고 배송까지에는 절대 붙지 않고, 붙는 곳에는 고지가 함께 있다', () => {
   // 쿠팡 파트너스·크롬 웹스토어가 막는 것은 제휴 링크가 아니라
   //   (1) 고지 없이 (2) 클릭 없이 (3) 몰래 URL 바꾸기 입니다.
-  // 셋 중 하나라도 어기면 계정 해지 + 확장 삭제 사유입니다.
-  assert.ok(panel.includes('data-act="affiliate"'), '사용자가 누르는 버튼이어야 합니다')
-  assert.ok(/제휴 링크로 열립니다|파트너스 제휴 링크/.test(panel), '버튼 옆 고지가 있어야 합니다')
-  assert.ok(/금액은 똑같습니다|금액은 동일합니다/.test(panel), '가격이 같다는 고지가 있어야 합니다')
-
-  // 구매대행에는 절대 붙지 않습니다 (본인 구매 = self-referral).
+  // 상품 패널의 제휴 버튼은 운영자 지시(26-09-04)로 빠졌습니다 — [결제하기]가
+  // 배송만에서는 회색이고 고객은 쿠팡의 [바로구매]로 직접 결제합니다.
   assert.ok(main.includes("if (track !== 'forwarding') return"),
     '구매하고 배송까지 트랙은 제휴 호출 자체를 막아야 합니다')
-  assert.ok(panel.includes("state.track === 'forwarding'"),
-    '제휴 버튼은 배송만 트랙에서만 그려야 합니다')
+  assert.ok(!/data-act=["']affiliate["'][^>]*>/.test(stripComments(panel).replace(/querySelectorAll\([^)]*\)/g, '')),
+    '상품 패널에 제휴 버튼을 그리지 않습니다 (운영자 지시 26-09-04)')
 })
 
 test('바로가기 만들기 안내가 패널 맨 위에 있다', () => {
@@ -125,36 +121,69 @@ const stripComments = (src) => src
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
 
-test('배송만은 쿠팡 결제가 먼저 — 상품 화면에 주문서 버튼을 두지 않는다', () => {
+test('상품 화면: 두 줄은 방식 고르기, 버튼은 [결제하기] [담아두기] 둘뿐', () => {
   /*
-   * 운영자 확정 (26-09-04): "배송대행은 계산(결제)까지 마무리된 후에 주문서
-   * 작성이 나와야 함". 신청서는 결제가 끝난 주문완료 화면에서 저절로 열립니다.
-   * 담자마자 주문서를 열면 쿠팡 주문번호 없는 신청서가 생기고, 결제 화면의
-   * 배송지 검사도 건너뛰게 됩니다.
+   * 운영자 지시 (26-09-04): "결제하기, 담아두기 버튼을 배치해서 배송만 선택할
+   * 경우 결제하기 비활성화, 단 누르면 결제부터 하라고 멘트. 담아두기는 현재
+   * 기능 그대로 유지." 그리고 단계 설명은 없앰 — 최대한 단순하게.
    */
   const src = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
-  const raw = src.slice(at(src, 'function renderButtons'), at(src, 'function render()'))
-  // 구매하고 배송까지 분기 표식(주석)을 기준으로 앞뒤를 나눈 뒤, 각각 주석을 걷어내고 봅니다.
-  const agentAt = at(raw, '// 담은 후 · 구매하고 배송까지')
-  const before = stripComments(raw.slice(0, agentAt))   // 배송만 (담기 전·담은 후) 이 그려지는 쪽
-  const after = stripComments(raw.slice(agentAt))        // 구매하고 배송까지 분기
-  // 주문서 버튼은 구매하고 배송까지 분기에만, 딱 한 번 — renderButtons 밖(끌어올린 상수 등)에도 없어야 합니다.
-  const wholeStripped = stripComments(src)
-  const allHits = (wholeStripped.match(/data-act=["']?checkout["']?/g) ?? []).length
-  const listenerHits = (wholeStripped.match(/querySelectorAll\('\[data-act="checkout"\]'\)/g) ?? []).length
-  assert.equal(allHits - listenerHits, 1, '주문서 버튼 표식은 파일 전체에서 한 번(구매하고 배송까지 분기)만')
-  assert.equal((after.match(/data-act=["']?checkout["']?/g) ?? []).length, 1, '주문서 버튼은 구매하고 배송까지 분기에 한 번만')
-  assert.equal((wholeStripped.match(/handlers\.onCheckout/g) ?? []).length, 1, 'onCheckout 은 그 버튼의 리스너 한 곳에서만 부릅니다')
-  assert.ok(!/새 창/.test(before), '"새 탭" 한 가지 말만 씁니다 (새 창 아님)')
-  assert.ok(!/checkout/i.test(before), '배송만 쪽 어디에도 checkout 을 부르는 코드가 없어야 합니다')
-  // 배송만의 다음 행동은 [쿠팡에서 결제하기] 뿐입니다.
-  const fwd = before.slice(at(before, "if (state.track === 'forwarding') {"))
-  assert.ok(/data-act=["']affiliate["']/.test(fwd), '배송만의 다음 행동은 [쿠팡에서 결제하기] 뿐입니다')
-  // 순서를 눈에 보이게 — 그려지는 템플릿만 봅니다 (주석은 걷어냈습니다).
-  const steps = before.slice(at(before, 'const fwdSteps'), at(before, 'const notice ='))
-  assert.ok(steps.includes('<b>직접 결제</b>'), '"직접 결제" 가 먼저라고 적혀야 합니다')
-  assert.ok(steps.includes('저절로 열립니다'), '결제 후 신청서가 저절로 열린다고 알려야 합니다 (autoForward)')
-  assert.ok(steps.includes('[하노이 배송 신청]'), '안 열렸을 때 누를 것도 알려야 합니다')
+  // 끝 기준점은 함수 이름으로 — '바로가기 만들기' 문구는 위쪽 CSS 주석에도 있어 빈 조각이 잘립니다.
+  const raw = src.slice(at(src, 'function renderButtons'), at(src, 'function renderShortcut'))
+  const fn = stripComments(raw)
+  const whole = stripComments(src)
+
+  // 두 줄은 방식 고르기 (누르면 담기지 않습니다).
+  assert.ok(whole.includes("handlers.onTrackChange?.(b.dataset.track)"), '가격 줄을 누르면 방식이 바뀝니다')
+  assert.ok(!whole.includes('onPick'), '줄을 누른다고 담기지 않습니다')
+  // 버튼은 둘뿐: pay + add. 주문서·제휴·1개 더 담기·단계 설명은 없습니다.
+  const acts = [...fn.matchAll(/data-act=["']([a-z]+)["']/g)].map((m) => m[1]).sort()
+  assert.deepEqual(acts, ['add', 'pay'], `견적 화면 버튼은 [결제하기] [담아두기] 둘뿐이어야 합니다: ${acts}`)
+  assert.equal((fn.match(/<button/g) ?? []).length, 2)
+  assert.ok(!/<ol|class="steps"|1개 더 담기|주문서 바로 작성/.test(fn), '단계 설명·1개 더 담기·주문서 버튼이 없어야 합니다')
+  // 배송만이면 [결제하기]는 회색(off)이지만 눌러서 멘트를 볼 수 있어야 합니다 — disabled 속성 금지.
+  assert.ok(fn.includes("fwd ? ' off' : ''"), '배송만이면 회색')
+  assert.ok(fn.includes('aria-disabled="${fwd}"'), '보조기기에도 비활성으로')
+  assert.ok(!/\sdisabled[\s=>]/.test(fn), '진짜 disabled 로 막으면 눌러도 아무 일이 없어 고장난 줄 압니다')
+  assert.ok(whole.includes('handlers.onPay?.()'), '[결제하기] 가 onPay 로 이어집니다')
+  assert.ok(whole.includes('handlers.onAdd?.()'), '[담아두기] 는 지금 기능 그대로 (onAdd)')
+  assert.ok(src.includes('.btn.off'), '회색 스타일')
+})
+
+test('[결제하기]: 배송만이면 열지 않고 "결제부터" 멘트, 구매까지면 담고 신청서로', async () => {
+  const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
+  const vm = await import('node:vm')
+  // vm 안에서 const 는 전역 속성이 되지 않으므로 var 로 바꿔 ctx.handlers 로 꺼냅니다.
+  const body = main.slice(at(main, 'const handlers = {'), at(main, 'onShortcutOpen:')).replace('const handlers = {', 'var handlers = {') + '}'
+  const run = async (track, alreadyAdded) => {
+    const sent = [], states = []
+    const ctx = vm.createContext({
+      track, product: { productId: 'p1', productName: 'x', productPrice: 1000 }, safeQty: 1,
+      addedProductId: alreadyAdded ? 'p1' : null, compute() {},
+      KBPanel: { setState: (st) => states.push(JSON.parse(JSON.stringify(st))) },
+      send: async (type, payload) => {
+        sent.push({ type, payload: JSON.parse(JSON.stringify(payload ?? null)) })
+        if (type === 'getCart') return { ok: true, cart: [{ productId: 'p1', productName: 'x', track }] }
+        if (type === 'addToCart') return { ok: true, count: 1 }
+        return { ok: true }
+      },
+    })
+    vm.runInContext(body, ctx)
+    await ctx.handlers.onPay()
+    return { sent, states }
+  }
+  const fwd = await run('forwarding', false)
+  assert.ok(!fwd.sent.some((s) => s.type === 'openCheckout' || s.type === 'addToCart'), '배송만은 아무것도 열지 않습니다')
+  assert.ok(fwd.states.some((st) => /먼저 쿠팡에서 결제/.test(st.notice ?? '')), '"결제부터 하라" 는 멘트를 띄웁니다')
+
+  const agent = await run('agent', false)
+  const types = agent.sent.map((s) => s.type)
+  assert.ok(types.indexOf('addToCart') >= 0 && types.indexOf('addToCart') < types.indexOf('openCheckout'), '안 담겼으면 담은 뒤 신청서로')
+  assert.deepEqual(agent.sent.find((s) => s.type === 'openCheckout').payload.items.map((i) => i.track), ['agent'])
+
+  const agent2 = await run('agent', true)
+  assert.ok(!agent2.sent.some((s) => s.type === 'addToCart'), '이미 담겼으면 다시 담지 않습니다')
+  assert.ok(agent2.sent.some((s) => s.type === 'openCheckout'))
 })
 
 test('팝업 [주문 요청하기]: 담긴 상품의 방식으로 판단하고, 탭은 백그라운드만 연다', async () => {

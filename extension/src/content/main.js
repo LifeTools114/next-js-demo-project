@@ -55,7 +55,7 @@
    */
   let safeQty = 1
 
-  KBPanel.mount({
+  const handlers = {
     onTrackChange: (t) => {
       track = t
       send('setPreference', { track: t })
@@ -70,6 +70,20 @@
       const res = await send('addToCart', { ...product, quantity: safeQty, track })
       addedProductId = product.productId
       KBPanel.setState({ added: true, cartCount: res?.count ?? 1 })
+    },
+    /**
+     * [결제하기] (운영자 지시 26-09-04)
+     *   구매하고 배송까지 → 아직 안 담겼으면 담고, 바로 신청서로 (저희에게 결제)
+     *   배송만            → 열지 않습니다. 쿠팡 결제가 먼저이고, 신청서는 결제가
+     *                       끝난 주문완료 화면에서 저절로 열립니다. "결제부터" 멘트만.
+     */
+    onPay: async () => {
+      if (track === 'forwarding') {
+        KBPanel.setState({ notice: '먼저 쿠팡에서 결제해 주세요. 결제가 끝나면 배송 신청서가 새 탭에 저절로 열립니다.' })
+        return
+      }
+      if (!(product && addedProductId === product.productId)) await handlers.onAdd()
+      await handlers.onCheckout()
     },
     onCheckout: async () => {
       // 견적함 내용을 그대로 들고 주문서(신청서)로 — 배송지 입력만 하면 됩니다.
@@ -100,7 +114,8 @@
       if (track !== 'forwarding') return
       await send('openAffiliate', { url: location.href, track })
     },
-  })
+  }
+  KBPanel.mount(handlers)
 
   // ── 2~4. 추출 → 판정 → 계산 ──
   async function compute() {

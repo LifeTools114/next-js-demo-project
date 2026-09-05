@@ -56,14 +56,11 @@ const KBPanel = (() => {
 .detail-toggle { width: 100%; min-height: 34px; margin-top: 10px; border: 1px solid #e5e8eb; border-radius: 9px;
   background: #fff; color: #333d4b; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .btns { padding: 0 14px 14px; display: grid; gap: 8px; }
-/* 배송만 3단계 — "결제가 먼저" 를 순서로 보여줍니다 */
-.steps { margin: 0; padding: 9px 10px 9px 28px; border-radius: 9px; background: #f2f6fb;
+/* [결제하기] [담아두기] 나란히 */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* 배송만일 때의 [결제하기] — 회색이지만 누를 수 있습니다 (누르면 "결제부터" 안내) */
+.btn.off { background: #e5e8eb; color: #8b95a1; cursor: not-allowed; }
          font-size: 12px; color: #333d4b; line-height: 1.6; }
-.steps li { margin: 2px 0; }
-.steps li.done { color: #17916b; text-decoration: line-through; }
-.steps li::marker { font-weight: 800; color: #3182f6; }
-/* 대비책 안내 — 작아지지 않게 (기본 small 은 10px 로 떨어집니다) */
-.steps small { display: block; font-size: 11.5px; color: #4e5968; margin-top: 2px; }
 .btn { min-height: 42px; border: 0; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
   background: #3182f6; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .btn.ghost { background: #fff; color: #333d4b; border: 1px solid #e5e8eb; }
@@ -390,70 +387,37 @@ const KBPanel = (() => {
 
   function renderButtons() {
     if (state.view !== 'quote') return ''
-    const label = state.track === 'forwarding' ? '담아두기' : '대신 사달라고 담아두기'
 
     /**
-     * 배송만 — 담은 뒤 고객이 어차피 해야 하는 일이 "쿠팡에서 결제" 입니다.
-     * 그 버튼 하나로 합쳤습니다 (운영자 지시 26-09-04: 별도 제휴 버튼은 화면에서 제외).
+     * 버튼은 둘뿐입니다 — [결제하기] [담아두기] (운영자 지시 26-09-04).
+     * 위의 두 줄(📦 배송만 / 🛒 구매하고 배송까지)은 방식을 고르는 자리이고,
+     * 단계 설명·1개 더 담기 같은 것은 두지 않습니다. 최대한 단순하게.
      *
-     * ⚠️ 고지 한 줄은 뺄 수 없습니다.
-     *    쿠팡 파트너스·크롬 웹스토어가 금지하는 것은 제휴 링크 자체가 아니라
-     *    (1) 고지 없이 (2) 사용자 클릭 없이 (3) 몰래 URL 을 바꾸는 것입니다.
-     *    버튼을 없애고 뒤에서 자동으로 붙이면 그 세 가지를 모두 어겨
-     *    파트너스 계정 해지 + 확장 삭제 사유가 됩니다.
-     *    구매하고 배송까지(구매대행)는 본인 구매라 어떤 경우에도 붙이지 않습니다.
-     */
-    /**
-     * 배송만은 **쿠팡 결제가 먼저**입니다 (운영자 확정 26-09-04).
+     *   담아두기  견적함에 담기 (방식은 위에서 고른 것)
+     *   결제하기  구매하고 배송까지 → 신청서로 (저희에게 결제)
+     *             배송만            → 회색. 눌러도 열리지 않고 "쿠팡에서
+     *                                 결제부터 해주세요" 라고만 알립니다.
+     *                                 배송만은 쿠팡 결제가 먼저이고, 신청서는
+     *                                 결제가 끝난 주문완료 화면에서 저절로 열립니다.
      *
-     * 예전에는 담자마자 [주문서 바로 작성] 이 떠서, 고객이 쿠팡 결제도 하기
-     * 전에 신청서부터 쓰게 됐습니다. 순서가 뒤집히면 쿠팡 주문번호가 없는
-     * 신청서가 생기고, 결제 화면의 배송지 검사도 건너뛰게 됩니다.
-     * 신청서는 결제가 끝난 **주문완료 화면**에서 새 탭으로 저절로 열립니다
-     * (order-capture.js autoForward). 못 열면 [하노이 배송 신청] 카드가 대신
-     * 뜹니다 — 그래서 여기서는 주문서 버튼을 아예 그리지 않습니다.
+     * disabled 속성을 쓰지 않는 이유: 진짜로 막아 두면 눌러도 아무 일이 없어
+     * 고객이 "고장났다" 고 느낍니다. 회색으로 그리되 클릭은 받아 멘트를 띄웁니다.
      */
-    const fwdSteps = state.track === 'forwarding'
-      ? `<ol class="steps">
-          <li${state.added ? ' class="done"' : ''}>담아두기</li>
-          <li>쿠팡에서 <b>직접 결제</b> — 새 탭에서 쿠팡 <b>[바로구매]</b>, 배송지는 저희 창고로 (결제 화면에서 도와드립니다)</li>
-          <li>결제가 끝나면 <b>배송 신청서</b>가 새 탭에 <b>저절로 열립니다</b><br><small>안 열리면 화면 오른쪽 아래 <b>[하노이 배송 신청]</b>, 그것도 없으면 확장 아이콘(🇻🇳)에서 쿠팡 주문번호를 적고 여세요</small></li>
-        </ol>`
-      : ''
+    const fwd = state.track === 'forwarding'
     const notice = state.notice
       ? `<div class="note warn">${esc(state.notice)}</div>`
       : ''
+    const added = state.added
+      ? `<div class="note added">✓ 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>`
+      : (state.cartCount > 0 ? `<div class="disc">🧺 견적함에 ${state.cartCount}개 담겨 있어요</div>` : '')
 
-    // 담기 전 — 담기 버튼 하나. 견적함에 이미 담긴 게 있으면 개수만 살짝.
-    if (!state.added) {
-      return `<div class="btns">
-        ${fwdSteps}
-        <button class="btn" data-act="add">${label}</button>
-        ${state.cartCount > 0 ? `<div class="disc">🧺 견적함에 ${state.cartCount}개 담겨 있어요</div>` : ''}
-        ${notice}
-      </div>`
-    }
-
-    // 담은 후 · 배송만 — 다음 행동은 "쿠팡에서 결제" 하나뿐입니다.
-    if (state.track === 'forwarding') {
-      return `<div class="btns">
-        <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
-        ${fwdSteps}
-        <button class="btn" data-act="affiliate">🛒 쿠팡에서 결제하기 → 새 탭이 열립니다</button>
-        <div class="disc">제휴 링크로 열립니다 · 고객님이 내시는 금액은 똑같습니다</div>
-        <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
-        ${notice}
-        <div class="disc">담긴 상품은 브라우저 오른쪽 위 확장 아이콘(🇻🇳, 숫자 배지)에서 언제든 볼 수 있어요.</div>
-      </div>`
-    }
-
-    // 담은 후 · 구매하고 배송까지 — 결제는 저희가 하므로 바로 신청서로.
     return `<div class="btns">
-      <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
-      <button class="btn" data-act="checkout">주문서 바로 작성 →</button>
-      <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
+      ${added}
+      <div class="two">
+        <button class="btn${fwd ? ' off' : ''}" data-act="pay" aria-disabled="${fwd}">결제하기</button>
+        <button class="btn ghost" data-act="add">담아두기</button>
+      </div>
       ${notice}
-      <div class="disc">담긴 상품은 브라우저 오른쪽 위 확장 아이콘(🇻🇳, 숫자 배지)에서 언제든 볼 수 있어요.</div>
     </div>`
   }
 
@@ -547,6 +511,7 @@ const KBPanel = (() => {
       b.addEventListener('click', () => handlers.onTrackChange?.(b.dataset.track)),
     )
     wrap.querySelectorAll('[data-act="add"]').forEach((b) => b.addEventListener('click', () => handlers.onAdd?.()))
+    wrap.querySelectorAll('[data-act="pay"]').forEach((b) => b.addEventListener('click', () => handlers.onPay?.()))
     wrap.querySelectorAll('[data-act="detail"]').forEach((b) =>
       b.addEventListener('click', () => {
         state.detailOpen = !state.detailOpen
