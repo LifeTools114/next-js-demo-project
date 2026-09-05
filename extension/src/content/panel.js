@@ -56,6 +56,12 @@ const KBPanel = (() => {
 .detail-toggle { width: 100%; min-height: 34px; margin-top: 10px; border: 1px solid #e5e8eb; border-radius: 9px;
   background: #fff; color: #333d4b; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .btns { padding: 0 14px 14px; display: grid; gap: 8px; }
+/* 배송만 3단계 — "결제가 먼저" 를 순서로 보여줍니다 */
+.steps { margin: 0; padding: 9px 10px 9px 28px; border-radius: 9px; background: #f2f6fb;
+         font-size: 12px; color: #333d4b; line-height: 1.6; }
+.steps li { margin: 2px 0; }
+.steps li.done { color: #17916b; text-decoration: line-through; }
+.steps li::marker { font-weight: 800; color: #3182f6; }
 .btn { min-height: 42px; border: 0; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
   background: #3182f6; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .btn.ghost { background: #fff; color: #333d4b; border: 1px solid #e5e8eb; }
@@ -395,25 +401,55 @@ const KBPanel = (() => {
      *    파트너스 계정 해지 + 확장 삭제 사유가 됩니다.
      *    구매하고 배송까지(구매대행)는 본인 구매라 어떤 경우에도 붙이지 않습니다.
      */
-    const buyAtCoupang = state.track === 'forwarding'
-      ? `<button class="btn ghost" data-act="affiliate">🛒 쿠팡에서 결제하기 →</button>
-        <div class="disc">제휴 링크로 열립니다 · 고객님이 내시는 금액은 똑같습니다</div>`
+    /**
+     * 배송만은 **쿠팡 결제가 먼저**입니다 (운영자 확정 26-09-04).
+     *
+     * 예전에는 담자마자 [주문서 바로 작성] 이 떠서, 고객이 쿠팡 결제도 하기
+     * 전에 신청서부터 쓰게 됐습니다. 순서가 뒤집히면 쿠팡 주문번호가 없는
+     * 신청서가 생기고, 결제 화면의 배송지 검사도 건너뛰게 됩니다.
+     * 신청서는 결제가 끝난 **주문완료 화면**에서 [하노이 배송 신청] 으로만
+     * 엽니다 — 그래서 여기서는 주문서 버튼을 아예 그리지 않습니다.
+     */
+    const fwdSteps = state.track === 'forwarding'
+      ? `<ol class="steps">
+          <li${state.added ? ' class="done"' : ''}>담아두기</li>
+          <li>쿠팡에서 <b>직접 결제</b> — 배송지는 저희 창고로 (결제 화면에서 도와드립니다)</li>
+          <li>결제가 끝나면 뜨는 <b>[하노이 배송 신청]</b> 누르기</li>
+        </ol>`
+      : ''
+    const notice = state.notice
+      ? `<div class="note warn">${esc(state.notice)}</div>`
       : ''
 
     // 담기 전 — 담기 버튼 하나. 견적함에 이미 담긴 게 있으면 개수만 살짝.
     if (!state.added) {
       return `<div class="btns">
+        ${fwdSteps}
         <button class="btn" data-act="add">${label}</button>
         ${state.cartCount > 0 ? `<div class="disc">🧺 견적함에 ${state.cartCount}개 담겨 있어요</div>` : ''}
+        ${notice}
       </div>`
     }
 
-    // 담은 후 — "됐다"는 확인과 다음 행동(주문서 작성 / 더 담기)을 보여줍니다.
+    // 담은 후 · 배송만 — 다음 행동은 "쿠팡에서 결제" 하나뿐입니다.
+    if (state.track === 'forwarding') {
+      return `<div class="btns">
+        <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
+        ${fwdSteps}
+        <button class="btn" data-act="affiliate">🛒 쿠팡에서 결제하기 →</button>
+        <div class="disc">제휴 링크로 열립니다 · 고객님이 내시는 금액은 똑같습니다</div>
+        <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
+        ${notice}
+        <div class="disc">담긴 상품은 브라우저 오른쪽 위 확장 아이콘(🇻🇳, 숫자 배지)에서 언제든 볼 수 있어요.</div>
+      </div>`
+    }
+
+    // 담은 후 · 구매하고 배송까지 — 결제는 저희가 하므로 바로 신청서로.
     return `<div class="btns">
       <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
       <button class="btn" data-act="checkout">주문서 바로 작성 →</button>
       <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
-      ${buyAtCoupang}
+      ${notice}
       <div class="disc">담긴 상품은 브라우저 오른쪽 위 확장 아이콘(🇻🇳, 숫자 배지)에서 언제든 볼 수 있어요.</div>
     </div>`
   }

@@ -287,7 +287,26 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const zone = config?.preferences?.zone ?? 'hanoi'
         const payload = encodeURIComponent(JSON.stringify({ items, zone }))
         const no = String(msg.payload?.coupangOrderNo ?? '').replace(/\D/g, '').slice(0, 40)
-        const url = `${await backendUrl()}/checkout?cart=${payload}${!asAgent && no ? `&coupang=${no}` : ''}`
+        const base = await backendUrl()
+        /**
+         * 서버가 살아 있는지 먼저 확인합니다.
+         * 패널은 캐시된 설정으로 멀쩡히 떠 있어도, 서버가 꺼져 있으면 여기서
+         * 연 탭은 크롬의 "사이트에 연결할 수 없음" 이 됩니다 — 고객에게는
+         * 그냥 "에러 페이지" 입니다 (26-09-04). 빈 탭을 열지 말고 이유를 돌려줍니다.
+         */
+        try {
+          const ctrl = new AbortController()
+          const timer = setTimeout(() => ctrl.abort(), 4000)
+          const ping = await fetch(`${base}/api/extension/config`, { cache: 'no-store', signal: ctrl.signal })
+          clearTimeout(timer)
+          if (!ping.ok) throw new Error(`HTTP ${ping.status}`)
+        } catch {
+          return {
+            ok: false,
+            error: `서버(${base})에 연결되지 않습니다. 사장님 컴퓨터에서 start-server 를 실행한 뒤 다시 눌러주세요.`,
+          }
+        }
+        const url = `${base}/checkout?cart=${payload}${!asAgent && no ? `&coupang=${no}` : ''}`
         await chrome.tabs.create({ url })
         // 신청서로 넘어간 드래프트는 소진 — 다음 결제에 재사용되지 않게.
         await storage.set({ checkoutDraft: [] })

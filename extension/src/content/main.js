@@ -70,10 +70,13 @@
     },
     onCheckout: async () => {
       // 견적함 내용을 그대로 들고 주문서(신청서)로 — 배송지 입력만 하면 됩니다.
+      // (배송만은 이 버튼이 없습니다 — 쿠팡 결제 후 주문완료 화면에서 엽니다)
       const c = await send('getCart')
       const items = c?.cart ?? []
       if (items.length === 0) return
-      await send('openCheckout', { track, items })
+      const res = await send('openCheckout', { track, items })
+      // 서버가 꺼져 있으면 빈 탭 대신 이유를 보여줍니다 — "에러 페이지" 의 정체입니다.
+      KBPanel.setState({ notice: res?.ok ? '' : (res?.error ?? '신청서를 열지 못했습니다.') })
     },
     /** 바로가기 안내를 펼칠 때 사이트 주소를 채웁니다 (한 번만 물어봅니다) */
     onShortcutOpen: async () => {

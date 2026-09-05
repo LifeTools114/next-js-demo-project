@@ -150,7 +150,7 @@
     wrap.querySelector('#kb-fwd-reopen').addEventListener('click', () => {
       // 같은 신청서 URL 재사용 — 드래프트가 소진돼도 다시 열립니다.
       if (checkoutUrl) window.open(checkoutUrl, '_blank')
-      else send('openCheckout', { coupangOrderNo })
+      else send('openCheckout', { coupangOrderNo }).then((r) => { if (!r?.ok) toast(r?.error ?? '신청서를 열지 못했습니다.', false) })
     })
     wrap.querySelector('#kb-fwd-close').addEventListener('click', () => card.remove())
   }

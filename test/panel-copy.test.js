@@ -113,3 +113,46 @@ test('입력폼까지 와서 멈춰도 [우편번호 찾기] 를 짚어준다 + 
   const manifest = JSON.parse(readFileSync(new URL('../extension/manifest.json', import.meta.url), 'utf8'))
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/)
 })
+
+test('배송만은 쿠팡 결제가 먼저 — 상품 화면에 주문서 버튼을 두지 않는다', () => {
+  /*
+   * 운영자 확정 (26-09-04): "배송대행은 계산(결제)까지 마무리된 후에 주문서
+   * 작성이 나와야 함". 신청서는 결제가 끝난 주문완료 화면의 [하노이 배송 신청]
+   * 으로만 엽니다. 담자마자 주문서를 열면 쿠팡 주문번호 없는 신청서가 생기고,
+   * 결제 화면의 배송지 검사도 건너뛰게 됩니다.
+   */
+  const src = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
+  const fn = src.slice(src.indexOf('function renderButtons'), src.indexOf('function render()'))
+  const fwd = fn.slice(fn.indexOf("if (state.track === 'forwarding') {"), fn.indexOf('// 담은 후 · 구매하고 배송까지'))
+  const agent = fn.slice(fn.indexOf('// 담은 후 · 구매하고 배송까지'))
+
+  assert.ok(!fwd.includes('data-act="checkout"'), '배송만 분기에는 주문서 버튼이 없어야 합니다')
+  assert.ok(fwd.includes('data-act="affiliate"'), '배송만의 다음 행동은 [쿠팡에서 결제하기] 뿐입니다')
+  assert.ok(agent.includes('data-act="checkout"'), '구매하고 배송까지는 바로 신청서로 갑니다')
+  // 순서를 눈에 보이게 — ① 담기 ② 쿠팡 직접 결제 ③ 결제 후 [하노이 배송 신청]
+  assert.ok(fn.includes('직접 결제'), '"직접 결제" 가 먼저라고 적혀야 합니다')
+  assert.ok(fn.includes('[하노이 배송 신청]'), '결제 후 무엇을 누를지 미리 알려야 합니다')
+})
+
+test('팝업도 배송만은 결제 먼저 · 견적함을 트랙 안 가리고 /checkout 에 싣지 않는다', () => {
+  const popup = readFileSync(new URL('../extension/src/popup/popup.js', import.meta.url), 'utf8')
+  const html = readFileSync(new URL('../extension/src/popup/popup.html', import.meta.url), 'utf8')
+  // 두 방식이 섞인 견적함이 첫 상품 기준으로만 계산되던 원인 — 직접 URL 조립 금지.
+  assert.ok(!popup.includes('/checkout?cart=${payload}'), '팝업이 /checkout 주소를 직접 만들면 안 됩니다')
+  assert.ok(popup.includes("send('openCheckout', { track: 'agent' })"), '구매하고 배송까지는 백그라운드가 트랙별로 걸러 엽니다')
+  assert.ok(popup.includes("prefs.track === 'forwarding'"), '배송만이면 결제 먼저 안내')
+  assert.ok(html.includes('쿠팡 결제가 먼저입니다'), '팝업 안내 문구')
+  assert.ok(html.includes('order-late'), '결제 후 화면을 놓친 분을 위한 길은 남겨둡니다')
+})
+
+test('서버가 꺼져 있으면 빈 탭 대신 이유를 돌려준다', () => {
+  // 패널은 캐시로 멀쩡해 보여도 서버가 꺼져 있으면 /checkout 탭이
+  // "사이트에 연결할 수 없음" 이 됩니다 — 고객에게는 그냥 에러 페이지입니다.
+  const sw = readFileSync(new URL('../extension/src/background/service-worker.js', import.meta.url), 'utf8')
+  const oc = sw.slice(sw.indexOf("case 'openCheckout'"), sw.indexOf("case 'quoteCart'"))
+  assert.ok(oc.includes('/api/extension/config'), '탭을 열기 전에 서버를 찔러봐야 합니다')
+  assert.ok(oc.indexOf('fetch(') < oc.indexOf('chrome.tabs.create'), '확인이 탭 열기보다 먼저')
+  assert.ok(oc.includes('start-server'), '고칠 방법(서버 켜기)을 알려줘야 합니다')
+  const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
+  assert.ok(main.includes('notice: res?.ok'), '패널이 그 이유를 보여줘야 합니다')
+})

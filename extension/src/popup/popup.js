@@ -270,9 +270,28 @@ $('btn-clear').addEventListener('click', async () => {
   render()
 })
 
+/**
+ * [주문 요청하기]
+ *   구매하고 배송까지 → 신청서로 (결제는 저희가 하므로 바로)
+ *   배송만           → 쿠팡 결제가 먼저입니다. 신청서는 결제가 끝난
+ *                     주문완료 화면의 [하노이 배송 신청] 으로 엽니다.
+ *                     (운영자 확정 26-09-04) 결제를 마쳤는데 그 화면을
+ *                     놓친 분을 위해 작은 글씨로 여는 길만 남깁니다.
+ * 예전에는 트랙을 안 가리고 견적함 전체를 /checkout 에 그대로 실었습니다 —
+ * 두 방식이 섞인 견적함이 첫 상품 기준으로만 계산되는 원인이었습니다.
+ * 이제 백그라운드 openCheckout 이 트랙별로 걸러 엽니다.
+ */
 $('btn-order').addEventListener('click', async () => {
-  const payload = encodeURIComponent(JSON.stringify({ items: cart, zone: prefs.zone }))
-  chrome.tabs.create({ url: `${backend}/checkout?cart=${payload}` })
+  if (prefs.track === 'forwarding') {
+    $('order-note').hidden = false
+    return
+  }
+  const res = await send('openCheckout', { track: 'agent' })
+  if (!res?.ok) alert(res?.error ?? '신청서를 열지 못했습니다.')
+})
+$('order-late').addEventListener('click', async () => {
+  const res = await send('openCheckout', { track: 'forwarding' })
+  if (!res?.ok) alert(res?.error ?? '신청서를 열지 못했습니다.')
 })
 
 $('zone').addEventListener('change', async (e) => {
@@ -281,6 +300,7 @@ $('zone').addEventListener('change', async (e) => {
   render()
 })
 $('track').addEventListener('change', async (e) => {
+  $('order-note').hidden = true
   prefs.track = e.target.value
   await send('setPreference', { track: prefs.track })
 })
