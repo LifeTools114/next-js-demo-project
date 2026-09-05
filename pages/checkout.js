@@ -261,9 +261,10 @@ export default function Checkout() {
   const overLimit = Boolean(quote?.agentLimit?.exceeded)
 
   return (
-    <Layout title="주문서">
+    <Layout title={track === 'forwarding' ? '배송 신청서' : '주문서'}>
       <div className="section" style={{ paddingBottom: 6 }}>
-        <h1 className="section__title">주문서</h1>
+        {/* 상품 화면·팝업·주문완료 카드가 "배송 신청서" 라고 부르므로 여기서도 같은 이름 */}
+        <h1 className="section__title">{track === 'forwarding' ? '배송 신청서' : '주문서'}</h1>
         <p className="section__sub">
           {track === 'agent'
             ? '당사가 고객님을 대신해 쿠팡에서 구매한 뒤 하노이로 배송합니다.'

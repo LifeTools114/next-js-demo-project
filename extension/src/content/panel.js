@@ -62,6 +62,8 @@ const KBPanel = (() => {
 .steps li { margin: 2px 0; }
 .steps li.done { color: #17916b; text-decoration: line-through; }
 .steps li::marker { font-weight: 800; color: #3182f6; }
+/* 대비책 안내 — 작아지지 않게 (기본 small 은 10px 로 떨어집니다) */
+.steps small { display: block; font-size: 11.5px; color: #4e5968; margin-top: 2px; }
 .btn { min-height: 42px; border: 0; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
   background: #3182f6; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .btn.ghost { background: #fff; color: #333d4b; border: 1px solid #e5e8eb; }
@@ -414,8 +416,8 @@ const KBPanel = (() => {
     const fwdSteps = state.track === 'forwarding'
       ? `<ol class="steps">
           <li${state.added ? ' class="done"' : ''}>담아두기</li>
-          <li>쿠팡에서 <b>직접 결제</b> — 아래 버튼을 누르면 새 창이 열립니다. 거기서 쿠팡 <b>[바로구매]</b>, 배송지는 저희 창고로 (결제 화면에서 도와드립니다)</li>
-          <li>결제가 끝나면 배송 신청서가 <b>새 탭에 저절로 열립니다</b><br><small>안 열리면 화면 오른쪽 아래 [하노이 배송 신청] 을 누르세요</small></li>
+          <li>쿠팡에서 <b>직접 결제</b> — 새 탭에서 쿠팡 <b>[바로구매]</b>, 배송지는 저희 창고로 (결제 화면에서 도와드립니다)</li>
+          <li>결제가 끝나면 <b>배송 신청서</b>가 새 탭에 <b>저절로 열립니다</b><br><small>안 열리면 화면 오른쪽 아래 <b>[하노이 배송 신청]</b>, 그것도 없으면 확장 아이콘(🇻🇳)에서 쿠팡 주문번호를 적고 여세요</small></li>
         </ol>`
       : ''
     const notice = state.notice
@@ -437,7 +439,7 @@ const KBPanel = (() => {
       return `<div class="btns">
         <div class="note added">✓ 견적함에 담겼습니다 — 현재 ${state.cartCount ?? 1}개</div>
         ${fwdSteps}
-        <button class="btn" data-act="affiliate">🛒 쿠팡에서 결제하기 → 새 창이 열립니다</button>
+        <button class="btn" data-act="affiliate">🛒 쿠팡에서 결제하기 → 새 탭이 열립니다</button>
         <div class="disc">제휴 링크로 열립니다 · 고객님이 내시는 금액은 똑같습니다</div>
         <button class="btn ghost" data-act="add">같은 상품 1개 더 담기</button>
         ${notice}

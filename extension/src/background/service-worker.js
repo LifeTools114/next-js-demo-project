@@ -281,7 +281,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           ? src.map((i) => ({ ...i, track: 'agent' }))
           : src.filter((i) => i.track !== 'agent')
         if (items.length === 0) {
-          return { ok: false, error: '결제 상품을 읽지 못했습니다. 상품 페이지에서 [견적함에 담기] 후 다시 시도해주세요.' }
+          return { ok: false, error: '결제하신 상품을 읽지 못했습니다. 쿠팡 상품 화면에서 [담아두기]로 담은 뒤 다시 눌러 주세요.' }
         }
         const { config } = await storage.get('config')
         const zone = config?.preferences?.zone ?? 'hanoi'

@@ -151,21 +151,32 @@ function render() {
     }
   }
 
-  // 최소 주문 금액 — 트랙이 섞여도 판정은 장바구니 상품가 합계 기준입니다 (서버와 동일).
-  const goodsKrw = cart.reduce((s, i) => s + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1), 0)
+  // 최소 주문 금액 — 두 방식은 따로 접수되므로 방식별로 판정합니다 (서버가 받는 묶음과 동일).
   const minOrderKrw = K.currentPolicy().minOrderGoodsKrw
-  const belowMin = minOrderKrw > 0 && goodsKrw > 0 && goodsKrw < minOrderKrw
-  if (belowMin) {
-    parts.push(`<div class="note warn">🧺 최소 주문 금액은 상품가 합계 <b>${esc(K.krw(minOrderKrw))}</b> 입니다.
-      <b>${esc(K.krw(minOrderKrw - goodsKrw))}</b> 더 담아주세요.</div>`)
+  const goodsByTrack = {}
+  for (const i of cart) {
+    const t = i.track === 'agent' ? 'agent' : 'forwarding'
+    goodsByTrack[t] = (goodsByTrack[t] ?? 0) + (Number(i.productPrice) || 0) * (Number(i.quantity) || 1)
   }
+  const short = Object.entries(goodsByTrack).filter(([, g]) => minOrderKrw > 0 && g > 0 && g < minOrderKrw)
+  for (const [t, g] of short) {
+    parts.push(`<div class="note warn">🧺 ${t === 'agent' ? '구매하고 배송까지' : '배송만'} 상품은 최소 주문 금액이 상품가 합계
+      <b>${esc(K.krw(minOrderKrw))}</b> 입니다. <b>${esc(K.krw(minOrderKrw - g))}</b> 더 담아주세요.</div>`)
+  }
+  // 버튼이 여는 것은 구매하고 배송까지 묶음이므로 그 묶음의 미달만 버튼을 막습니다.
+  const belowMin = short.some(([t]) => t === 'agent')
 
   $('cart-quote').innerHTML = parts.join('')
   $('btn-order').disabled = total === 0 || belowMin
-  // 담긴 게 배송만뿐이면 버튼도 그렇게 말합니다 — 누르면 순서 안내가 펼쳐집니다.
-  const onlyForwarding = cart.length > 0 && !cart.some((i) => i.track === 'agent')
-  $('btn-order').textContent = onlyForwarding ? '쿠팡에서 먼저 결제하세요 — 순서 보기' : '주문 요청하기'
-  if (!onlyForwarding) $('order-note').hidden = true
+  // 버튼 이름은 담긴 상품에 맞게 — "주문 요청하기" 는 배송만 손님에게 "지금 신청서를 쓰라" 로 읽힙니다.
+  const hasAgent = cart.some((i) => i.track === 'agent')
+  const hasForwarding = cart.some((i) => i.track !== 'agent')
+  const onlyForwarding = cart.length > 0 && !hasAgent
+  $('btn-order').textContent = onlyForwarding
+    ? '쿠팡에서 먼저 결제하세요 — 순서 보기'
+    : hasForwarding ? '주문 요청하기 — 순서 보기' : '주문 요청하기'
+  // 배송만 상품이 없을 때만 안내를 접습니다 (있으면 펼친 채로 두어 읽을 수 있게).
+  if (!hasForwarding) $('order-note').hidden = true
 }
 
 document.querySelectorAll('.tabs button').forEach((b) =>
@@ -295,13 +306,28 @@ $('btn-clear').addEventListener('click', async () => {
 const agentItemsInCart = () => cart.filter((i) => i.track === 'agent')
 const hasForwardingInCart = () => cart.some((i) => i.track !== 'agent')
 
-$('btn-order').addEventListener('click', async () => {
-  if (hasForwardingInCart()) $('order-note').hidden = false // 배송만 상품은 쿠팡 결제가 먼저
+const openAgentForm = async () => {
   const items = agentItemsInCart()
   if (items.length === 0) return
   const res = await send('openCheckout', { track: 'agent', items })
   if (!res?.ok) alert(res?.error ?? '신청서를 열지 못했습니다.')
+}
+
+$('btn-order').addEventListener('click', async () => {
+  /**
+   * 배송만 상품이 섞여 있으면 **같은 클릭에서 탭을 열지 않습니다.**
+   * 새 탭이 열리는 순간 크롬이 팝업을 닫아 버려, 펼친 안내를 아무도 못 읽었습니다
+   * (검토 26-09-04, 실제 크롬에서 0.25초 만에 닫힘). 첫 클릭은 안내만 펼치고,
+   * 구매하고 배송까지 상품은 안내 안의 버튼으로 따로 엽니다.
+   */
+  if (hasForwardingInCart() && $('order-note').hidden) {
+    $('order-note').hidden = false
+    $('order-agent').hidden = agentItemsInCart().length === 0
+    return
+  }
+  await openAgentForm()
 })
+$('order-agent').addEventListener('click', openAgentForm)
 $('order-late').addEventListener('click', async () => {
   // 결제 후에만 열립니다 — 쿠팡 주문번호가 그 증거입니다 (주문완료 화면과 같은 9자리 이상).
   const coupangOrderNo = $('late-no').value.replace(/\D/g, '')
@@ -309,7 +335,10 @@ $('order-late').addEventListener('click', async () => {
     alert('쿠팡 주문번호를 적어주세요. (쿠팡 > 마이쿠팡 > 주문목록에서 볼 수 있습니다)')
     return
   }
-  const res = await send('openCheckout', { track: 'forwarding', coupangOrderNo })
+  // 팝업이 보여준 배송만 상품을 그대로 싣습니다 — 안 실으면 백그라운드가 최근
+  // 결제창 초안(다른 상품일 수 있음)을 집어 주문번호에 엉뚱한 물건이 붙습니다.
+  const items = cart.filter((i) => i.track !== 'agent')
+  const res = await send('openCheckout', { track: 'forwarding', coupangOrderNo, items })
   if (!res?.ok) alert(res?.error ?? '신청서를 열지 못했습니다.')
 })
 

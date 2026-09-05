@@ -84,7 +84,7 @@
       'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#191f28'
     card.innerHTML =
       '<b>🇻🇳 방금 결제하신 주문,<br>하노이로 받아보세요</b>' +
-      '<div style="font-size:11.5px;color:#4e5968;margin-top:4px">쿠팡 주문이 자동 연결되고, 국제배송비 청구서로 이어집니다.</div>' +
+      '<div style="font-size:11.5px;color:#4e5968;margin-top:4px">쿠팡 주문이 자동 연결되고, 배송 신청서로 이어집니다.</div>' +
       '<button id="kb-fwd-go" style="margin-top:10px;width:100%;min-height:38px;border:0;border-radius:9px;' +
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">하노이 배송 신청</button>' +
       '<button id="kb-fwd-x" style="margin-top:6px;width:100%;min-height:30px;border:0;border-radius:9px;' +
@@ -96,6 +96,11 @@
       why.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff4e5;color:#9a5b00;font-size:12px;line-height:1.5'
       why.textContent = reason
       card.insertBefore(why, card.querySelector('#kb-fwd-go'))
+      // 이 카드를 닫아도 늘 있는 길 — 팝업의 [이 주문번호로 신청서 열기]
+      const alt = document.createElement('div')
+      alt.style.cssText = 'margin-top:6px;font-size:11px;color:#8b95a1;line-height:1.5'
+      alt.textContent = `이 화면을 닫으셨다면: 브라우저 오른쪽 위 확장 아이콘(🇻🇳) → 쿠팡 주문번호 ${coupangOrderNo} 를 적고 [이 주문번호로 신청서 열기]`
+      card.insertBefore(alt, card.querySelector('#kb-fwd-go'))
     }
     document.body.appendChild(card)
     card.querySelector('#kb-fwd-x').addEventListener('click', () => card.remove())
@@ -136,7 +141,7 @@
       '<b style="font-size:14px">✅ 쿠팡 결제 완료</b>' +
       '<div id="kb-fwd-msg" style="margin-top:8px;padding:10px;border-radius:10px;background:#e8f1ff;' +
       'font-weight:800;color:#1b64da;animation:kbBlink .9s ease-in-out infinite">' +
-      '🇻🇳 배송비 보내는 화면으로 연결됩니다…</div>' +
+      '🇻🇳 배송 신청서로 연결됩니다…</div>' +
       '<div style="margin-top:8px;font-size:11.5px;color:#4e5968">이 쿠팡 화면은 사라지지 않고 그대로 유지됩니다.</div>'
     document.body.appendChild(card)
     return card
@@ -148,7 +153,7 @@
     const msg = card.querySelector('#kb-fwd-msg')
     if (msg) {
       msg.style.animation = 'none'
-      msg.textContent = '🇻🇳 배송비 보내는 화면이 새 탭에 열렸습니다'
+      msg.textContent = '🇻🇳 배송 신청서가 새 탭에 열렸습니다'
     }
     if (card.querySelector('#kb-fwd-reopen')) return
     const wrap = document.createElement('div')
@@ -184,6 +189,8 @@
       forwardNoticeDone(notice, res.url, coupangOrderNo)
     } else {
       notice.remove()
+      // 실패한 시도는 가드를 남기지 않습니다 — 담아둔 뒤 새로고침하면 다시 시도됩니다.
+      try { sessionStorage.removeItem(guard); sessionStorage.removeItem(`kb-offered-${coupangOrderNo}`) } catch { /* 무시 */ }
       offerForwarding(coupangOrderNo, res?.error)
     }
   }

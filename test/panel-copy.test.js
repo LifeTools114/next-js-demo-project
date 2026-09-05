@@ -138,8 +138,14 @@ test('배송만은 쿠팡 결제가 먼저 — 상품 화면에 주문서 버튼
   const agentAt = at(raw, '// 담은 후 · 구매하고 배송까지')
   const before = stripComments(raw.slice(0, agentAt))   // 배송만 (담기 전·담은 후) 이 그려지는 쪽
   const after = stripComments(raw.slice(agentAt))        // 구매하고 배송까지 분기
-  // 주문서 버튼은 구매하고 배송까지 분기에만, 딱 한 번.
+  // 주문서 버튼은 구매하고 배송까지 분기에만, 딱 한 번 — renderButtons 밖(끌어올린 상수 등)에도 없어야 합니다.
+  const wholeStripped = stripComments(src)
+  const allHits = (wholeStripped.match(/data-act=["']?checkout["']?/g) ?? []).length
+  const listenerHits = (wholeStripped.match(/querySelectorAll\('\[data-act="checkout"\]'\)/g) ?? []).length
+  assert.equal(allHits - listenerHits, 1, '주문서 버튼 표식은 파일 전체에서 한 번(구매하고 배송까지 분기)만')
   assert.equal((after.match(/data-act=["']?checkout["']?/g) ?? []).length, 1, '주문서 버튼은 구매하고 배송까지 분기에 한 번만')
+  assert.equal((wholeStripped.match(/handlers\.onCheckout/g) ?? []).length, 1, 'onCheckout 은 그 버튼의 리스너 한 곳에서만 부릅니다')
+  assert.ok(!/새 창/.test(before), '"새 탭" 한 가지 말만 씁니다 (새 창 아님)')
   assert.ok(!/checkout/i.test(before), '배송만 쪽 어디에도 checkout 을 부르는 코드가 없어야 합니다')
   // 배송만의 다음 행동은 [쿠팡에서 결제하기] 뿐입니다.
   const fwd = before.slice(at(before, "if (state.track === 'forwarding') {"))
@@ -162,22 +168,23 @@ test('팝업 [주문 요청하기]: 담긴 상품의 방식으로 판단하고, 
 
   // 실제 핸들러를 실행합니다 — return 하나가 빠져도 배송만 견적함이 구매대행 신청서로 열립니다.
   const vm = await import('node:vm')
-  const run = async (cart, lateNo = '') => {
+  const run = async (cart, lateNo = '', noteHidden = true) => {
     const sent = [], alerts = []
-    const notes = { 'order-note': { hidden: true }, 'late-no': { value: lateNo } }
+    const els = { 'order-note': { hidden: noteHidden }, 'order-agent': { hidden: true }, 'late-no': { value: lateNo } }
     const ctx = vm.createContext({
       cart, send: async (type, payload) => { sent.push({ type, payload }); return { ok: true } },
-      alert: (m) => alerts.push(m), $: (id) => notes[id],
-      handlers: {},
+      alert: (m) => alerts.push(m), $: (id) => els[id], handlers: {},
     })
     const body = popup.slice(at(popup, 'const agentItemsInCart'), at(popup, "$('zone').addEventListener"))
       .replace("$('btn-order').addEventListener('click', ", 'handlers.order = (')
+      .replace("$('order-agent').addEventListener('click', ", 'handlers.agent = (')
       .replace("$('order-late').addEventListener('click', ", 'handlers.late = (')
     vm.runInContext(body, ctx)
     await ctx.handlers.order()
     // vm 안에서 만든 객체는 프로토타입이 달라 deepStrictEqual 이 실패합니다 — JSON 으로 평평하게.
     const flat = () => JSON.parse(JSON.stringify(sent))
-    return { get sent() { return flat() }, alerts, note: !notes['order-note'].hidden, late: ctx.handlers.late }
+    return { get sent() { return flat() }, alerts, note: !els['order-note'].hidden, agentBtn: !els['order-agent'].hidden,
+      agent: ctx.handlers.agent, late: ctx.handlers.late }
   }
   const F = { productName: 'x', productPrice: 1000, quantity: 1, track: 'forwarding' }
   const A = { productName: 'y', productPrice: 2000, quantity: 1, track: 'agent' }
@@ -185,32 +192,75 @@ test('팝업 [주문 요청하기]: 담긴 상품의 방식으로 판단하고, 
   const onlyFwd = await run([F])
   assert.equal(onlyFwd.sent.length, 0, '배송만만 담겼으면 신청서를 열지 않습니다')
   assert.equal(onlyFwd.note, true, '대신 "결제가 먼저" 안내를 펼칩니다')
+  assert.equal(onlyFwd.agentBtn, false, '구매하고 배송까지 상품이 없으면 그 버튼도 없습니다')
 
   const onlyAgent = await run([A])
   assert.deepEqual(onlyAgent.sent, [{ type: 'openCheckout', payload: { track: 'agent', items: [A] } }],
     '구매하고 배송까지만 담겼으면 그 상품을 실어 바로 신청서로')
   assert.equal(onlyAgent.note, false)
 
+  // 섞인 견적함: 첫 클릭은 안내만 — 같은 클릭에서 탭을 열면 크롬이 팝업을 닫아 안내를 못 읽습니다.
   const mixed = await run([F, A])
-  assert.deepEqual(mixed.sent[0].payload.items, [A], '섞여 있으면 구매하고 배송까지 상품만 실어 보냅니다')
-  assert.equal(mixed.note, true, '배송만 상품에 대해서는 결제 먼저 안내')
+  assert.equal(mixed.sent.length, 0, '첫 클릭에는 탭을 열지 않습니다')
+  assert.equal(mixed.note, true, '배송만 상품에 대해 결제 먼저 안내')
+  assert.equal(mixed.agentBtn, true, '구매하고 배송까지 상품은 안내 안의 버튼으로 엽니다')
+  await mixed.agent()
+  assert.deepEqual(mixed.sent[0].payload.items, [A], '그 버튼은 구매하고 배송까지 상품만 실어 보냅니다')
+  // 안내가 이미 펼쳐진 뒤의 두 번째 클릭은 열어도 됩니다 (안내를 읽었으므로).
+  const mixed2 = await run([F, A], '', false)
+  assert.deepEqual(mixed2.sent[0]?.payload.items, [A])
 
-  // 결제 후 경로 — 주문번호 없이는 열리지 않습니다.
-  const late = await run([F], '12')
-  const before = late.sent.length
-  await late.late()
-  assert.equal(late.sent.length, before, '주문번호가 짧으면 열지 않습니다')
-  assert.ok(late.alerts.some((m) => m.includes('주문번호')), '주문번호를 적으라고 말합니다')
-  const late2 = await run([F], '1788621755836')
-  await late2.late()
-  assert.deepEqual(late2.sent.at(-1), { type: 'openCheckout', payload: { track: 'forwarding', coupangOrderNo: '1788621755836' } })
+  // 결제 후 경로 — 주문번호 없이는 열리지 않고, 9자리가 경계이며, 숫자 아닌 글자는 걷어냅니다.
+  for (const [no, opens, label] of [['12', false, '2자리'], ['12345678', false, '8자리'], ['123456789', true, '9자리'],
+                                     ['1788-6217 55836', true, '하이픈·공백 섞임'], ['abc', false, '글자만']]) {
+    const late = await run([F], no)
+    const before = late.sent.length
+    await late.late()
+    assert.equal(late.sent.length > before, opens, `주문번호 ${label}(${no}) → ${opens ? '열림' : '막힘'}`)
+    if (!opens) assert.ok(late.alerts.some((m) => m.includes('주문번호')), '주문번호를 적으라고 말합니다')
+  }
+  const late = await run([F, A], '1788621755836'); await late.late()
+  assert.deepEqual(late.sent.at(-1), { type: 'openCheckout', payload: { track: 'forwarding', coupangOrderNo: '1788621755836', items: [F] } },
+    '팝업이 보여준 배송만 상품을 그대로 싣습니다 (초안이 끼어들지 않게)')
 })
 
-test('상품 화면 [주문서]는 고른 방식의 상품만 싣고, 방식·상품이 바뀌면 서버 안내를 지운다', () => {
+test('팝업 버튼 이름과 안내 접기는 담긴 상품을 따른다', async () => {
+  const popup = readFileSync(new URL('../extension/src/popup/popup.js', import.meta.url), 'utf8')
+  const html = readFileSync(new URL('../extension/src/popup/popup.html', import.meta.url), 'utf8')
+  const vm = await import('node:vm')
+  // render() 끝자락(라벨·안내 접기)만 잘라 실행합니다 — render() 전체는 K/prefs 의존이 많습니다.
+  const tail = popup.slice(at(popup, 'const hasAgent = cart.some'), at(popup, "document.querySelectorAll('.tabs button')")).replace(/\}\s*$/, '')
+  const render = (cart) => {
+    const els = { 'btn-order': {}, 'order-note': { hidden: false } }
+    vm.runInContext(tail, vm.createContext({ cart, $: (id) => els[id] }))
+    return { label: els['btn-order'].textContent, note: !els['order-note'].hidden }
+  }
+  const F = { track: 'forwarding' }, A = { track: 'agent' }
+  assert.deepEqual(render([F]), { label: '쿠팡에서 먼저 결제하세요 — 순서 보기', note: true })
+  assert.deepEqual(render([A]), { label: '주문 요청하기', note: false })
+  assert.deepEqual(render([F, A]), { label: '주문 요청하기 — 순서 보기', note: true }, '배송만이 섞여 있으면 안내를 접지 않습니다')
+  assert.deepEqual(render([]), { label: '주문 요청하기', note: false })
+  // 고객 화면(설정 탭 포함)에 업계 용어가 없어야 합니다.
+  const visible = html.replace(/<!--[\s\S]*?-->/g, '')
+  assert.ok(!/배송대행|구매대행/.test(visible), 'popup.html 고객 문구에 배송대행/구매대행 — config/tracks.js 의 쉬운 말을 쓰세요')
+})
+
+test('상품 화면 [주문서]는 고른 방식의 상품만 싣고, 방식·상품이 바뀌면 서버 안내를 지운다', async () => {
   const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
   const oc = main.slice(at(main, 'onCheckout:'), at(main, 'onShortcutOpen:'))
-  assert.ok(oc.includes("filter((i) => i.track === track)"), '통째로 보내면 배송만 상품이 구매대행으로 바뀝니다')
   assert.ok(oc.includes('notice: res?.ok'), '실패 이유를 패널에 보여줍니다')
+  // 실제 핸들러를 실행합니다 — 문자열 검사만으로는 filter 결과를 안 쓰는 회귀를 못 잡습니다.
+  const vm = await import('node:vm')
+  const F = { productName: 'x', track: 'forwarding' }, A = { productName: 'y', track: 'agent' }
+  for (const track of ['agent', 'forwarding']) {
+    const sent = []
+    const ctx = vm.createContext({ track, KBPanel: { setState() {} },
+      send: async (type, payload) => { sent.push({ type, payload }); return type === 'getCart' ? { ok: true, cart: [F, A] } : { ok: true } } })
+    vm.runInContext('h = {' + oc.replace(/,\s*$/, '') + '}', ctx)
+    await ctx.h.onCheckout()
+    const items = JSON.parse(JSON.stringify(sent.find((x) => x.type === 'openCheckout').payload.items))
+    assert.deepEqual(items, [track === 'agent' ? A : F], `${track}: 고른 방식의 상품만 실어야 합니다`)
+  }
   const tc = main.slice(at(main, 'onTrackChange:'), at(main, 'onAdd:'))
   assert.ok(tc.includes("notice: ''"), '방식을 바꾸면 이전 안내를 지웁니다')
   const nav = main.slice(at(main, 'const onNav ='), at(main, "for (const fn of ['pushState'"))
