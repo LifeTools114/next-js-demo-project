@@ -76,3 +76,23 @@ test('결제 화면 2번 칸이 "하노이 주소" 임을 눈에 띄게 알린�
   assert.ok(checkout.includes('한국 주소 아님'), '입력칸 라벨에서도 못 박아야 합니다')
   assert.ok(css.includes('.panel__head--accent'), '강조 제목 스타일이 있어야 합니다')
 })
+
+test('배송지 창이 열리면 표시가 곧바로 [+ 배송지 추가]로 옮겨간다', () => {
+  /*
+   * 창이 열리면 그 창이 [배송지 변경] 버튼을 덮어버립니다. 그런데 예전에는
+   * 안내 문구가 바뀔 때(2.6초 뒤)까지 표시를 옮기지 않아서, 그 사이 표시가
+   * 창 위의 엉뚱한 자리를 짚고 있었습니다 (26-09-04 운영자 화면 —
+   * "여기를 눌러주세요. 잘못 누르고 있어요").
+   * 짚는 자리가 틀리면 안 짚느니만 못합니다.
+   */
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+
+  // [+ 배송지 추가] 를 짚는 호출이 안내 문구 조건(askedAdd) 뒤에 숨어 있으면 안 됩니다.
+  const branch = cap.slice(cap.indexOf('const addBtn = findExact'), cap.indexOf("} else if (Date.now() - started"))
+  assert.ok(branch.includes('spotlight(addBtn'), '창이 열리면 바로 짚어야 합니다')
+  assert.ok(!/if \(askedAdd\) spotlight\(addBtn/.test(branch),
+    'askedAdd 를 기다렸다 짚으면 그동안 엉뚱한 곳을 가리킵니다')
+  // 짚는 순서: 자동 클릭 시도 → 즉시 표시 → (그래도 안 되면) 문구 안내
+  assert.ok(branch.indexOf('spotlight(addBtn') < branch.indexOf('askedAdd = true'),
+    '표시가 문구보다 먼저 옮겨가야 합니다')
+})

@@ -960,7 +960,8 @@
       let askedOpen = false
       let askedAdd = false
       while (Date.now() - started < WATCH_MS && !mode) {
-        if (findSavedSelect()) { mode = 'select'; break }
+        const savedSel = findSavedSelect()
+        if (savedSel) { mode = 'select'; break }
         if (findExact('zipSearch')) { mode = 'form'; break }
 
         const addBtn = findExact('addAddr')
@@ -973,13 +974,26 @@
            */
           if (!listSeen) listSeen = Date.now()
           if (Date.now() - lastAdd > 1200) { fireClick(addBtn); lastAdd = Date.now() }
-          if (!askedAdd && Date.now() - listSeen > AUTO_MS) {
+          /**
+           * 창이 열린 **순간** 표시를 옮깁니다.
+           *
+           * 예전에는 안내 문구가 바뀔 때(2.6초 뒤)까지 기다렸는데, 그 사이
+           * 배송지 창이 [배송지 변경] 버튼을 덮어버려서 표시가 창 위의
+           * 엉뚱한 자리를 짚고 있었습니다 (26-09-04 운영자 화면).
+           * 짚는 자리가 틀리면 안 짚느니만 못합니다.
+           */
+          spotlight(addBtn, '👆 여기를 눌러주세요')
+          /**
+           * 문구도 곧바로 따라옵니다. 표시는 [+ 배송지 추가]를 짚고 있는데
+           * 글은 "[배송지 변경]을 누르세요" 라고 하면 서로 어긋나 더 헷갈립니다.
+           * 자동 클릭이 통하면 0.4초 안에 입력폼으로 넘어가 이 문구는 보이지도
+           * 않으므로, 0.6초만 기다렸다가 바꿉니다.
+           */
+          if (!askedAdd && Date.now() - listSeen > 600) {
             askedAdd = true
             setWait('add', '쿠팡 창에서 [+ 배송지 추가]를 직접 한 번 눌러주세요 — 누르면 나머지는 자동으로 진행됩니다.')
+            spotlight(addBtn, '👆 여기를 눌러주세요') // setWait 가 지운 표시를 다시
           }
-          // 창이 열려 있는 동안에는 [+ 배송지 추가]를 계속 짚어줍니다.
-          // (버튼이 스크롤로 움직여도 테두리가 따라갑니다)
-          if (askedAdd) spotlight(addBtn, '👆 여기를 눌러주세요')
         } else if (Date.now() - started < AUTO_MS) {
           clickExact('openAddr')
         } else {
@@ -1007,17 +1021,22 @@
       }
 
       if (mode === 'select') {
-        const saved = findSavedSelect()
-        if (saved) fireClick(saved)
+        if (savedSel) fireClick(savedSel)
         // 눌림 확인 — 목록이 그대로면(스크립트 클릭 무시) 직접 누르라고 안내.
         let applied = false
         for (let i = 0; i < 9 && !applied; i++) {
           await sleep(400)
-          applied = !findSavedSelect()
+          const still = findSavedSelect()
+          applied = !still
+          // 두 번째 이용부터는 이 [선택] 하나만 누르면 끝입니다 — 짚어줍니다.
+          if (still && i >= 1) spotlight(still, '👆 여기를 눌러주세요')
         }
         if (applied) return finish(false, `✓ 저장된 ${code} 배송지를 선택했습니다 — 새로 입력할 필요 없습니다.`, true)
-        return finish(true,
+        finish(true,
           `[선택]이 자동으로 눌리지 않습니다 — 목록에서 ${code} 옆 [선택]을 직접 눌러주세요. (도우미 v${ver})`, false)
+        // finish 가 표시를 지우므로, 어디를 눌러야 하는지는 다시 짚어 둡니다.
+        spotlight(findSavedSelect(), '👆 여기를 눌러주세요')
+        return
       }
       if (mode !== 'form') {
         /**
