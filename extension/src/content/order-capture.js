@@ -356,6 +356,33 @@
   let helperDetailOpen = false
   // 수동 입력 안내(칸별 따라 적기)는 접어둡니다 — ⚡ 자동입력이 기본 경로.
   let helperAddrHelpOpen = false
+  /**
+   * 배송지 자동 등록 — 단계 표시 (운영자 요청 26-09-04: "차례대로 표시를 단계별로")
+   *
+   * 자동으로 되는 것과 고객이 직접 눌러야 하는 것을 한눈에 보이게 합니다.
+   * 어디서 멈췄는지도 이 표로 바로 보이므로, 사장님이 화면을 찍어 보내면
+   * 실제 쿠팡 화면을 못 보는 상태에서도 원인을 좁힐 수 있습니다.
+   *
+   *   open   [배송지 변경] 열기          자동 → 안 되면 직접 (빨간 표시)
+   *   add    [+ 배송지 추가]             자동 → 안 되면 직접
+   *   fill   받는사람·휴대폰 채우기       자동
+   *   zip    [우편번호 찾기] 열기        자동 → 안 되면 직접
+   *   search 주소 검색·선택              자동 (다음 우편번호 창 안에서)
+   *   detail 상세주소 채우기             자동
+   *   save   [저장] 누르기               직접 — 마지막 확인은 고객 몫으로 남깁니다
+   *   pick   저장된 창고 주소 [선택]     두 번째 이용부터 (자동 → 안 되면 직접)
+   */
+  const ADDR_STEPS = [
+    ['open', '[배송지 변경] 열기'],
+    ['add', '[+ 배송지 추가] 누르기'],
+    ['fill', '받는사람·휴대폰 채우기'],
+    ['zip', '[우편번호 찾기] 열기'],
+    ['search', '주소 검색·선택'],
+    ['detail', '상세주소 채우기'],
+    ['save', '[저장] 누르기'],
+  ]
+  let helperAddrStep = ''
+
   // 배송지 자동 등록 진행/실패 상태 — 실패 시에만 수동 방법 버튼을 보여줍니다.
   let helperAddrBusy = false
   let helperAddrFailed = false
@@ -471,7 +498,9 @@
    * 개인정보는 담지 않습니다 — 태그·클래스 이름과 개수, 문구 주변 40자만.
    */
   function addrDiagnostics() {
-    const out = { v: ver, path: location.pathname, at: new Date().toISOString(), frames: [], matches: {}, near: [] }
+    const out = { v: ver, path: location.pathname, at: new Date().toISOString(),
+      step: helperAddrStep || '(시작 전)', wait: helperAddrWaitManual || '', failed: helperAddrFailed,
+      frames: [], matches: {}, near: [] }
     // 접근 못 하는(교차 출처) 프레임 수 — 배송지 창이 그 안에 있으면 자동화 불가.
     const cross = [...document.querySelectorAll('iframe')].filter((f) => {
       try { return !f.contentDocument } catch { return true }
@@ -834,6 +863,7 @@
     }
 
     const ok = okAddr && okCode
+    if (ok) { helperAddrStep = ''; clearSpotlight() } // 주소가 맞아졌으면 단계 표시도 끝
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
     /**
@@ -894,8 +924,15 @@
       helperAddrBusy = true
       helperAddrFailed = false
       helperAddrWaitManual = ''
+      helperAddrStep = 'open'
       card.dataset.kbHtml = ''
       renderCheckoutHelper() // "등록 중…" 표시
+      const setStep = (id) => {
+        if (helperAddrStep === id) return
+        helperAddrStep = id
+        card.dataset.kbHtml = ''
+        renderCheckoutHelper()
+      }
 
       let name = getRecipientName()
       if (!name) {
@@ -981,7 +1018,7 @@
       let askedAdd = false
       while (Date.now() - started < WATCH_MS && !mode) {
         const savedSel = findSavedSelect()
-        if (savedSel) { mode = 'select'; break }
+        if (savedSel) { mode = 'select'; helperAddrStep = 'pick'; break }
         if (findExact('zipSearch')) { mode = 'form'; break }
 
         const addBtn = findExact('addAddr')
@@ -992,7 +1029,7 @@
            * 뒤에도 계속 눌러봐야 하므로(예전엔 초반 몇 초만 시도해서 놓쳤음)
            * 목록이 보이는 동안 주기적으로 시도합니다.
            */
-          if (!listSeen) listSeen = Date.now()
+          if (!listSeen) { listSeen = Date.now(); setStep('add') }
           if (Date.now() - lastAdd > 1200) { fireClick(addBtn); lastAdd = Date.now() }
           /**
            * 창이 열린 **순간** 표시를 옮깁니다.
@@ -1066,13 +1103,14 @@
         const found = {}
         for (const key of ['openAddr', 'addAddr', 'zipSearch', 'pick']) found[key] = countMatches(key)
         const missing = Object.entries(found).filter(([, n]) => n === 0).map(([k]) => k)
-        reportHealth('addrAutofill', missing, found, { stage: helperAddrWaitManual || 'watch' })
+        reportHealth('addrAutofill', missing, found, { stage: helperAddrWaitManual || 'watch', step: helperAddrStep })
         return finish(true,
           `배송지 창을 확인하지 못했습니다 — [🩺 진단 정보 복사]를 눌러 내용을 관리자에게 보내주세요. (도우미 v${ver})`,
           false)
       }
 
       // 입력폼 도착 — 받는사람·휴대폰 채우고 우편번호 검색 자동 실행
+      setStep('fill')
       autofillAddressDialog({ code, phone, force: true })
       try {
         await chrome.storage.local.set({
@@ -1081,6 +1119,7 @@
       } catch { /* 저장 불가 시 수동 검색 폴백 */ }
       const zipEl = findExact('zipSearch')
       if (zipEl) fireClick(zipEl)
+      setStep('zip')
 
       /**
        * 우편번호 검색창이 열렸는지 보고, 자동으로 안 열리면 곧바로 "직접
@@ -1092,15 +1131,34 @@
       const zipUntil = zipStart + (globalThis.__kbZipWaitMs ?? 60_000)
       let detailDone = 0
       let zipAsked = false
+      let daumSeen = false
+      /**
+       * "주소를 골랐다" 는 신호는 두 가지입니다.
+       *   ① 다음 우편번호 창이 열렸다가 닫혔다 (postcode-fill.js 가 골랐거나 고객이 골랐거나)
+       *   ② 입력폼의 주소 칸에 창고 도로명이 들어가 있다
+       * 예전에는 "상세주소 칸을 새로 채웠는가" 로만 판단해서, 상세주소가 처음부터
+       * 있는 폼(쿠팡이 그렇습니다)에서는 이미 채워 둔 탓에 끝났다는 걸 영영
+       * 못 알아채고 60초 뒤 엉뚱한 실패 문구를 냈습니다 (가짜 화면 재현 26-09-04).
+       */
+      const roadToken = squash(addr1.split(/\s+/).slice(-3).join(' '))
+      const addressChosen = () => allDocs().some((d) =>
+        [...d.querySelectorAll('input')].some((i) => i.offsetParent && squash(i.value).includes(roadToken)))
       while (Date.now() < zipUntil) {
         await sleep(600)
-        if (name) {
-          detailDone = fillDialogInputs(DIALOG_FIELDS.detail, `${code} ${name}`, { force: true })
-          if (detailDone) break
-        } else if (daumOpen()) {
-          break // 이름을 모르면 상세주소는 고객 몫 — 검색창이 열린 것까지만 확인
+        if (daumOpen()) {
+          daumSeen = true
+          clearSpotlight() // 검색창이 열렸으면 표시는 방해만 됩니다
+          if (helperAddrWaitManual) setWait('', '') // "직접 눌러주세요" 는 끝 — 검색·선택은 자동입니다
+          setStep('search')
+          continue
         }
-        if (!daumOpen()) {
+        if (daumSeen || addressChosen()) {
+          // 주소를 골랐습니다 — 상세주소를 (다시) 채우고 끝냅니다.
+          if (name) fillDialogInputs(DIALOG_FIELDS.detail, `${code} ${name}`, { force: true })
+          detailDone = 1
+          break
+        }
+        {
           // 여기서도 짚어줍니다 — 입력폼까지 와서 멈추면 고객은
           // [우편번호 찾기] 가 어디인지 몰라 그대로 포기합니다.
           spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요')
@@ -1109,11 +1167,16 @@
             setWait('zip', '쿠팡 [우편번호 찾기]를 직접 한 번 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 진행됩니다.')
             spotlight(findExact('zipSearch'), '👆 여기를 눌러주세요')
           }
-        } else {
-          clearSpotlight() // 검색창이 열렸으면 표시는 방해만 됩니다
         }
       }
-      if (detailDone) return finish(false, '✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.', true)
+      if (detailDone) {
+        helperAddrStep = 'save'
+        finish(false, name
+          ? '✓ 배송지 자동입력 완료! 내용 확인 후 [저장]만 눌러주세요.'
+          : `✓ 주소까지 들어갔습니다. 상세주소에 "${code} 본인이름" 을 적고 [저장]을 눌러주세요.`, true)
+        spotlight(findExact('save'), '👆 저장을 눌러주세요')
+        return
+      }
       if (daumOpen()) return finish(false, '주소 검색창에서 자동 선택 중입니다 — 잠시 후 상세주소까지 채워집니다.', true)
       finish(true,
         `받는사람·전화는 입력했습니다. [우편번호 찾기]만 직접 눌러주세요 — 검색·선택·상세주소는 자동으로 이어집니다. (도우미 v${ver})`,
@@ -1314,8 +1377,36 @@
         : '') +
       '</div>'
 
+    /**
+     * 단계 표 — 자동으로 된 것(✓)·지금 하는 것(▶)·남은 것(○)을 보여줍니다.
+     * "직접 눌러주세요" 단계는 ▶ 옆에 빨갛게 적습니다.
+     */
+    const stepsBlock = (() => {
+      if (onCart || ok || helperTrack !== 'forwarding' || !helperAddrStep) return ''
+      if (helperAddrStep === 'pick') {
+        return '<div class="kb-steps"><div class="kb-step now">▶ 저장된 창고 주소의 [선택] 누르기' +
+          (helperAddrFailed ? ' <b style="color:#d92d20">— 직접 눌러주세요</b>' : '') + '</div></div>'
+      }
+      const idx = ADDR_STEPS.findIndex(([id]) => id === helperAddrStep)
+      const manualNow = helperAddrWaitManual || (helperAddrFailed && helperAddrStep !== 'save') || helperAddrStep === 'save'
+      return '<style>.kb-steps{margin-top:7px;padding:8px 10px;border-radius:9px;background:#f9fafb;font-size:12px;line-height:1.7}' +
+        '.kb-step{color:#8b95a1}.kb-step.done{color:#17916b}.kb-step.now{color:#191f28;font-weight:800}</style>' +
+        '<div class="kb-steps">' +
+        ADDR_STEPS.map(([id, label], i) =>
+          `<div class="kb-step ${i < idx ? 'done' : i === idx ? 'now' : ''}">` +
+          `${i < idx ? '✓' : i === idx ? '▶' : '○'} ${esc(label)}` +
+          (i === idx && manualNow ? ' <b style="color:#d92d20">— 직접 눌러주세요</b>' : '') +
+          '</div>').join('') +
+        '</div>'
+    })()
+
     const miniForm = onCart || ok || helperTrack !== 'forwarding'
       ? ''
+      : helperAddrStep === 'save'
+        // 자동입력이 끝났습니다 — 마지막 [저장] 만 고객 몫. 빨간 버튼 대신 초록 안내.
+        ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
+          'font-size:13.5px;font-weight:800;text-align:center;line-height:1.5">✓ 거의 다 됐습니다<br>' +
+          '<span style="font-weight:700;font-size:12px">내용을 확인하고 쿠팡 창의 <b>[저장]</b>을 눌러주세요</span></div>'
       : helperAddrBusy
         ? (helperAddrWaitManual
             ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#fff8e6;color:#d9480f;' +
@@ -1364,6 +1455,8 @@
       : ok
         ? '<div style="margin-top:7px;padding:7px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;font-size:12px">' +
           '<b>✓ 배송지 확인됨 — 이대로 결제하세요</b></div>'
+        : helperAddrStep === 'save'
+        ? '' // 자동입력을 마쳤습니다 — 아래 단계 표와 초록 안내가 대신합니다
         : '<style>@keyframes kbAlert{0%,100%{box-shadow:0 0 0 0 rgba(217,45,32,.5)}' +
           '50%{box-shadow:0 0 0 8px rgba(217,45,32,0)}}</style>' +
           '<div style="margin-top:7px;padding:11px 12px;border-radius:11px;background:#fff0f0;' +
@@ -1383,7 +1476,7 @@
     const dimmedPrice = wrongAddr
       ? `<div style="opacity:.45;filter:grayscale(.5)">${priceBlock}</div>`
       : priceBlock
-    const cartLine = (wrongAddr ? miniForm + dimmedPrice : priceBlock + miniForm) + ctaBlock +
+    const cartLine = (wrongAddr ? stepsBlock + miniForm + dimmedPrice : priceBlock + miniForm) + ctaBlock +
       (cart.length > 0
         ? '<button id="kb-detail" style="margin-top:7px;width:100%;min-height:32px;border:1px solid #e5e8eb;' +
           'border-radius:8px;background:#fff;color:#4e5968;font-weight:700;font-size:12px;cursor:pointer">' +

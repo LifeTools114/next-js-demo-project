@@ -48,7 +48,7 @@ test('배송지가 틀리면 강하게 알리고, 고칠 방법을 바로 준다
   assert.ok(cap.includes('#d92d20'), '경고는 빨간색이어야 합니다')
   assert.ok(cap.includes("card.style.border = wrongAddr"), '카드 테두리 전체가 빨개져야 합니다')
   assert.ok(cap.includes('grayscale'), '주소가 틀리면 금액은 흐리게 — 그 금액은 성립하지 않습니다')
-  assert.ok(cap.includes('wrongAddr ? miniForm + dimmedPrice'), '고칠 방법이 금액보다 위에 와야 합니다')
+  assert.ok(cap.includes('wrongAddr ? stepsBlock + miniForm + dimmedPrice'), '고칠 방법(단계 표·버튼)이 금액보다 위에 와야 합니다')
   assert.ok(cap.includes('저희 창고가 아닙니다'), '운영자 확정 문구 (26-09-04)')
   assert.ok(cap.includes('수동입력</b> 또는 <b>자동입력</b>을 선택하세요'), '한 문장으로 선택지를 줍니다')
   assert.ok(cap.includes('✍️ 수동입력'), '수동입력 길이 항상 보여야 합니다')
@@ -306,4 +306,30 @@ test('주문완료 화면에서 저절로 열지 못하면 그 이유를 카드�
   assert.ok(cap.includes('offerForwarding(coupangOrderNo, res?.error)'), 'autoForward 가 이유를 넘겨야 합니다')
   // 실패 안내는 고객에게 쉬운 말, 운영자에게 고칠 방법.
   assert.ok(cap.includes('잠시 후 다시 눌러 주세요'), '고객 브라우저에는 쉬운 말')
+})
+
+test('배송지 자동 등록은 단계별로 보여주고, 마지막 [저장]은 고객 몫으로 남긴다', () => {
+  /*
+   * 운영자 질문 (26-09-04): "배송지변경 → 배송지추가 → 받는사람 → 우편번호 →
+   * 휴대폰 → 저장 → 선택까지 모두 자동인가, 처음 탭만 열어주는가?"
+   * 답: [저장]만 빼고 자동으로 시도하고, 쿠팡이 클릭을 막는 단계는 빨갛게
+   * 짚어 직접 누르게 합니다. 어디서 멈췄는지 단계 표로 보입니다.
+   */
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const steps = cap.slice(at(cap, 'const ADDR_STEPS = ['), at(cap, "let helperAddrStep"))
+  for (const label of ['[배송지 변경] 열기', '[+ 배송지 추가] 누르기', '받는사람·휴대폰 채우기', '[우편번호 찾기] 열기', '주소 검색·선택', '상세주소 채우기', '[저장] 누르기']) {
+    assert.ok(steps.includes(label), `단계 표에 "${label}"`)
+  }
+  // 흐름의 각 지점에서 단계가 갱신됩니다.
+  for (const mark of ["helperAddrStep = 'open'", "setStep('add')", "setStep('fill')", "setStep('zip')", "setStep('search')", "helperAddrStep = 'save'", "helperAddrStep = 'pick'"]) {
+    assert.ok(cap.includes(mark), `단계 갱신: ${mark}`)
+  }
+  // 자동입력이 끝나면 [저장] 버튼을 짚어주고, 빨간 경고 대신 초록 안내를 보여줍니다.
+  assert.ok(cap.includes("spotlight(findExact('save'), '👆 저장을 눌러주세요')"), '[저장] 을 짚어줘야 합니다')
+  assert.ok(cap.includes("helperAddrStep === 'save'"), '자동입력이 끝난 상태를 화면이 구분해야 합니다')
+  assert.ok(cap.includes('거의 다 됐습니다'), '끝났다고 알려야 합니다')
+  // 진단 정보에 어느 단계에서 멈췄는지 들어갑니다.
+  assert.ok(/step: helperAddrStep/.test(cap), '진단·건강 보고에 단계 포함')
+  // 주소가 맞아지면 단계 표는 사라집니다.
+  assert.ok(cap.includes("if (ok) { helperAddrStep = ''"), '주소가 맞으면 단계 표를 지웁니다')
 })

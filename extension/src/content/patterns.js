@@ -29,6 +29,8 @@ globalThis.KBPatterns = (() => {
       pick: { source: '^선택(하기)?$', maxLen: 8 },
       payButton: { source: '결제하기$', maxLen: 20 },
       zipSubmit: { source: '검색', maxLen: 10 },
+      /** 배송지 입력폼의 [저장] — 자동입력이 끝난 뒤 짚어줍니다 (누르는 건 고객) */
+      save: { source: '^저장(하기)?$', maxLen: 8 },
     },
     fields: {
       name: 'input[name*="name" i], input[placeholder*="받는"], input[placeholder*="이름"]',

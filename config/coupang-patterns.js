@@ -47,6 +47,8 @@ export const COUPANG_PATTERNS = {
     payButton: { source: '결제하기$', maxLen: 20 },
     /** 다음 우편번호 프레임의 검색 실행 버튼 */
     zipSubmit: { source: '검색', maxLen: 10 },
+    /** 배송지 입력폼의 [저장] — 자동입력이 끝난 뒤 짚어줍니다 (누르는 건 고객) */
+    save: { source: '^저장(하기)?$', maxLen: 8 },
   },
 
   /** 배송지 입력폼의 칸 — CSS 셀렉터 (쉼표로 여러 개) */
@@ -77,7 +79,7 @@ export const COUPANG_PATTERNS = {
  */
 export const PATTERN_LABELS = {
   openAddr: '배송지 변경', addAddr: '배송지 추가', zipSearch: '우편번호 찾기',
-  pick: '선택', payButton: '결제하기', zipSubmit: '주소 검색',
+  pick: '선택', payButton: '결제하기', zipSubmit: '주소 검색', save: '저장',
   items: '상품·금액 표기',
 }
 

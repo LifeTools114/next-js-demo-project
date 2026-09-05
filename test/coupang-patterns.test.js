@@ -236,3 +236,17 @@ test('알림이 실패해도 보고 수집은 계속된다', () => {
     else process.env.NOTIFY_WEBHOOK_URL = prev
   }
 })
+
+test('[저장] 문구 — 배송지 입력폼의 저장 버튼만 잡고 "저장된 주소" 같은 긴 글은 안 잡는다', async () => {
+  await import('../extension/src/content/patterns.js')
+  const P = globalThis.KBPatterns
+  assert.ok(P.test('save', '저장'))
+  assert.ok(P.test('save', '저장하기'))
+  assert.ok(!P.test('save', '저장된배송지'), '앞뒤에 글이 붙으면 다른 요소입니다')
+  assert.ok(!P.test('save', '임시저장'))
+  assert.ok(P.maxLen('save') <= 8)
+  // 서버 설정에도 같은 키가 있어 원격으로 고칠 수 있습니다.
+  const { COUPANG_PATTERNS, PATTERN_LABELS } = await import('../config/coupang-patterns.js')
+  assert.ok(COUPANG_PATTERNS.text.save, 'config/coupang-patterns.js 에 save')
+  assert.equal(PATTERN_LABELS.save, '저장')
+})
