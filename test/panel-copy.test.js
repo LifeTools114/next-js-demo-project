@@ -44,7 +44,7 @@ test('배송지가 틀리면 강하게 알리고, 고칠 방법을 바로 준다
   // 예전에는 연한 주황색 한 줄이라 결제 화면에 묻혔습니다 (26-09-04).
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
 
-  assert.ok(cap.includes('하노이로 못 갑니다'), '결과를 먼저 말해야 합니다')
+  assert.ok(cap.includes('주소를 변경해 주세요'), '할 일을 바로 말합니다 (운영자 확정 26-09-04)')
   assert.ok(cap.includes('#d92d20'), '경고는 빨간색이어야 합니다')
   assert.ok(cap.includes("card.style.border = wrongAddr"), '카드 테두리 전체가 빨개져야 합니다')
   assert.ok(cap.includes('grayscale'), '주소가 틀리면 금액은 흐리게 — 그 금액은 성립하지 않습니다')

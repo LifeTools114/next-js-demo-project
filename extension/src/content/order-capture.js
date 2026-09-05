@@ -1369,7 +1369,7 @@
           '<div style="margin-top:7px;padding:11px 12px;border-radius:11px;background:#fff0f0;' +
           'border:2px solid #d92d20;animation:kbAlert 1.6s ease-out 3">' +
           '<div style="font-size:14px;font-weight:900;color:#d92d20;line-height:1.4">' +
-          '🚨 이대로 결제하면<br>하노이로 못 갑니다</div>' +
+          '🚨 주소를 변경해 주세요</div>' +
           // 본문은 한 문장 — 운영자 확정 문구 (26-09-04). 길면 읽지 않습니다.
           '<div style="margin-top:6px;font-size:12.5px;color:#912018;line-height:1.6">' +
           '지금 배송지가 <b>저희 창고가 아닙니다.</b><br>' +
