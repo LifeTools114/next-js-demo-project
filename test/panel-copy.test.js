@@ -375,7 +375,9 @@ test('소포에 적을 성함은 창(prompt)이 아니라 카드 안 입력칸�
   assert.ok(!/window\.prompt\([^)]*이름/.test(stripComments(cap)), '이름을 창으로 묻지 않습니다')
   assert.ok(cap.includes('id="kb-name-input"'), '카드 안에 성함 입력칸이 있어야 합니다')
   assert.ok(cap.includes('kb-name-clear'), '지우는 방법도 그 자리에 있어야 합니다')
-  assert.ok(cap.includes('소포에 적을 성함'), '무엇을 넣는 칸인지 써야 합니다')
+  // 안내는 입력칸 **안에** — 치기 시작하면 저절로 사라집니다 (운영자 26-09-06).
+  assert.ok(cap.includes('placeholder="여기에 받으시는 분 성함을 입력"'), '입력칸 안에 무엇을 넣는지 써야 합니다')
+  assert.ok(!/<div[^>]*>🏷 소포에 적을 성함/.test(cap), '칸 위에 따로 라벨을 두지 않습니다')
   // 이름이 비어 있으면 자동 등록을 시작하지 않습니다 — 주인을 못 찾는 배송지가 됩니다.
   const flow = cap.slice(at(cap, 'const name = getRecipientName()'), at(cap, 'const jobAt = Date.now()'))
   assert.ok(flow.includes('성함을 먼저 넣어주세요') && flow.includes('return'), '이름 없이 진행하면 안 됩니다')

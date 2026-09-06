@@ -1800,11 +1800,14 @@
     const nm = getRecipientName()
     const nameBlock =
       '<div style="margin-top:7px;padding:9px 10px;border-radius:10px;background:#fff8e6;border:1px solid #ffe0a3">' +
-      '<div style="font-size:11.5px;font-weight:800;color:#7a4b00">🏷 소포에 적을 성함' +
-      ' <span style="font-weight:700;opacity:.85">(신청서의 받는 분과 같게)</span></div>' +
-      `<input id="kb-name-input" value="${esc(nm)}" placeholder="예: 홍길동" ` +
-      'style="margin-top:5px;width:100%;min-height:38px;box-sizing:border-box;padding:0 10px;' +
-      'border:1.5px solid #f0b429;border-radius:8px;font-size:14px;font-weight:700;color:#191f28;background:#fff">' +
+      /*
+       * 안내는 **입력칸 안에** 넣습니다 — 칸 위에 따로 쓰면 자리만 차지하고,
+       * 정작 무엇을 넣는 칸인지 눈이 가지 않습니다. 이름을 치기 시작하면
+       * 안내는 저절로 사라집니다 (운영자 26-09-06).
+       */
+      `<input id="kb-name-input" value="${esc(nm)}" placeholder="여기에 받으시는 분 성함을 입력" ` +
+      'style="width:100%;min-height:44px;box-sizing:border-box;padding:0 11px;' +
+      'border:1.5px solid #f0b429;border-radius:8px;font-size:14.5px;font-weight:700;color:#191f28;background:#fff">' +
       (nm
         ? '<button id="kb-name-clear" style="margin-top:4px;border:0;background:transparent;color:#8b95a1;' +
           'font-size:10.5px;cursor:pointer;text-decoration:underline">이 이름 지우기</button>'

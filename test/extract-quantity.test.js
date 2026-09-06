@@ -257,3 +257,48 @@ test('패널은 되짚은 개수의 셈을 함께 보여준다 (화면 321,300�
     assert.ok(main.includes(k), `패널 상태에 ${k}`)
   }
 })
+
+/* ─────────── 오른쪽 장바구니 미리보기에 속지 않기 (26-09-06 셔츠 5벌) ─────────── */
+
+test('오른쪽 장바구니 미리보기의 수량 칸을 상품 수량으로 착각하지 않는다', () => {
+  /*
+   * 쿠팡 상품 화면 오른쪽에는 장바구니 미리보기가 붙어 있고, 거기에도
+   * 수량 칸(1, 2 …)이 있습니다. 그걸 집으면 5벌을 골라도 1벌로 계산됩니다.
+   * 구매 버튼의 오른쪽 끝을 본문 경계로 봅니다.
+   */
+  const main = el({ type: 'number', value: '5' }) // 본문 수량 칸 (left 800)
+  const side = el({ type: 'number', value: '1', rect: { top: 300, bottom: 330, left: 1400, width: 40, height: 30 } })
+  const r = withWideDom([side, main, buyBtn(495)], () => E.readQuantity())
+  assert.deepEqual([r.value, r.found], [5, true], '본문 칸(5)을 봐야 합니다')
+})
+
+test('화면 금액이 낱개 값의 5배면, 수량 칸이 1이라 해도 5개로 본다', () => {
+  /*
+   * 26-09-06 사장님 화면: 와이셔츠 수량 5, 화면 139,700원(= 27,940 × 5).
+   * 그런데 견적은 1벌(배송만 10,792원)로 나왔습니다 — 수량 칸을 엉뚱한 곳에서
+   * 읽은 것입니다. 고객이 실제로 낼 돈이 화면에 찍혀 있으므로, 둘이 다르면
+   * **금액 쪽을 믿습니다.**
+   */
+  const wrong = el({ type: 'number', value: '1' }) // 엉뚱하게 잡힌 칸
+  const p = productDom({ unit: 27940, shown: '139,700원', extra: [wrong, buyBtn(495)] })
+  assert.equal(p.price, 27940, '낱개 값은 상품 정보 쪽')
+  assert.deepEqual([p.quantity, p.quantityHow], [5, 'ratio'])
+  assert.deepEqual(E.safeQuantity(p), { quantity: 5, uncertain: false })
+})
+
+test('금액이 낱개 값 그대로면 수량 칸을 그대로 믿는다 (금액이 개수를 덮어쓰지 않게)', () => {
+  // 마켓플레이스 상품은 수량을 올려도 화면 금액이 낱개 값 그대로입니다.
+  const p = productDom({ unit: 27940, shown: '27,940원', extra: [el({ type: 'number', value: '3' }), buyBtn(495)] })
+  assert.deepEqual([p.quantity, p.quantityHow], [3, 'number-input'])
+})
+
+test('수량을 바꾸면 그 자리에서 다시 계산한다', async () => {
+  const { readFileSync } = await import('node:fs')
+  /*
+   * 입력칸 값 변경은 MutationObserver 로 잡히지 않습니다. 그래서 수량을
+   * 늘려도 금액이 그대로였습니다 (운영자 26-09-06).
+   */
+  const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
+  assert.ok(/characterData: true/.test(main), '가격 글자만 바뀌는 경우도 봐야 합니다')
+  assert.ok(/for \(const type of \['input', 'change', 'click'\]\)/.test(main), '입력·클릭에도 다시 계산해야 합니다')
+})

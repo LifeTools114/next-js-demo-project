@@ -305,6 +305,8 @@ const KBExtract = (() => {
     return Number.isFinite(n) && n >= 1 && n <= 999 ? n : null
   }
   const rectOf = (el) => { try { return el.getBoundingClientRect() } catch { return null } }
+  /** 오른쪽 끝 — right 가 없는 rect 도 있어 left+width 로 보완합니다 */
+  const rightOf = (r) => (Number.isFinite(r?.right) ? r.right : (r?.left ?? 0) + (r?.width ?? 0))
   const visible = (el) => { const r = rectOf(el); return Boolean(r && r.width > 0 && r.height > 0) }
   /** 요소의 이름표들 — aria-label·name·id·class·placeholder·title 을 한 줄로 */
   const hintOf = (el) => [
@@ -356,7 +358,7 @@ const KBExtract = (() => {
   function screenPriceWide() {
     const buys = buyButtonRects()
     const floor = buys.length > 0 ? Math.min(...buys.map((r) => r.bottom)) : Infinity
-    const rightEdge = buys.length > 0 ? Math.max(...buys.map((r) => r.right)) : Infinity
+    const rightEdge = buys.length > 0 ? Math.max(...buys.map(rightOf)) : Infinity
     let nodes
     try { nodes = document.querySelectorAll('strong, span, div, b, em, p, dd') } catch { return null }
     let best = null
@@ -480,12 +482,23 @@ const KBExtract = (() => {
    * 검색창·헤더 안의 칸은 제외합니다.
    */
   function findQuantityWide() {
+    const rects = buyButtonRects()
+    /**
+     * 오른쪽 장바구니 미리보기에도 수량 칸(1, 2 …)이 있습니다. 그걸 상품
+     * 수량으로 착각하면 5벌을 골라도 1벌로 계산합니다 (26-09-06 사장님 화면).
+     * 구매 버튼의 오른쪽 끝을 본문의 경계로 보고, 그 밖은 보지 않습니다.
+     */
+    const rightEdge = rects.length > 0 ? Math.max(...rects.map(rightOf)) : Infinity
+    const inMain = (el) => {
+      const r = rectOf(el)
+      return Boolean(r) && r.left <= rightEdge
+    }
     let fields
     try {
       fields = [...document.querySelectorAll('input[type="number"], input[inputmode="numeric"], input[type="tel"], input[type="text"], input:not([type]), select')]
     } catch { fields = [] }
     const valued = fields
-      .filter((el) => visible(el) && !isSearchy(el))
+      .filter((el) => visible(el) && !isSearchy(el) && inMain(el))
       .map((el) => ({
         el,
         n: el.tagName === 'SELECT'
@@ -497,7 +510,6 @@ const KBExtract = (() => {
     if (labeled) return { value: labeled.n, found: true, how: 'labeled' }
     const numeric = valued.filter((x) => x.el.type === 'number' || x.el.getAttribute?.('inputmode') === 'numeric')
     if (numeric.length === 1) return { value: numeric[0].n, found: true, how: 'number-input' }
-    const rects = buyButtonRects()
     const near = valued.filter((x) => sameRow(x.el, rects) && (rectOf(x.el)?.width ?? 999) <= 160)
     if (near.length === 1) return { value: near[0].n, found: true, how: 'near-buy' }
 
@@ -505,7 +517,7 @@ const KBExtract = (() => {
     let btns
     try { btns = [...document.querySelectorAll('button, [role="button"], a')] } catch { btns = [] }
     for (const b of btns) {
-      if (!visible(b)) continue
+      if (!visible(b) || !inMain(b)) continue
       const label = String(b.getAttribute?.('aria-label') ?? '')
       const t = String(b.textContent ?? '').replace(/\s+/g, '')
       const plus = /^[+＋]$/.test(t) || /증가|늘리|plus|increase/i.test(label)
@@ -597,10 +609,15 @@ const KBExtract = (() => {
      * **확정값**일 때만 씁니다 — 옵션 묶음의 최저가로 나누면 엉뚱한 개수가 나옵니다.
      */
     const unitTrusted = Boolean(opt?.price) || (base.priceExact && basis !== 'screen')
-    if (!qty.found && shownPrice && price && unitTrusted
-        && shownPrice > price && shownPrice % price === 0) {
+    if (shownPrice && price && unitTrusted && shownPrice > price && shownPrice % price === 0) {
       const n = shownPrice / price
-      if (n >= 2 && n <= 999) qty = { value: n, found: true, how: 'ratio' }
+      /**
+       * 수량 칸에서 읽은 값과 다르면 **금액 쪽을 믿습니다.**
+       * 고객이 실제로 낼 돈이 화면에 찍혀 있고, 수량 칸은 엉뚱한 칸(장바구니
+       * 미리보기 등)을 짚었을 수 있습니다. 26-09-06 사장님 화면에서 셔츠를
+       * 5벌 골랐는데(화면 139,700원 = 27,940 × 5) 1벌로 계산됐습니다.
+       */
+      if (n >= 2 && n <= 999 && n !== qty.value) qty = { value: n, found: true, how: 'ratio' }
     }
 
     return {

@@ -281,7 +281,19 @@
       t = setTimeout(compute, 600)
     }
   })()
-  new MutationObserver(debounced).observe(document.body, { subtree: true, childList: true })
+  /**
+   * characterData 까지 봅니다 — 수량을 바꾸면 쿠팡은 가격 **글자만** 바꾸는
+   * 경우가 있어, childList 만 보면 금액이 바뀐 줄 모릅니다.
+   */
+  new MutationObserver(debounced).observe(document.body, { subtree: true, childList: true, characterData: true })
+  /**
+   * 입력칸 값 변경은 어떤 MutationObserver 로도 잡히지 않습니다.
+   * 수량 칸을 고치거나 [+]/[−] 를 누르면 그 자리에서 다시 계산합니다 —
+   * "수량을 늘렸는데 금액이 안 바뀐다"는 일이 없게 (운영자 26-09-06).
+   */
+  for (const type of ['input', 'change', 'click']) {
+    document.addEventListener(type, debounced, { capture: true, passive: true })
+  }
 
   /**
    * 색상·용량 같은 진짜 옵션은 URL(itemId)만 바꾸는 SPA 전환이라 JSON-LD 가
