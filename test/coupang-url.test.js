@@ -7,6 +7,9 @@ test('PC·모바일 상품 주소에서 상품 번호와 옵션 값을 읽고, �
   assert.equal(p.productId, '7654321'); assert.equal(p.itemId, '11'); assert.equal(p.vendorItemId, '22')
   assert.equal(p.url, 'https://www.coupang.com/vp/products/7654321?itemId=11&vendorItemId=22')
   assert.equal(parseProductUrl('https://m.coupang.com/vm/products/99999').productId, '99999')
+  const re = parseProductUrl('https://link.coupang.com/re/AFFSDP?lptag=AF1&pageKey=424242&itemId=5&vendorItemId=9&traceid=x')
+  assert.equal(re.productId, '424242'); assert.equal(re.itemId, '5'); assert.equal(re.vendorItemId, '9')
+  assert.equal(re.url, 'https://www.coupang.com/vp/products/424242?itemId=5&vendorItemId=9')
 })
 
 test('글 속에 섞인 주소도 찾고, 짧은 링크는 주소만 남기며, 다른 사이트는 거절', () => {
