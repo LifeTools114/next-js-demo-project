@@ -2,8 +2,8 @@
  * POST /api/ocr  (본문 = 이미지 바이트, Content-Type: image/*)
  * 캡처 화면에서 상품명·가격·옵션을 읽어 돌려줍니다 (lib/ocr.js). 이미지는 저장하지 않습니다.
  */
-import { ocrImage, MAX_IMAGE_BYTES } from '../../lib/ocr.js'
-import { allow, clientIp } from '../../lib/throttle.js'
+import { ocrImage, MAX_IMAGE_BYTES } from '../../../lib/ocr.js'
+import { allow, clientIp } from '../../../lib/throttle.js'
 
 export const config = { api: { bodyParser: false } }
 

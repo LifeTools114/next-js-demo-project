@@ -87,6 +87,8 @@ export default function SendPage() {
   const [peek, setPeek] = useState({})
   /** 줄별 「캡처 읽기」 상태 — { i: 'loading' | 'ok' | 'fail' | 'off' } */
   const [ocr, setOcr] = useState({})
+  /** 결제 완료 화면 캡처에서 읽은 쇼핑몰 주문 — { orderNo, itemCount, warehouse, moreItems } */
+  const [shopOrder, setShopOrder] = useState(null)
 
   // 신청서에서 쓰던 이름이 있으면 그대로 씁니다 — 두 번 적지 않게.
   useEffect(() => {
@@ -118,6 +120,14 @@ export default function SendPage() {
           ocrFill(0, blob)
         } catch { /* 보관함이 없으면 그냥 빈 화면 */ }
       })()
+      router.replace('/send', undefined, { shallow: true })
+      return
+    }
+    // 결제 완료 알림 문자(알림톡·SMS)를 공유하면 — 캡처 없이 글자만으로 주문번호·상품을 읽습니다
+    const sharedText = [q.title, q.text].filter(Boolean).join('\n')
+    if (/주문\s*번호\s*[:：]?\s*\d/.test(sharedText)) {
+      setShared(true)
+      applyInterpretation({ ok: true, kind: 'text' }, sharedText)
       router.replace('/send', undefined, { shallow: true })
       return
     }
@@ -203,6 +213,37 @@ export default function SendPage() {
    * 캡처(이미지) → 서버가 글자를 읽어(OCR) 상품명·가격을 채웁니다 (운영자 26-09-07).
    * 이미지는 읽는 동안만 서버에 있고 저장되지 않습니다. 읽은 값은 고객이 확인·수정합니다.
    */
+  /**
+   * 결제 완료 화면(주문)을 읽었으면 — 배송만으로 놓고, 상품들을 줄로 펼치고, 쇼핑몰 주문번호를 붙입니다.
+   * 이것이 「앱에서 사고 → 캡처 → 배송비 결제」의 핵심 (운영자 26-09-07).
+   */
+  const applyOrder = (d) => {
+    const items = (d.items ?? []).filter((it) => it.productName || it.productPrice)
+    setTrack('forwarding')
+    setShopOrder({ orderNo: d.orderNo ?? null, itemCount: items.length, warehouse: d.warehouse ?? null, moreItems: d.moreItems ?? 0 })
+    if (items.length) {
+      setRows(items.map((it) => ({
+        ...emptyRow(),
+        productName: it.productName ?? '',
+        productPrice: it.productPrice ?? '',
+        quantity: it.quantity ?? 1,
+        shotOption: it.option ?? '',
+      })))
+      setOcr(Object.fromEntries(items.map((_, k) => [k, 'ok'])))
+    }
+    if (d.warehouse?.name && !name.trim()) setName(d.warehouse.name)
+  }
+
+  const applyInterpretation = async (d, textForOrder) => {
+    if (d.kind === 'text') {
+      // 문자만으로 — 서버의 해석기를 그대로 씁니다 (같은 규칙)
+      const res = await fetch('/api/ocr/text', { method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: textForOrder })
+      const parsed = await res.json()
+      if (parsed.ok && parsed.kind === 'order') applyOrder(parsed)
+      return
+    }
+  }
+
   const ocrFill = async (i, blob) => {
     if (!blob) return
     setOcr((p) => ({ ...p, [i]: 'loading' }))
@@ -211,6 +252,7 @@ export default function SendPage() {
       const res = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': blob.type || 'image/png' }, body: blob })
       const d = await res.json()
       if (!d.ok) { setOcr((p) => ({ ...p, [i]: d.reason === 'ocr-not-installed' ? 'off' : 'fail' })); return }
+      if (d.kind === 'order') { applyOrder(d); return }
       setRows((prev) => prev.map((r, k) => (k !== i ? r : {
         ...r,
         productName: d.productName || r.productName,
@@ -247,7 +289,8 @@ export default function SendPage() {
 
   const goCheckout = () => {
     const cart = encodeURIComponent(JSON.stringify({ items, zone: 'hanoi' }))
-    router.push(`/checkout?cart=${cart}`)
+    const no = shopOrder?.orderNo && track === 'forwarding' ? `&coupang=${encodeURIComponent(shopOrder.orderNo)}` : ''
+    router.push(`/checkout?cart=${cart}${no}`)
   }
 
   const t = TRACKS[track]
@@ -268,8 +311,29 @@ export default function SendPage() {
     )
   }
 
+  const orderCard = shopOrder && (
+    <div data-shop-order="1" style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 12, border: '2px solid #17916b', background: '#f2fbf7' }}>
+      <div style={{ fontSize: 14, fontWeight: 900, color: '#0f6e4f' }}>✓ 결제 완료 화면에서 읽었습니다</div>
+      <div style={{ fontSize: 13.5, marginTop: 6, lineHeight: 1.6 }}>
+        쇼핑몰 주문번호 <b>{shopOrder.orderNo ?? '(못 읽음 — 아래에서 적어 주세요)'}</b> · 상품 <b>{shopOrder.itemCount}</b>개
+        {shopOrder.moreItems ? <> (외 {shopOrder.moreItems}건은 「+ 상품 링크 하나 더」로 보태 주세요)</> : null}
+      </div>
+      {shopOrder.warehouse && !shopOrder.warehouse.found && (
+        <p className="note" style={{ marginTop: 8, fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
+          ⚠ 배송지에 저희 창고 코드({WAREHOUSE.code})가 보이지 않습니다. 쇼핑몰 주문의 배송지가 창고 주소인지 확인해 주세요.
+        </p>
+      )}
+      {!shopOrder.orderNo && (
+        <input className="input" inputMode="numeric" placeholder="쇼핑몰 주문번호 (숫자만)" style={{ marginTop: 8, minHeight: 46 }}
+          onChange={(e) => setShopOrder((o) => ({ ...o, orderNo: e.target.value.replace(/\D/g, '').slice(0, 20) || null }))} />
+      )}
+      <div style={{ fontSize: 12.5, color: '#4e5968', marginTop: 6 }}>아래 상품·개수·가격이 맞는지 보고 「배송비 얼마인지 보기」를 누르세요. 신청서에 주문번호가 자동으로 붙습니다.</div>
+    </div>
+  )
+
   const productRows = (
     <>
+      {orderCard}
       {rows.map((r, i) => {
         const link = parseProductUrl(r.productUrl)
         const auto = (peek[i] === 'ok' || (ocr[i] === 'ok' && r.productName && r.productPrice)) && !r.edit
@@ -447,7 +511,9 @@ export default function SendPage() {
         <div style={{ display: 'flex', gap: 8 }}>{[toggleBtn('forwarding'), toggleBtn('agent')]}</div>
         {shared && (
           <p className="note" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
-            {ocr[0]
+            {shopOrder
+              ? <>✓ 공유받은 <b>결제 완료 화면</b>에서 주문번호와 상품을 읽었습니다. 아래를 확인하고 배송비 계산으로 가세요.</>
+              : ocr[0]
               ? <>✓ 공유받은 <b>캡처</b>에서 이름·가격을 읽어 아래 첫 줄에 넣습니다. 맞는지 확인하고 <b>개수</b>만 정해 주세요.</>
               : <>✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. <b>가격</b>만 적으면 바로 계산됩니다. 이름은 안 적어도 되고, 적으면 무게가 더 정확해집니다.</>}
           </p>
@@ -530,9 +596,9 @@ export default function SendPage() {
             <div className="panel__head">3. 무엇을 사셨나요</div>
             <div className="panel__body">
               <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-                가장 쉬운 길: 쇼핑몰 앱의 상품 화면을 <b>캡처</b>해서 아래 「📷 캡처로 채우기」에 올리면
-                이름·가격을 읽어 줍니다 (안드로이드는 캡처 직후 <b>공유 → 베트남 직구</b>로도 됩니다).
-                링크를 붙여넣고 가격만 적어도 되고, 이름과 가격만 적어도 됩니다.
+                <b>가장 쉬운 길</b>: 결제가 끝난 <b>「주문완료」 화면을 캡처</b>해서 「📷 캡처로 채우기」에 올리세요.
+                상품·개수·가격과 <b>쇼핑몰 주문번호</b>까지 한 번에 읽어 신청서에 붙입니다
+                (안드로이드는 캡처 직후 <b>공유 → 베트남 직구</b>). 상품 화면 캡처도 되고, 링크나 이름·가격을 직접 적어도 됩니다.
               </p>
               {productRows}
             </div>
