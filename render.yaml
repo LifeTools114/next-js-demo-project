@@ -1,0 +1,37 @@
+# Render 블루프린트 — "디스크가 붙는" 서버 한 대로 이 앱을 그대로 올립니다.
+# (Vercel 같은 서버리스는 주문·고객 파일(.data/)이 사라져서 쓸 수 없습니다 — docs/DEPLOY.md 참고)
+#
+# 쓰는 법: Render 대시보드 → New → Blueprint → 이 저장소·브랜치 선택 → 환경변수 값 입력 → Apply
+services:
+  - type: web
+    name: vietnam-helper
+    runtime: node
+    plan: starter            # 디스크는 유료 플랜에서만 붙습니다 (무료 플랜은 잠들고 파일이 사라짐)
+    region: singapore
+    branch: claude/korean-beauty-direct-purchase-98zv0u
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/extension/config
+    disk:
+      name: data
+      mountPath: /var/data   # 주문·고객 파일이 여기 남습니다 — 배포를 다시 해도 유지
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ORDER_STORE_DIR
+        value: /var/data
+      - key: BASE_URL
+        sync: false          # https://<서비스 주소> — 대시보드에서 입력
+      - key: ADMIN_TOKEN
+        sync: false          # 운영자 비밀 — 대시보드에서 입력
+      - key: SESSION_SECRET
+        generateValue: true  # PIN 잠금 해제 서명 — 자동 생성
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_OPERATOR_CHAT_ID
+        sync: false
+      - key: TELEGRAM_PARTNER_CHAT_ID
+        sync: false
+      - key: PAYMENT_WEBHOOK_TOKEN
+        sync: false

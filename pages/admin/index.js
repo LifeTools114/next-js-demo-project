@@ -406,6 +406,7 @@ export default function AdminConsole() {
           <span style={{ display: 'flex', gap: 6 }}>
             <button className="btn btn--sm btn--ghost" type="button" onClick={() => downloadCsv('/api/admin/customers-export', 'customers.csv')}>전체 CSV</button>
             <button className="btn btn--sm btn--ghost" type="button" onClick={() => downloadCsv('/api/admin/customers-export?marketing=1', 'customers-marketing.csv')}>동의 고객 CSV</button>
+            <button className="btn btn--sm btn--ghost" type="button" title="주문·고객 파일 전체 — 일주일에 한 번 받아 구글드라이브에" onClick={() => downloadCsv('/api/admin/backup', 'backup.json')}>💾 백업 내려받기</button>
           </span>
         </div>
         <div className="panel__body">

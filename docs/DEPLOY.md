@@ -4,6 +4,24 @@
 > 이 앱은 주문·고객을 **파일(.data/)** 에 저장하므로 Vercel 같은 서버리스가 아니라
 > **VPS 한 대**가 맞습니다. 사이트가 공개 https 주소에 떠야 확장도, 웹스토어 심사도 됩니다.
 
+## ⚠️ Vercel 은 안 됩니다 — 대신 두 길
+
+이 앱은 주문·고객을 **파일(.data/)** 에 저장합니다. Vercel(서버리스)은 요청마다 다른 컴퓨터가 돌고
+파일이 남지 않아 **주문이 사라집니다.** `*.vercel.app` 서브도메인도 Vercel 에 올린 앱에만 붙습니다.
+
+| 길 | 누구에게 | 비용 | 준비 |
+|---|---|---|---|
+| **A. 디스크가 붙는 호스팅** — Render (또는 Railway) | 서버 관리를 하고 싶지 않은 분 **(권장)** | 월 $7 + 디스크 소액 | 저장소의 `render.yaml` 로 클릭 몇 번. HTTPS·서브도메인(`xxx.onrender.com`) 자동 |
+| **B. VPS 1대** | 직접 관리해도 괜찮은 분 | 월 1만원 안팎 | 아래 1절 명령 |
+
+**A 로 가는 순서**: render.com 가입 → New → **Blueprint** → 이 GitHub 저장소·브랜치 선택 → 환경변수
+(`ADMIN_TOKEN`, `BASE_URL`, 텔레그램 값) 입력 → Apply. 주소는 `https://vietnam-helper.onrender.com` 처럼
+나오고, 그대로 쓰거나 Settings → Custom Domains 에서 `app.1dollartool.com` 을 붙입니다.
+디스크는 `/var/data` 에 붙고 앱은 `ORDER_STORE_DIR=/var/data` 로 거기 저장합니다.
+백업은 cron 이 없으므로 **/admin 「💾 백업 내려받기」** 를 일주일에 한 번 눌러 구글드라이브에 두세요.
+확장 배포본을 만들 때 `STORE_BACKEND_URL` 에 그 주소를 넣고, 서브도메인이 `onrender.com` 이면
+`extension/manifest.json` 의 host_permissions 에 그 주소를 먼저 넣어야 합니다 (알려주시면 제가 넣습니다).
+
 ## 0. 미리 준비할 것 (사장님)
 
 | 준비물 | 권장 | 비고 |
