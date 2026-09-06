@@ -28,3 +28,15 @@ test('목록에서 뺀 규칙(특별소비세·의약품·식물 검역·통관 
     assert.equal(r.ruleId ?? r.rule?.id ?? r.id, id)
   }
 })
+
+test('와인식초·미림은 술이 아니다 — 「식초/미림」 카테고리는 통과, 진짜 와인은 여전히 차단', () => {
+  // 운영자 확정 26-09-06: 「쿠팡 홈 > 식품 > 장/소스/드레싱/식초 > 식초/미림 > 와인식초」 문제없음.
+  const ok = (name, cat) => checkEligibility({ productName: name, categoryPath: cat, price: 5000, quantity: 1 }).shippable
+  assert.equal(ok('카사베르디 유기농 레드와인 비니거, 3개, 500ml', '쿠팡 홈>식품>장/소스/드레싱/식초>식초/미림>와인식초'), true)
+  assert.equal(ok('오뚜기 와인식초 500ml', ''), true, '카테고리가 없어도 이름의 「식초」로 통과')
+  assert.equal(ok('청정원 미림 맛술 410ml', '식품>장/소스/드레싱/식초>식초/미림'), true)
+  assert.equal(ok('크리스탈 와인잔 2P', '주방용품>잔'), true)
+  const wine = checkEligibility({ productName: '칠레 까베르네 레드 와인 750ml', categoryPath: '식품>주류', price: 20000, quantity: 1 })
+  assert.equal(wine.shippable, false, '진짜 와인은 그대로 차단')
+  assert.equal(wine.ruleId ?? wine.rule?.id ?? wine.id, 'alcohol-tobacco')
+})
