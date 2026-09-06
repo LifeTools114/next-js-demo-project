@@ -357,3 +357,33 @@ test('고기·유제품이 든 상온 식품은 막지 않되 검역 안내를 �
   // 안내가 없는 평범한 식품에는 아무것도 안 붙습니다.
   assert.deepEqual(checkEligibility(p('농심 신라면 5개입')).warnings, [])
 })
+
+test('쿠팡 카테고리의 원재료 이름(돼지고기) 때문에 상온 통조림이 막히면 안 된다', () => {
+  /*
+   * 운영자 확인 26-09-06:
+   *   「식품 > 반찬/간편식/대용식 > 고기/해물/간편조리 > 돼지고기 양념/가공 > 햄통조림」
+   *   — "가능. 상온이면 가능함"
+   *
+   * 쿠팡은 카테고리를 **원재료**로 나눕니다. 그 '돼지고기' 때문에 상온 통조림
+   * 햄이 통째로 막혀 있었습니다. 판정 기준은 원재료가 아니라 **온도**입니다.
+   */
+  const cat = '쿠팡 홈 > 식품 > 반찬/간편식/대용식 > 고기/해물/간편조리 > 돼지고기 양념/가공 > 햄통조림'
+  for (const name of ['동원 리챔 오리지널 200g 6개', '목우촌 뚝심 햄 340g 3캔', 'CJ 스팸 클래식 200g 6개']) {
+    const r = checkEligibility({ productName: name, categoryPath: cat, price: 30000, quantity: 1 })
+    assert.equal(r.shippable, true, `${name} 이 ${r.label}('${r.matchedKeyword}')로 막혔습니다`)
+    assert.ok(r.warnings.some((w) => w.id === 'shelf-stable-animal'), '검역 안내는 붙습니다')
+  }
+  // 수산물 통조림도 같습니다.
+  assert.equal(checkEligibility({ productName: '꽁치 통조림 400g 3캔', categoryPath: '식품 > 수산물 > 통조림' }).shippable, true)
+
+  // 그래도 냉장·냉동과 날것은 그대로 막힙니다 — 상온이 아니니까요.
+  for (const [name, c, rule] of [
+    ['제주 흑돼지 삼겹살 1kg', '식품 > 축산물 > 돼지고기', 'quarantine-animal'],
+    ['냉동 삼겹살 통조림 세트', cat, 'cold-chain'],
+    ['서울우유 흰우유 1L 6팩', '식품 > 유제품 > 우유', 'quarantine-animal'],
+  ]) {
+    const r = checkEligibility({ productName: name, categoryPath: c })
+    assert.equal(r.shippable, false, `${name} 이 통과했습니다`)
+    assert.equal(r.ruleId, rule, `${name} → ${r.ruleId}`)
+  }
+})
