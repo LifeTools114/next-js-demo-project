@@ -58,3 +58,22 @@ test('옵션 줄과 빈 입력', () => {
   assert.deepEqual(parseShotText(''), { productName: '', productPrice: null, option: null, lineCount: 0 })
   assert.equal(parseShotText('아무 글자\n또 글자').productPrice, null)
 })
+
+// 실제 앱 캡처(운영자 26-09-07)처럼 이름이 여러 줄로 나뉜 경우 — 첫 줄만 가져가면 용량·개수를 놓칩니다
+const SHOT4 = `찾고 싶은 상품을 검색해보세요!
+상품 이미지
+로켓배송
+OSA 콤플렉스-30000001 저자극 약산성 410
+ml 샴푸 대용량, 6개
+★★★★★ 2,345개 상품평
+88,5602]
+와우회원 할인가
+옵션: 410ml, 6개
+장바구니 담기`
+
+test('여러 줄로 나뉜 상품명을 이어 붙이고, 잘린 「410」+「ml」는 붙여 씁니다', () => {
+  const r = parseShotText(SHOT4)
+  assert.equal(r.productName, 'OSA 콤플렉스-30000001 저자극 약산성 410ml 샴푸 대용량, 6개')
+  assert.equal(r.productPrice, 88560)
+  assert.equal(r.option, '410ml, 6개')
+})
