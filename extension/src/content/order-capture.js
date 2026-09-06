@@ -962,13 +962,13 @@
       return (
         `<button data-kb-sel="${id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;` +
         'width:100%;padding:13px 13px;border:0;cursor:pointer;text-align:left;font:inherit;' +
-        `background:${sel ? '#3182f6' : '#fff'}">` +
+        `background:${sel ? '#1b4fd8' : '#fff'}">` +
         `<span><span style="display:block;font-weight:800;font-size:15.5px;color:${sel ? '#fff' : '#191f28'}">` +
         `${sel ? '✓ ' : ''}${label}</span>` +
-        `<span style="font-size:11px;color:${sel ? '#cfe0fc' : '#8b95a1'}">${sub}</span></span>` +
+        (sub ? `<span style="font-size:11px;color:${sel ? '#cfe0fc' : '#8b95a1'}">${sub}</span>` : '') + '</span>' +
         (q && won(q.total)
           ? '<span style="text-align:right">' +
-            `<span style="display:block;font-weight:800;font-size:19px;color:${sel ? '#fff' : '#3182f6'};white-space:nowrap">${won(q.total)}</span>` +
+            `<span style="display:block;font-weight:800;font-size:19px;color:${sel ? '#fff' : '#1b4fd8'};white-space:nowrap">${won(q.total)}</span>` +
             (dong(q.totalVnd)
               ? `<span style="display:block;font-size:11.5px;font-weight:700;color:${sel ? '#ffd9d9' : '#f04452'};white-space:nowrap">≈ ${dong(q.totalVnd)}</span>`
               : '') +
@@ -999,9 +999,9 @@
       ? '<div style="margin-top:8px;color:#4e5968;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
         '금액 계산과 자동 신청이 가능합니다.</div>'
       : '<div style="margin-top:8px;border:1.5px solid #dbe4f0;border-radius:12px;overflow:hidden;background:#fff">' +
-        priceRow('forwarding', '📦 배송만', '쇼핑몰 결제는 직접 · 배송만', quotes.fwd) +
+        priceRow('forwarding', '📦 배송만 신청', '', quotes.fwd) +
         '<div style="border-top:1px solid #f2f4f6"></div>' +
-        priceRow('agent', '🛒 구매하고 배송까지', '저희가 대신 사드려요', quotes.agent) +
+        priceRow('agent', '🛒 구매하고 배송까지 신청', '', quotes.agent) +
         '</div>'
 
     // ── 선택한 방식의 다음 행동 — 카드가 결제/신청으로 유도합니다 ──

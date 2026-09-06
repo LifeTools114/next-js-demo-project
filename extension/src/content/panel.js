@@ -340,7 +340,7 @@ const KBPanel = (() => {
     const qs = state.quotes ?? {}
     const priceRow = (id, label, sub, qq) => qq
       ? `<button class="prow" data-track="${id}" aria-pressed="${state.track === id}">
-          <span class="pl"><b>${label}</b><small>${sub}</small></span>
+          <span class="pl"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span>
           <span class="pr"><b class="pk">${esc(state.fmt.krw(qq.total))}</b>
             <small class="pv">≈ ${esc(state.fmt.vnd(qq.totalVnd))}</small></span>
         </button>`
@@ -387,8 +387,8 @@ const KBPanel = (() => {
       <p class="name">${esc(state.productName)}</p>
       ${qtyLine}${priceLine}${areaLine}
       <div class="pricebox">
-        ${priceRow('forwarding', '📦 배송만', '배송비 · 쇼핑몰 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
-        ${priceRow('agent', '🛒 구매하고 배송까지', '총액 · 저희가 대신', qs.agent ?? (state.track === 'agent' ? q : null))}
+        ${priceRow('forwarding', '📦 배송만 신청', '', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
+        ${priceRow('agent', '🛒 구매하고 배송까지 신청', '', qs.agent ?? (state.track === 'agent' ? q : null))}
       </div>
       <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}<b style="color:#d9480f">영업일</b></div>
       ${agentLimitNote(q)}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
