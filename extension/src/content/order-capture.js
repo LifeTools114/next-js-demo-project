@@ -2019,8 +2019,9 @@
         ? '<button id="kb-name-clear" style="margin-top:4px;border:0;background:transparent;color:#8b95a1;' +
           'font-size:10.5px;cursor:pointer;text-decoration:underline">이 이름 지우기</button>'
         : '') +
-      '<div style="margin-top:3px;font-size:10.5px;color:#7a4b00;line-height:1.5">상세주소에 <b>' +
-      `${esc(code)} ${nm ? esc(nm) : '성함'}</b> 으로 들어갑니다 — 창고가 이 이름으로 소포 주인을 찾습니다.</div></div>`
+      // 한 줄로 굵게 — 무엇을 넣는 칸인지가 첫눈에 보여야 합니다 (운영자 26-09-06)
+      '<div style="margin-top:6px;font-size:13.5px;font-weight:900;color:#7a4b00;line-height:1.5">' +
+      '주문하는 고객님의 성함을 입력하세요.</div></div>'
 
     const miniForm = onCart || ok || helperTrack !== 'forwarding'
       ? ''
