@@ -395,3 +395,26 @@ test('신청서의 하노이 주소 입력칸은 언제나 보인다', () => {
   assert.ok(checkout.includes('setRecipientRestored'), '불러온 값임을 알려야 합니다')
   assert.ok(checkout.includes('이 주소가 맞는지 확인해 주세요'), '확인하라고 말해야 합니다')
 })
+
+test('배송지 안내의 이름 자리는 "예시"임이 보이고, 내 이름은 눈에 띈다', () => {
+  /*
+   * 운영자 26-09-06: 「YS-ECOM 박승우」 처럼 브라우저에 저장된 이름이
+   * 안내문에 그대로 떠서, 남의 이름을 자기 이름인 줄 알고 그대로 넣는 일이
+   * 생겼습니다. 예시는 누가 봐도 예시(홍길동)여야 하고, 진짜 내 이름은
+   * 칠해서 "여기가 당신 이름"임이 보여야 합니다.
+   */
+  const send = readFileSync(new URL('../pages/send.js', import.meta.url), 'utf8')
+  assert.ok(send.includes("const SAMPLE_NAME = '홍길동'"), '예시 이름은 홍길동')
+  assert.ok(!send.includes('박하노') && !send.includes('박승우'), '사람 이름처럼 보이는 옛 예시가 남으면 안 됩니다')
+  assert.ok(send.includes('placeholder={`예) ${SAMPLE_NAME}`}'), '입력칸 안내도 같은 예시로')
+  assert.ok(send.includes('자리에 <b>본인 이름</b>을 넣어주세요'), '무엇을 바꿔 넣어야 하는지 말해야 합니다')
+  // 이름 부분을 칠합니다 (예시는 회색, 내 이름은 노랑).
+  assert.ok(send.includes('markStyle') && send.includes('sampleStyle'), '예시와 내 이름을 다르게 보여야 합니다')
+  assert.ok(/background: '#ffe98a'/.test(send), '내 이름은 눈에 띄게 칠합니다')
+  // 지난번 이름이 남아 있으면 한 번에 지웁니다.
+  assert.ok(send.includes('>지우기</button>'), '저장된 이름을 지우는 버튼이 있어야 합니다')
+
+  const order = readFileSync(new URL('../pages/orders/[id].js', import.meta.url), 'utf8')
+  assert.ok(order.includes('const NAME_MARK'), '주문 화면의 세부주소도 이름을 칠해야 합니다')
+  assert.equal(order.split('style={NAME_MARK}').length - 1, 2, '안내 문장과 세부주소 줄 두 곳')
+})

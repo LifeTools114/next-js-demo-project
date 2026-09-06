@@ -26,7 +26,7 @@ import { copyText } from '../lib/copy'
 const RECIPIENT_KEY = 'kbeauty-hanoi:recipient'
 
 /** 눌러서 복사되는 한 줄 — 폰에서 손가락으로 누르기 좋은 크기로. */
-function CopyRow({ label, value, hint, disabled, danger }) {
+function CopyRow({ label, value, display, hint, disabled, danger }) {
   const [state, setState] = useState('')
   const done = state === 'ok'
   const copy = async () => {
@@ -53,7 +53,7 @@ function CopyRow({ label, value, hint, disabled, danger }) {
           display: 'block', fontSize: 17, fontWeight: 800, color: disabled ? '#b0b8c1' : '#191f28',
           marginTop: 2, wordBreak: 'break-all', lineHeight: 1.45,
         }}>
-          {value || '이름을 먼저 적어주세요'}
+          {display ?? value ?? ''}
         </span>
         {hint ? <span style={{ display: 'block', fontSize: 12.5, color: '#8b95a1', marginTop: 3 }}>{hint}</span> : null}
       </span>
@@ -84,6 +84,19 @@ export default function SendPage() {
   }, [])
 
   const detail = name.trim() ? detailAddressFor(name) : ''
+  /**
+   * 예시 이름은 **누가 봐도 예시**여야 합니다.
+   * 예전에는 이 자리에 브라우저에 저장된 이름이 그대로 떠서, 남의 이름을
+   * 자기 이름인 줄 알고 그대로 넣는 일이 생겼습니다 (운영자 26-09-06).
+   * 그래서 비어 있으면 '홍길동'을 회색 예시로 보여주고, 이름을 넣으면
+   * 그 이름을 노랗게 칠해 "이 부분이 당신 이름"임을 눈에 띄게 합니다.
+   */
+  const SAMPLE_NAME = '홍길동'
+  const markStyle = {
+    background: '#ffe98a', color: '#191f28', padding: '1px 6px', borderRadius: 6,
+    fontWeight: 900, boxShadow: 'inset 0 -2px 0 #f0b429',
+  }
+  const sampleStyle = { ...markStyle, background: '#eef1f5', color: '#8b95a1', boxShadow: 'none' }
   const fullAddress = `${WAREHOUSE.address1}${WAREHOUSE.address2 ? ` ${WAREHOUSE.address2}` : ''}`
 
   /** 신청서로 넘길 수 있는 줄만 (이름과 가격이 있는 것) */
@@ -140,9 +153,20 @@ export default function SendPage() {
         <div className="panel__body">
           <div className="field" style={{ marginBottom: 14 }}>
             <label className="field__label" htmlFor="myname">받는 분 성함 (한글 또는 영문)</label>
-            <input id="myname" className="input" value={name} placeholder="예) 박하노"
-              onChange={(e) => setName(e.target.value)}
-              style={{ fontSize: 17, minHeight: 52 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input id="myname" className="input" value={name} placeholder={`예) ${SAMPLE_NAME}`}
+                onChange={(e) => setName(e.target.value)}
+                style={{ fontSize: 17, minHeight: 52, flex: 1, minWidth: 0 }} />
+              {name ? (
+                /* 지난번 이름이 남아 있으면 한 번에 지웁니다 — 남의 이름으로 보내지 않게 */
+                <button type="button" onClick={() => setName('')}
+                  style={{
+                    flexShrink: 0, minHeight: 52, padding: '0 14px', borderRadius: 10,
+                    border: '2px solid #e5e8eb', background: '#fff', color: '#8b95a1',
+                    fontSize: 14, fontWeight: 800, cursor: 'pointer',
+                  }}>지우기</button>
+              ) : null}
+            </div>
             <p className="note" style={{ marginTop: 6, fontSize: 13 }}>
               이 이름으로 창고에서 소포를 찾습니다. 신청서에 적으실 이름과 <b>같아야</b> 합니다.
             </p>
@@ -154,11 +178,25 @@ export default function SendPage() {
           <CopyRow label="주소" value={fullAddress} />
           <CopyRow label="상세주소 — 이게 빠지면 소포 주인을 못 찾습니다" value={detail}
             disabled={!detail} danger
+            display={detail ? (
+              <>
+                {WAREHOUSE.code} <span style={markStyle}>{name.trim()}</span>
+              </>
+            ) : (
+              <>
+                {WAREHOUSE.code} <span style={sampleStyle}>{SAMPLE_NAME}</span>
+                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: '#ef4a76', marginTop: 6 }}>
+                  ↑ <span style={sampleStyle}>{SAMPLE_NAME}</span> 자리에 <b>본인 이름</b>을 넣어주세요 — 위 칸에 적으면 여기가 채워집니다
+                </span>
+              </>
+            )}
             hint={detail ? '쿠팡 배송지의 «상세주소» 칸에 이대로 넣어주세요' : undefined} />
 
           <p className="note note--danger" style={{ marginTop: 4, fontSize: 13.5, lineHeight: 1.7 }}>
-            ⚠️ <b>상세주소</b>가 가장 중요합니다. 「{WAREHOUSE.code} 이름」이 없으면 창고에 물건이
-            도착해도 누구 것인지 알 수 없어 배송이 늦어집니다.
+            ⚠️ <b>상세주소</b>가 가장 중요합니다. 「{WAREHOUSE.code}{' '}
+            <span style={detail ? markStyle : sampleStyle}>{name.trim() || SAMPLE_NAME}</span>」처럼
+            <b> 코드 뒤에 본인 이름</b>이 없으면, 창고에 물건이 도착해도 누구 것인지 알 수 없어
+            배송이 늦어집니다.
           </p>
         </div>
       </section>

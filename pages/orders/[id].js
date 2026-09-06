@@ -29,6 +29,15 @@ const LOCATION_BY_STATE = {
   CANCELLED: '주문 취소됨',
 }
 
+/**
+ * 「YS-ECOM 이름」을 칠해서 보여줍니다 — 창고가 소포 주인을 찾는 단서라
+ * 눈에 띄어야 하고, 이름이 남의 것으로 남아 있으면 바로 보여야 합니다.
+ */
+const NAME_MARK = {
+  background: '#ffe98a', color: '#191f28', padding: '1px 6px', borderRadius: 6,
+  fontWeight: 900, boxShadow: 'inset 0 -2px 0 #f0b429',
+}
+
 export default function OrderPage() {
   const router = useRouter()
   const { id } = router.query
@@ -277,7 +286,8 @@ export default function OrderPage() {
             <p className="note">
               쿠팡 결제 시 배송지를 아래와 같이 입력해 주세요.
               <br />
-              <b>세부주소의 {order.forwardingGuide.addressDetail} 코드가 있어야 창고가 접수합니다.</b>
+              {/* 이름 부분을 칠해 "여기가 당신 이름" 임을 눈에 띄게 (운영자 26-09-06) */}
+              <b>세부주소에 <span style={NAME_MARK}>{order.forwardingGuide.addressDetail}</span> 이(가) 있어야 창고가 접수합니다.</b>
             </p>
             <div className="note" style={{ marginTop: 10, userSelect: 'all' }}>
               · 받는 사람(이름): <b>{order.forwardingGuide.recipient}</b>
@@ -285,7 +295,7 @@ export default function OrderPage() {
               · 주소: {order.forwardingGuide.warehouse.address1}
               {order.forwardingGuide.warehouse.zip && ` (${order.forwardingGuide.warehouse.zip})`}
               <br />
-              · 세부주소: <b>{order.forwardingGuide.addressDetail}</b>
+              · 세부주소: <b style={NAME_MARK}>{order.forwardingGuide.addressDetail}</b>
               {order.forwardingGuide.warehouse.address2 && ` ${order.forwardingGuide.warehouse.address2}`}
               <br />
               {order.forwardingGuide.warehouse.phone && <>· 연락처: {order.forwardingGuide.warehouse.phone}</>}
