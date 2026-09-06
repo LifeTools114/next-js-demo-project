@@ -77,12 +77,14 @@ export default function SendPage() {
   const router = useRouter()
   const [track, setTrack] = useState('forwarding')
   const [name, setName] = useState('')
-  const emptyRow = () => ({ productName: '', productPrice: '', quantity: 1, productUrl: '' })
+  const emptyRow = () => ({ productName: '', productPrice: '', quantity: 1, productUrl: '', spec: '', edit: false })
   const [rows, setRows] = useState([emptyRow()])
   const [quote, setQuote] = useState(null)
   const [quoting, setQuoting] = useState(false)
   const [error, setError] = useState(null)
   const [shared, setShared] = useState(false)
+  /** 줄별 「링크 미리 읽기」 상태 — { i: 'loading' | 'ok' | 'fail' } */
+  const [peek, setPeek] = useState({})
 
   // 신청서에서 쓰던 이름이 있으면 그대로 씁니다 — 두 번 적지 않게.
   useEffect(() => {
@@ -104,6 +106,7 @@ export default function SendPage() {
     if (link) {
       setRows([{ ...emptyRow(), productUrl: link.url, productName }])
       setShared(true)
+      peekRow(0, link.url)
       // 공유로 온 상품은 대부분 「대신 사 달라」는 뜻 — 배송만이 필요하면 위에서 바꿉니다
       if (q.track !== 'forwarding') setTrack('agent')
       router.replace('/send', undefined, { shallow: true })
@@ -140,12 +143,36 @@ export default function SendPage() {
         productPrice: Math.max(0, Math.round(Number(r.productPrice) || 0)),
         quantity: Math.max(1, Math.min(Number(r.quantity) || 1, 99)),
         productUrl: link?.url ?? String(r.productUrl ?? '').trim().slice(0, 500),
+        specOverride: r.spec || null,
         track,
       }
     })
     .filter((r) => r.productName && r.productPrice > 0 && (!isAgent || r.productUrl)), [rows, track, isAgent])
 
-  const setRow = (i, patch) => setRows(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)))
+  const setRow = (i, patch) => { setRows(rows.map((r, k) => (k === i ? { ...r, ...patch } : r))); setQuote(null) }
+
+  /**
+   * 링크를 넣으면 서버가 그 상품 화면을 한 번 읽어 이름·가격·용량을 채웁니다 (운영자 26-09-06).
+   * 쇼핑몰이 막으면 「직접 적어 주세요」 — 흐름은 끊기지 않습니다. 이미 적힌 칸은 덮어쓰지 않습니다.
+   */
+  const peekRow = async (i, url) => {
+    if (!parseProductUrl(url)) return
+    setPeek((p) => ({ ...p, [i]: 'loading' }))
+    try {
+      const res = await fetch(`/api/product-peek?url=${encodeURIComponent(url)}`)
+      const d = await res.json()
+      if (!d.ok) { setPeek((p) => ({ ...p, [i]: 'fail' })); return }
+      setRows((prev) => prev.map((r, k) => (k !== i ? r : {
+        ...r,
+        productName: r.productName?.trim() ? r.productName : (d.productName ?? ''),
+        productPrice: r.productPrice ? r.productPrice : (d.productPrice ?? ''),
+        spec: d.spec ?? r.spec ?? '',
+      })))
+      setPeek((p) => ({ ...p, [i]: 'ok' }))
+    } catch {
+      setPeek((p) => ({ ...p, [i]: 'fail' }))
+    }
+  }
   const switchTrack = (next) => { setTrack(next); setQuote(null); setError(null) }
 
   const getQuote = async () => {
@@ -194,42 +221,96 @@ export default function SendPage() {
 
   const productRows = (
     <>
-      {rows.map((r, i) => (
-        <div key={i} style={{
-          border: '1px solid #e5e8eb', borderRadius: 12, padding: 12, marginBottom: 10, background: '#fbfcfd',
-        }}>
-          <input className="input" type="url" inputMode="url" value={r.productUrl}
-            placeholder={isAgent ? '상품 링크 (쇼핑몰 앱 → 공유 → 링크 복사) — 꼭 필요' : '상품 링크 (있으면 붙여넣기 — 선택)'}
-            onChange={(e) => setRow(i, { productUrl: e.target.value })}
-            style={{ fontSize: 15, minHeight: 50, marginBottom: 8, borderColor: isAgent && !parseProductUrl(r.productUrl) && r.productUrl ? '#ff6a00' : undefined }} />
-          <input className="input" value={r.productName} placeholder="상품 이름 (쇼핑몰 화면 그대로)"
-            onChange={(e) => setRow(i, { productName: e.target.value })}
-            style={{ fontSize: 16, minHeight: 50, marginBottom: 8 }} />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice}
-              placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
-              autoFocus={shared && i === 0}
-              style={{ flex: 2, fontSize: 16, minHeight: 50 }} />
-            <input className="input" type="number" inputMode="numeric" min="1" max="99" value={r.quantity}
-              placeholder="개수" onChange={(e) => setRow(i, { quantity: e.target.value })}
-              style={{ flex: 1, fontSize: 16, minHeight: 50 }} />
+      {rows.map((r, i) => {
+        const link = parseProductUrl(r.productUrl)
+        const auto = peek[i] === 'ok' && !r.edit
+        const qty = Math.max(1, Math.min(Number(r.quantity) || 1, 99))
+        return (
+          <div key={i} style={{
+            border: '1px solid #e5e8eb', borderRadius: 12, padding: 12, marginBottom: 10, background: '#fbfcfd',
+          }}>
+            {/* 1) 링크 — 고객은 이것만 붙여넣습니다 (운영자 26-09-06: "고객이 링크만 붙여넣게 합시다") */}
+            <input className="input" type="url" inputMode="url" value={r.productUrl}
+              placeholder="여기에 상품 링크를 붙여넣으세요"
+              onChange={(e) => {
+                const v = e.target.value
+                setRow(i, { productUrl: v, edit: false })
+                // 붙여넣기처럼 한 번에 완전한 링크가 들어오면 바로 읽습니다
+                if (parseProductUrl(v)?.productId || /link\.coupang\.com/.test(v)) peekRow(i, v)
+              }}
+              onBlur={(e) => { if (parseProductUrl(e.target.value) && !peek[i]) peekRow(i, e.target.value) }}
+              style={{ fontSize: 15, minHeight: 52, marginBottom: 8, borderColor: r.productUrl && !link ? '#ff6a00' : (auto ? '#17916b' : undefined) }} />
+            {r.productUrl && !link && (
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
+                쇼핑몰 상품 링크가 아닌 것 같습니다. 앱에서 상품 → 공유 → 링크 복사한 주소를 넣어주세요.
+              </p>
+            )}
+            {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중…</p>}
+            {peek[i] === 'fail' && (
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
+                쇼핑몰에서 정보를 읽지 못했습니다 — 아래에 이름과 가격을 직접 적어 주세요.
+              </p>
+            )}
+
+            {auto ? (
+              /* 2) 읽어온 상품 — 고객이 고른 옵션 그대로. 개수만 정합니다 */
+              <div data-auto-item="1" style={{ border: '1px solid #b7e4d2', background: '#f2fbf7', borderRadius: 10, padding: '10px 12px' }}>
+                <div style={{ fontSize: 12, color: '#17916b', fontWeight: 800 }}>✓ 읽어온 상품 (고른 옵션 그대로)</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#191f28', marginTop: 4, lineHeight: 1.4 }}>{r.productName}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: '#1b64da' }}>{krw(Number(r.productPrice) || 0)}</span>
+                  {r.spec ? <span style={{ fontSize: 12.5, color: '#4e5968' }}>용량 {r.spec}</span> : null}
+                  <span style={{ flex: 1 }} />
+                  <span style={{ fontSize: 12.5, color: '#4e5968', fontWeight: 700 }}>개수</span>
+                  <button type="button" aria-label="개수 줄이기" onClick={() => setRow(i, { quantity: Math.max(1, qty - 1) })}
+                    style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>−</button>
+                  <span data-qty="1" style={{ minWidth: 24, textAlign: 'center', fontSize: 18, fontWeight: 900 }}>{qty}</span>
+                  <button type="button" aria-label="개수 늘리기" onClick={() => setRow(i, { quantity: Math.min(99, qty + 1) })}
+                    style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>+</button>
+                </div>
+                <div style={{ marginTop: 6, textAlign: 'right' }}>
+                  <button type="button" onClick={() => setRow(i, { edit: true })}
+                    style={{ border: 0, background: 'transparent', color: '#8b95a1', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
+                    이름·가격이 다르면 고치기
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* 3) 직접 적기 — 링크를 못 읽었거나 링크가 없을 때 */
+              <>
+                <input className="input" value={r.productName} placeholder="상품 이름 (쇼핑몰 화면 그대로)"
+                  onChange={(e) => setRow(i, { productName: e.target.value })}
+                  style={{ fontSize: 16, minHeight: 50, marginBottom: 8 }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice}
+                    placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
+                    autoFocus={shared && i === 0 && peek[i] === 'fail'}
+                    style={{ flex: 2, fontSize: 16, minHeight: 50 }} />
+                  <input className="input" type="number" inputMode="numeric" min="1" max="99" value={r.quantity}
+                    placeholder="개수" onChange={(e) => setRow(i, { quantity: e.target.value })}
+                    style={{ flex: 1, fontSize: 16, minHeight: 50 }} />
+                </div>
+              </>
+            )}
+
             {rows.length > 1 && (
-              <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))}
-                style={{
-                  flexShrink: 0, width: 50, minHeight: 50, borderRadius: 10, border: '1px solid #ffd5d5',
-                  background: '#fff', color: '#c53030', fontSize: 18, fontWeight: 800, cursor: 'pointer',
-                }}>×</button>
+              <div style={{ textAlign: 'right', marginTop: 6 }}>
+                <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))}
+                  style={{ border: '1px solid #ffd5d5', borderRadius: 8, background: '#fff', color: '#c53030', fontSize: 12.5, fontWeight: 800, padding: '6px 10px', cursor: 'pointer' }}>
+                  이 상품 빼기 ×
+                </button>
+              </div>
             )}
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       <button type="button"
         onClick={() => setRows([...rows, emptyRow()])}
         style={{
           width: '100%', minHeight: 48, borderRadius: 10, border: '2px dashed #dbe4f0',
           background: '#fff', color: '#3182f6', fontSize: 15, fontWeight: 800, cursor: 'pointer',
-        }}>+ 상품 더 담기</button>
+        }}>+ 상품 링크 하나 더</button>
 
       {error && <p className="note note--danger" style={{ marginTop: 10 }}>{error}</p>}
 
@@ -264,7 +345,7 @@ export default function SendPage() {
             {quoting ? '계산 중…'
               : items.length === 0
                 ? (rows.some((r) => parseProductUrl(r.productUrl)?.productId) ? '가격을 넣어주세요'
-                  : isAgent ? '상품 링크·이름·가격을 넣어주세요' : '상품 이름과 가격을 넣어주세요')
+                  : isAgent ? '상품 링크를 붙여넣어 주세요' : '상품 링크 또는 이름·가격을 넣어주세요')
               : isAgent ? '얼마인지 보기' : '배송비 얼마인지 보기'}
           </button>
         )}
@@ -284,8 +365,8 @@ export default function SendPage() {
         <div style={{ display: 'flex', gap: 8 }}>{[toggleBtn('forwarding'), toggleBtn('agent')]}</div>
         {shared && (
           <p className="note" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
-            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. 쇼핑몰 앱은 <b>링크만</b> 넘겨주므로
-            <b> 가격</b>을 적어 주세요 — 바로 계산됩니다. 상품 이름까지 적으면 무게가 더 정확해집니다.
+            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. 이름·가격을 읽어오는 중이니
+            채워지면 <b>개수</b>만 정해 주세요. 읽지 못하면 가격만 적어도 계산됩니다.
           </p>
         )}
       </div>
@@ -366,7 +447,8 @@ export default function SendPage() {
             <div className="panel__head">3. 무엇을 사셨나요</div>
             <div className="panel__body">
               <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-                상품 이름만 있으면 무게를 알아서 계산합니다. 쇼핑몰 화면의 이름을 그대로 넣어주세요.
+                쇼핑몰 앱에서 상품 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 아래 링크 칸에 붙여넣으면
+                이름·가격이 자동으로 채워집니다. 링크가 없으면 이름과 가격만 적어도 됩니다.
               </p>
               {productRows}
             </div>
@@ -385,7 +467,8 @@ export default function SendPage() {
                 저희가 대신 사서 베트남까지 보내드립니다. 결제는 다음 화면(신청서)에서
                 <b> 상품값 + 수수료 + 배송비</b>를 한 번에 합니다.
                 <br />
-                <small>링크: 쇼핑몰 앱에서 상품 화면 → <b>공유</b> → 링크 복사 → 여기 붙여넣기.</small>
+                <small>링크: 쇼핑몰 앱에서 상품 화면 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 여기 붙여넣기.
+                이름·가격은 자동으로 채워지고, <b>개수</b>만 정하시면 됩니다.</small>
               </p>
               {productRows}
             </div>
