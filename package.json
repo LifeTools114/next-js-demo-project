@@ -14,7 +14,8 @@
     "pack:ext": "npm run build:ext && cd extension && zip -qr ../coupang-hanoi-extension.zip . -x \"*.DS_Store\" && echo \"생성: coupang-hanoi-extension.zip\"",
     "check:leak": "node scripts/check-leak.mjs",
     "check:ext": "node scripts/check-ext-fresh.mjs",
-    "telegram:webhook": "node scripts/telegram-webhook.mjs"
+    "telegram:webhook": "node scripts/telegram-webhook.mjs",
+    "pack:store": "node scripts/pack-store.mjs"
   },
   "dependencies": {
     "next": "16.3.3",

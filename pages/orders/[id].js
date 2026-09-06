@@ -236,6 +236,37 @@ export default function OrderPage() {
       )}
 
       {/* 📍 지금 위치 — 파트너의 도착·통관·배송일정 보고가 그대로 반영됩니다 */}
+      {/*
+        견적서 — 임시본(접수 시 추정)은 언제나, 최종본은 한국 창고 실측 뒤에 열립니다.
+        /quote/[주문번호]?kind=provisional|final 은 전부터 있었지만 고객 화면에 가는 길이 없어
+        운영자 콘솔에서만 열 수 있었습니다 (운영자 26-09-06: "견적서 출력 부분이 빠진 것 같다").
+      */}
+      {(() => {
+        const finalReady = Boolean(order.settlement) || ['SETTLEMENT_DUE', 'SETTLED', 'SHIPPED', 'DELIVERED'].includes(order.state)
+        return (
+          <section className="panel">
+            <div className="panel__head">📄 견적서 (인쇄 · PDF 저장)</div>
+            <div className="panel__body">
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <a className="btn btn--ghost btn--sm" href={`/quote/${order.orderNo}?kind=provisional`} target="_blank" rel="noreferrer">
+                  임시 견적서
+                </a>
+                {finalReady ? (
+                  <a className="btn btn--sm" href={`/quote/${order.orderNo}?kind=final`} target="_blank" rel="noreferrer">
+                    최종 견적서
+                  </a>
+                ) : null}
+              </div>
+              <p className="note" style={{ marginTop: 8, fontSize: 12.5 }}>
+                {finalReady
+                  ? '최종 견적서는 한국 창고 실측 무게로 다시 계산한 금액입니다. 임시 견적과 차액이 기준 이상이면 추가 청구 또는 환불됩니다.'
+                  : '임시 견적서는 접수 시 추정 무게 기준입니다. 최종 견적서는 한국 창고에서 무게를 잰 뒤 여기서 열립니다.'}
+              </p>
+            </div>
+          </section>
+        )
+      })()}
+
       {/* 개인 링크 — 회원가입 없이 내 주문 전부 (고객 풀, 26-09-06). 처음 받은 직후엔 저장하라고 크게 알립니다. */}
       <MyLinkPanel />
 

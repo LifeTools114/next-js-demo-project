@@ -105,24 +105,30 @@
 
 ## 4. 올릴 파일
 
-### 확장 zip 만들기
-```
-cd extension
-zip -r ../hanoi-helper-<버전>.zip . -x "*.DS_Store" -x "__MACOSX/*"
-```
-포함되는 것: `manifest.json`, `_locales/`, `icons/`, `src/`, `vendor/calc.js`
+### 확장 zip 만들기 — `npm run pack:store` 한 줄
 
-zip 을 만들기 전에 반드시:
 ```
-npm test          # 정책 회귀 테스트 포함
-npm run check:ext # vendor/calc.js 가 소스와 일치하는지
-npm run check:leak # 원가·마진이 번들에 섞이지 않았는지
+npm run build:ext
+STORE_BACKEND_URL=https://<사이트 주소> npm run pack:store
 ```
+(윈도우 PowerShell: `$env:STORE_BACKEND_URL="https://<사이트 주소>"; npm run pack:store`)
+
+결과: `dist/vietnam-helper-<버전>.zip`. 이 명령이 대신 해주는 것:
+- `host_permissions` 에서 개발용 `http://localhost:3000/*` 제거
+- 확장이 붙는 기본 서버 주소(`DEFAULT_BACKEND`)를 `STORE_BACKEND_URL` 로 교체
+  (https 여야 하고 `manifest.json` 의 host_permissions 에 있는 도메인이어야 합니다 — 아니면 중단)
+- 번들(`vendor/calc.js`)이 소스와 같은지 확인
+
+> ⚠️ **사이트가 먼저 공개 서버에 떠 있어야 합니다.** 확장은 그 서버에서 요율·창고 주소를 받고,
+> 스토어 등록 양식의 개인정보 처리방침 URL(`https://<사이트 주소>/privacy`)도 심사관이 실제로 엽니다.
+> localhost 로는 등록할 수 없습니다.
+
+포함되는 것: `manifest.json`, `_locales/`, `icons/`, `src/`, `vendor/calc.js`
 
 ### 이미지
 | 종류 | 규격 | 상태 |
 |---|---|---|
-| 아이콘 | 128×128 PNG | `extension/icons/128.png` ✅ |
+| 아이콘 | 128×128 PNG | `extension/icons/128.png` ✅ (파란 바탕 + 노란 별 — 배너와 같은 색) |
 | 스크린샷 | 1280×800 또는 640×400, 최소 1장(최대 5장) | **준비 필요** |
 | 작은 홍보 타일 | 440×280 | 선택 |
 
@@ -166,7 +172,7 @@ npm run check:leak # 원가·마진이 번들에 섞이지 않았는지
 
 ## 6. 등록 뒤 관리
 
-- 버전 올리기: `extension/manifest.json` 의 `version` → zip 다시 만들어 업로드
+- 버전 올리기: `extension/manifest.json` 의 `version` → `npm run pack:store` → 대시보드에 새 버전 업로드 → 심사
 - 화면 문구가 바뀌어 계산이 멈추면: 서버의 `config/coupang-patterns.js` 값만 고치면
   확장 재배포 없이 반영됩니다 (값만 내려갑니다 — 코드가 아닙니다)
 - 개인정보 처리방침을 고치면 `pages/privacy.js` 와 스토어의 URL 내용이 같아야 합니다
