@@ -142,7 +142,7 @@ test('쇼핑몰 의존 작업만 차단하고 나머지는 막지 않는다', ()
 })
 
 test('점검 시간이 아니면 모든 동작이 허용된다', () => {
-  for (const action of ['readProductPage', 'purchase', 'affiliateLink']) {
+  for (const action of ['readProductPage', 'purchase', 'addToCart']) {
     const r = checkAction(action, { date: kst(14, 0), ...VN })
     assert.equal(r.allowed, true)
     assert.equal(r.warn, false)

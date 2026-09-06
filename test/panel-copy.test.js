@@ -322,12 +322,13 @@ test('자동 클릭·자동 채우기는 코드에 남아 있지 않다', () => 
 test('입력 방법은 네 줄, 값마다 [복사]', () => {
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
   assert.ok(cap.includes('쇼핑몰 [배송지 변경] 창에 이대로 넣어주세요'), '무엇을 어디에 넣는지')
-  for (const label of ['받는 사람', '휴대폰', '우편번호 찾기 → 붙여넣고 검색', '상세주소']) {
-    assert.ok(cap.includes(label), `안내 줄: ${label}`)
-  }
+  // 고객이 배송지 창에서 치는 순서 그대로 — 받는 사람 → 주소 → 상세주소 → 전화번호 (운영자 26-09-06)
+  const labels = ['받는 사람', '주소 — 우편번호 찾기에 붙여넣고 검색', '상세주소', '전화번호']
+  const pos = labels.map((l) => at(cap, `'${l}`))
+  assert.deepEqual([...pos].sort((a, b) => a - b), pos, `안내 줄 순서가 다릅니다: ${labels.join(' → ')}`)
   assert.ok(cap.includes('data-copy=') && cap.includes('>복사</button>'), '값마다 복사 버튼')
-  // 배송 요청사항은 고르는 방법만 적습니다 (우리가 누르지 않습니다).
-  assert.ok(cap.includes('① 문 앞') && cap.includes('② 비밀번호없이 출입 가능해요'), '요청사항 두 줄')
+  // 배송 요청사항 설명은 없습니다 — "이 부분 설명란도 모두 삭제" (운영자 26-09-06).
+  assert.ok(!/배송 요청사항|비밀번호없이|공동현관/.test(stripComments(cap)), '요청사항 설명이 남아 있습니다')
   assert.ok(cap.includes('주문하는 고객님의 성함을 입력하세요.'), '성함 안내')
 })
 
@@ -373,6 +374,30 @@ test('제휴(파트너스) 연동은 코드에 남아 있지 않다', () => {
   for (const f of files) {
     const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
     assert.ok(!/affiliate|파트너스/i.test(src), `${f} 에 제휴 코드가 남아 있습니다`)
+  }
+})
+
+test('고객에게 내보내는 글(블로그·표지·README)에도 제휴와 남의 상호가 없다', () => {
+  /*
+   * 코드만 지우면 반쪽입니다. `docs/marketing/` 의 글은 **그대로 복사해
+   * 블로그에 붙이는 원고**라서, 여기에 제휴 고지나 남의 상호가 남아 있으면
+   * 지운 적이 없는 것과 같습니다. README 는 저장소의 첫 화면입니다.
+   *
+   * 제휴를 다시 하시려면 이 테스트를 지우기 전에 고지 의무(공정위 표시)부터
+   * 확인하세요 — 문구 없이 링크만 넣는 것이 제재 사유입니다.
+   */
+  const files = ['README.md', 'docs/marketing/blog-post-1-service-intro.md',
+    'docs/marketing/blog-cover-source.html']
+  for (const f of files) {
+    const url = new URL(`../${f}`, import.meta.url)
+    if (!existsSync(url)) continue
+    const src = readFileSync(url, 'utf8')
+    for (const line of src.split('\n')) {
+      // "넣지 않습니다" 같은 **금지 규칙 문장**은 통과 — 그것이 규칙 자체입니다.
+      if (/않습니다|않았습니다|삭제|없습니다/.test(line)) continue
+      assert.ok(!/파트너스|affiliate|수수료를 제공받/i.test(line), `${f}: 제휴 문구 → ${line.trim()}`)
+      assert.ok(!/쿠팡|coupang|K-Global/i.test(line), `${f}: 남의 상호 → ${line.trim()}`)
+    }
   }
 })
 

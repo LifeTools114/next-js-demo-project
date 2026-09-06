@@ -173,7 +173,6 @@ export default function SendPage() {
           </div>
 
           <CopyRow label="받는 사람" value={WAREHOUSE.code} />
-          <CopyRow label="전화번호" value={WAREHOUSE.phone} />
           <CopyRow label="우편번호" value={WAREHOUSE.zip} hint="주소 검색 대신 우편번호로 찾으면 빠릅니다" />
           <CopyRow label="주소" value={fullAddress} />
           <CopyRow label="상세주소 — 이게 빠지면 소포 주인을 못 찾습니다" value={detail}
@@ -191,6 +190,7 @@ export default function SendPage() {
               </>
             )}
             hint={detail ? '쇼핑몰 배송지의 «상세주소» 칸에 이대로 넣어주세요' : undefined} />
+          <CopyRow label="전화번호" value={WAREHOUSE.phone} />
 
           <p className="note note--danger" style={{ marginTop: 4, fontSize: 13.5, lineHeight: 1.7 }}>
             ⚠️ <b>상세주소</b>가 가장 중요합니다. 「{WAREHOUSE.code}{' '}

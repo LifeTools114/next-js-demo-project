@@ -372,45 +372,6 @@
   let quoteCache = { key: null, fwd: null, agent: null }
   // [이용 방법 보기] 펼침 상태 — 카드는 가격만 먼저, 설명은 클릭해야 보입니다.
   let helperDetailOpen = false
-  // 수동 입력 안내(칸별 따라 적기)는 접어둡니다 — ⚡ 자동입력이 기본 경로.
-  /**
-   * 배송지 자동 등록 — 단계 표시 (운영자 요청 26-09-04: "차례대로 표시를 단계별로")
-   *
-   * 자동으로 되는 것과 고객이 직접 눌러야 하는 것을 한눈에 보이게 합니다.
-   * 어디서 멈췄는지도 이 표로 바로 보이므로, 사장님이 화면을 찍어 보내면
-   * 실제 쿠팡 화면을 못 보는 상태에서도 원인을 좁힐 수 있습니다.
-   *
-   *   open   [배송지 변경] 열기          자동 → 안 되면 직접 (빨간 표시)
-   *   add    [+ 배송지 추가]             자동 → 안 되면 직접
-   *   fill   받는사람·휴대폰 채우기       자동
-   *   zip    [우편번호 찾기] 열기        자동 → 안 되면 직접
-   *   search 주소 검색·선택              자동 (다음 우편번호 창 안에서)
-   *   detail 상세주소 채우기             자동
-   *   save   [저장] 누르기               직접 — 마지막 확인은 고객 몫으로 남깁니다
-   *   pick   저장된 창고 주소 [선택]     두 번째 이용부터 (자동 → 안 되면 직접)
-   */
-  const ADDR_STEPS = [
-    ['open', '[배송지 변경] 열기'],
-    ['add', '[+ 배송지 추가] 누르기'],
-    ['fill', '받는사람·휴대폰 채우기'],
-    ['zip', '[우편번호 찾기] 열기'],
-    ['search', '주소 검색·선택'],
-    ['detail', '상세주소 채우기'],
-    ['save', '[저장] 누르기'],
-  ]
-
-  /**
-   * 고객에게 보여줄 여섯 줄 — 배송지와 배송 요청사항이 **한 흐름**입니다.
-   * 안쪽의 잔단계(우편번호·검색·상세주소…)는 이 여섯 줄로 묶습니다.
-   */
-  const FLOW_STEPS = [
-    '배송지 창 열기',
-    '창고 주소 채우기',
-    '[저장] 누르기',
-    '배송 요청사항 열기',
-    '문 앞 · 비밀번호없이 출입',
-    '[동의하고 저장하기]',
-  ]
 
   // 배송지 자동 등록 진행/실패 상태 — 실패 시에만 수동 방법 버튼을 보여줍니다.
   let helperAddrFailed = false
@@ -422,14 +383,11 @@
   // 자동 클릭이 통하지 않아 고객의 진짜 클릭을 기다리는 단계:
   //   '' 없음 · 'open' [배송지 변경] · 'zip' [우편번호 찾기]
   let helperAddrWaitManual = ''
-  /** 마지막 렌더에서 배송지가 창고로 확인됐는가 — 자동 등록 루프가 끝낼 때를 알기 위해 */
-  let helperAddrOk = false
-
   /**
    * 검색 대상 문서들 — 최상위 + 같은 출처 iframe 안까지.
    * 쿠팡이 배송지 창을 같은 출처 iframe 으로 띄우는 화면이 있으면 최상위
-   * document 만 봐서는 창이 "안 열린 것"처럼 보입니다. 교차 출처(다음
-   * 우편번호 등)는 접근 불가라 건너뜁니다 — 그쪽은 postcode-fill.js 담당.
+   * document 만 봐서는 창이 "안 열린 것"처럼 보입니다. 교차 출처 프레임은
+   * 접근 불가라 건너뜁니다 — 그 안은 읽지도, 손대지도 않습니다.
    */
   /** 확장 버전 — 화면 표시·진단 문구가 같은 값을 쓰도록 한 곳에서 읽습니다. */
   const ver = (() => { try { return chrome.runtime.getManifest().version } catch { return '?' } })()
@@ -492,15 +450,6 @@
    * 겹쳐 그리기만 하고 클릭은 통과시킵니다(pointer-events:none) —
    * 우리가 만든 안내가 정작 버튼을 가리면 안 됩니다.
    */
-  /**
-   * 배송 요청사항이 이미 맞게 잡혀 있는가 — 화면 요약 글로만 봅니다.
-   * 창고 공동현관에는 출입번호가 없어서 「문 앞 + 비밀번호없이 출입」이어야 합니다.
-   */
-  function noteLooksSet(text) {
-    const t = squash(text ?? '')
-    return t.includes('문앞') && (t.includes('비밀번호없이') || t.includes('출입번호없') || t.includes('비밀번호없음'))
-  }
-
   /** 직구 주문 스위치 저장 — 화면들이 함께 씁니다 */
   async function setDirectOff(off) {
     directOff = Boolean(off)
@@ -959,10 +908,8 @@
     const card = ensureCard()
 
     const ok = okAddr && okCode
-    helperAddrOk = ok && !onCart
     // 주소가 맞아졌으면 단계 표시도 끝. 단, 배송 요청사항을 맞추는 중이면
     // 그쪽이 짚어 둔 표시까지 지우면 안 됩니다 (0.5초마다 다시 그려집니다).
-
 
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
@@ -992,23 +939,14 @@
       return new RegExp(`${c}[0-9A-Za-z가-힣]{2,}`).test(hay)
     })()
     armPayGuard()
-    const noteBad = !onCart && helperTrack === 'forwarding' && ok && !noteLooksSet(allText)
-    if (onCart || (ok && okDetail && !noteBad)) {
+    if (onCart || (ok && okDetail)) {
       payGuard.warn = ''
-    } else if (ok && okDetail && noteBad) {
-      // 배송지는 맞았지만 요청사항이 안 맞습니다 — 기사님이 공동현관에서 막힙니다.
-      payGuard.warn =
-        '⚠️ 배송 요청사항을 확인해 주세요\n\n' +
-        '창고 공동현관에는 출입번호가 없습니다.\n' +
-        '「문 앞」 + 「비밀번호없이 출입 가능해요」 로 맞춰주세요.\n\n' +
-        '· [취소] 누른 뒤 카드의 [🚪 배송 요청사항 자동 선택]\n' +
-        '· 이미 맞추셨으면 [확인]'
     } else if (!ok) {
       payGuard.warn =
         '⚠️ 하노이 배송 경고\n\n' +
         `배송지가 한국 창고(${code})로 설정되어 있지 않습니다.\n` +
         '이대로 결제하면 상품이 하노이가 아니라 현재 배송지로 갑니다.\n\n' +
-        '· 하노이로 보내려면 → [취소] 누른 뒤 카드의 [⚡ 배송지 자동 등록]\n' +
+        '· 하노이로 보내려면 → [취소] 누른 뒤 카드의 안내대로 배송지를 바꿔주세요\n' +
         '· 집으로 받는 일반 주문이면 → [확인]'
     } else {
       payGuard.warn =
@@ -1218,25 +1156,24 @@
     const addrHelpBody =
       '<div style="margin-top:7px;padding:10px 9px;border-radius:12px;background:#f9fafb;border:1px solid #e5e8eb">' +
       '<div style="font-size:12px;font-weight:900;color:#191f28">쇼핑몰 [배송지 변경] 창에 이대로 넣어주세요</div>' +
+      // 순서는 고객이 배송지 창에서 치는 순서 그대로 — 받는 사람 → 주소 → 상세주소 → 전화번호 (운영자 26-09-06)
       copyRow(1, '받는 사람', code) +
-      copyRow(2, '휴대폰', phone) +
-      copyRow(3, '우편번호 찾기 → 붙여넣고 검색', addr1) +
-      copyRow(4, '상세주소 — 이게 빠지면 소포 주인을 못 찾습니다', detail, true) +
+      copyRow(2, '주소 — 우편번호 찾기에 붙여넣고 검색', addr1) +
+      copyRow(3, '상세주소 — 이게 빠지면 소포 주인을 못 찾습니다', detail, true) +
+      copyRow(4, '전화번호', phone) +
       (nm ? '' : '<div style="margin-top:5px;font-size:11px;font-weight:800;color:#d9480f;line-height:1.5">' +
         '↑ 위 칸에 성함을 넣으면 «성함» 자리가 채워집니다</div>') +
-      '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e5e8eb">' +
-      '<div style="font-size:12px;font-weight:900;color:#191f28">배송 요청사항은 이렇게 골라주세요</div>' +
-      '<div style="margin-top:4px;font-size:12px;font-weight:800;color:#7a4b00;line-height:1.8">' +
-      '① 문 앞<br>② 비밀번호없이 출입 가능해요</div>' +
-      '<div style="margin-top:2px;font-size:10.5px;color:#8b95a1;line-height:1.5">' +
-      '창고 공동현관은 출입번호가 없습니다.</div></div></div>'
+      '</div>'
 
     /** 소포에 적을 성함 — 창고가 소포 주인을 찾는 유일한 단서입니다 */
     const nameBlock =
       '<div style="margin-top:7px;padding:9px 10px;border-radius:10px;background:#fff8e6;border:1px solid #ffe0a3">' +
       '<div style="font-size:13.5px;font-weight:900;color:#7a4b00;line-height:1.5">' +
       '주문하는 고객님의 성함을 입력하세요.</div>' +
-      `<input id="kb-name-input" value="${esc(nm)}" placeholder="여기에 받으시는 분 성함을 입력" ` +
+      // 빈 칸에는 회색 「홍길동」이 보이고, 누르면 사라집니다 (운영자 26-09-06).
+      // placeholder 는 글자를 쳐야 사라지므로, 누르는 순간 비우는 것은 아래 focus 처리가 합니다.
+      '<style>#kb-name-input::placeholder{color:#b0b8c1;font-weight:400;opacity:1}</style>' +
+      `<input id="kb-name-input" value="${esc(nm)}" placeholder="홍길동" autocomplete="off" ` +
       'style="margin-top:6px;width:100%;min-height:44px;box-sizing:border-box;padding:0 11px;' +
       'border:1.5px solid #f0b429;border-radius:8px;font-size:14.5px;font-weight:700;color:#191f28;background:#fff">' +
       (nm
@@ -1247,16 +1184,6 @@
 
     /** 배송지가 창고가 아닐 때만 안내를 보여줍니다 — 맞으면 조용히 있습니다 */
     const miniForm = onCart || ok || helperTrack !== 'forwarding' ? '' : nameBlock + addrHelpBody
-    const noteBlock = onCart || !ok || helperTrack !== 'forwarding'
-      ? ''
-      : (noteLooksSet(allText)
-          ? '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
-            'font-size:12px;font-weight:800">✓ 배송 요청사항 확인됨 — 문 앞 · 비밀번호없이 출입</div>'
-          : '<div style="margin-top:7px;padding:9px 10px;border-radius:10px;background:#fff8e6;border:1.5px solid #f0b429">' +
-            '<div style="font-size:12.5px;font-weight:900;color:#7a4b00">🚪 배송 요청사항: ① 문 앞 ② 비밀번호없이 출입</div>' +
-            '<div style="margin-top:2px;font-size:11px;color:#7a4b00;line-height:1.5">' +
-            '창고 공동현관은 <b>출입번호가 없습니다.</b></div></div>')
-
     const statusBlock = onCart
       ? ''
       : ok
@@ -1281,7 +1208,7 @@
     const dimmedPrice = wrongAddr
       ? `<div style="opacity:.45;filter:grayscale(.5)">${priceBlock}</div>`
       : priceBlock
-    const cartLine = (wrongAddr ? miniForm + dimmedPrice : priceBlock + noteBlock) + ctaBlock +
+    const cartLine = (wrongAddr ? miniForm + dimmedPrice : priceBlock) + ctaBlock +
       (cart.length > 0
         ? '<button id="kb-detail" style="margin-top:7px;width:100%;min-height:32px;border:1px solid #e5e8eb;' +
           'border-radius:8px;background:#fff;color:#4e5968;font-weight:700;font-size:12px;cursor:pointer">' +
@@ -1333,9 +1260,6 @@
     )
     card.querySelector('#kb-helper-x').addEventListener('click', () => {
       card.remove()
-      // 카드를 닫으면 짚어 둔 표시도 함께 치웁니다 — 카드가 없는데 빨간
-      // 동그라미만 남아 있으면 무엇을 하라는 것인지 알 수 없습니다.
-      clearSpotlight()
       // 이 결제 화면에서만 닫힘 — 다른 결제·장바구니에는 그대로 나타납니다.
       try { sessionStorage.setItem(closedKey(), '1') } catch { /* 무시 */ }
       renderReopenChip()
@@ -1351,10 +1275,12 @@
       try { localStorage.setItem(NAME_KEY, String(v ?? '').trim()) } catch { /* 무시 */ }
       // 포커스를 놓아야 다시 그려집니다 — 치는 중에는 그리지 않도록 막아 두었으니까요.
       try { nameInput?.blur() } catch { /* 무시 */ }
-      clearSpotlight() // "성함을 넣어주세요" 표시는 넣는 순간 치웁니다
       card.dataset.kbHtml = ''
       renderCheckoutHelper()
     }
+    // 누르면 「홍길동」이 사라지고, 비운 채 나가면 다시 보입니다.
+    nameInput?.addEventListener('focus', (e) => { e.target.placeholder = '' })
+    nameInput?.addEventListener('blur', (e) => { if (!e.target.value.trim()) e.target.placeholder = '홍길동' })
     nameInput?.addEventListener('change', (e) => saveName(e.target.value))
     nameInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(e.target.value) })
     card.querySelector('#kb-name-clear')?.addEventListener('click', () => saveName(''))
