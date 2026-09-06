@@ -24,11 +24,13 @@
 
   /** 주문완료 화면으로 보이는가 — URL 또는 본문 문구 */
   function looksLikeOrderComplete() {
-    const text = (document.body?.innerText ?? '').slice(0, 6000)
+    // 쿠팡 PC 완료 화면은 mc.coupang.com/ssr/desktop/thank-you?orderId=… — 하이픈이 있습니다
+    // (운영자 결제 시험 26-09-06: 완료 화면에 일반 배너만 떴음).
+    if (/order.*(complete|done|success)|orderResult|thank-?you/i.test(location.href)) return true
+    const text = (document.body?.innerText ?? '').slice(0, 20000)
     // 주문/결제 화면에도 브레드크럼 "주문결제 > 주문완료" 가 있으므로,
     // 결제 버튼이 살아 있는 화면은 완료로 보지 않습니다.
     if (/최종\s*결제\s*금액/.test(text) && /결제하기/.test(text)) return false
-    if (/order.*(complete|done|success)|orderResult|thankyou/i.test(location.href)) return true
     return /주문이\s*완료|결제가\s*완료|구매가\s*완료/.test(text)
   }
 
@@ -234,6 +236,14 @@
       toast(`✓ 매입 기록됨 — ${res.data.order.orderNo} (쇼핑몰 ${coupangOrderNo})`, true)
     } else if (res?.ok) {
       toast('매입 자동 기록 보류 — 확장 팝업의 발주 목록에서 직접 기록하세요.', false)
+    } else if (res?.status === 401 || res?.status === 403) {
+      // 서버를 옮기면 예전 토큰이 남아 조용히 실패했습니다 — 이유를 보여줍니다 (26-09-06).
+      // 실패한 시도는 가드를 남기지 않습니다 — 토큰을 고친 뒤 새로고침하면 다시 시도됩니다.
+      try { sessionStorage.removeItem(guard) } catch { /* 무시 */ }
+      toast('운영자 토큰이 이 서버와 맞지 않습니다 — 확장 팝업 [운영] 탭에서 새 토큰을 저장하세요. 고객으로 시험하려면 토큰을 비우세요.', false)
+    } else {
+      try { sessionStorage.removeItem(guard) } catch { /* 무시 */ }
+      toast(res?.error ?? res?.data?.error ?? '매입 기록에 실패했습니다 — 잠시 후 새로고침해 주세요.', false)
     }
   }
 
@@ -1366,6 +1376,8 @@
     if (!IS_TOP || !document.body) return
     // 결제·장바구니 화면은 카드가 배너를 대신 보여줍니다.
     if (MONEY_HOSTS.includes(location.host)) return
+    // 주문완료 화면은 「결제 완료 → 배송 신청서」 카드 자리입니다 — 배너가 그 위를 덮지 않습니다.
+    if (looksLikeOrderComplete()) { document.getElementById('kb-launch')?.remove(); return }
     let on = false
     try { on = Boolean((await chrome.storage.local.get('kbOn'))?.kbOn) } catch { /* 무시 */ }
     const wrapOld = document.getElementById('kb-launch')

@@ -474,3 +474,18 @@ test('고객에게 보이는 글에는 남의 상호를 쓰지 않는다', () =>
     }
   }
 })
+
+// ─── 주문완료 화면 감지 — 쿠팡 PC 완료 화면 주소는 thank-you (하이픈) 입니다 (26-09-06) ───
+test('주문완료 감지 정규식이 쿠팡 thank-you 주소와 배너 가드를 포함한다', () => {
+  const src = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const m = src.match(/if \(\/(.+?)\/i\.test\(location\.href\)\) return true/)
+  assert.ok(m, '주소 기반 감지가 있어야 합니다')
+  const re = new RegExp(m[1], 'i')
+  assert.ok(re.test('https://mc.coupang.com/ssr/desktop/thank-you?orderId=3102787036952&price=9770'))
+  assert.ok(re.test('https://m.coupang.com/nm/order/thankyou?orderId=1'))
+  assert.ok(!re.test('https://www.coupang.com/vp/products/123'))
+  // 완료 화면에서는 시작 배너가 카드 자리를 덮지 않습니다.
+  assert.match(src, /if \(looksLikeOrderComplete\(\)\) \{ document\.getElementById\('kb-launch'\)\?\.remove\(\); return \}/)
+  // 운영자 토큰이 서버와 맞지 않으면 조용히 실패하지 않습니다.
+  assert.match(src, /운영자 토큰이 이 서버와 맞지 않습니다/)
+})
