@@ -61,8 +61,11 @@
     const el = document.createElement('div')
     el.dataset.kbUi = '1'
     el.textContent = text
+    // 배너·카드가 오른쪽 아래에 있으면 그 위에 띄웁니다 — 배너는 켜진 뒤에도 남아서 겹칩니다.
+    const under = document.getElementById('kb-launch') ?? document.getElementById('kb-checkout-helper')
+    const bottom = under ? Math.max(16, Math.round(window.innerHeight - under.getBoundingClientRect().top) + 10) : 16
     el.style.cssText =
-      'position:fixed;right:16px;bottom:16px;z-index:2147483647;padding:10px 14px;border-radius:10px;' +
+      `position:fixed;right:16px;bottom:${bottom}px;z-index:2147483647;max-width:232px;padding:10px 14px;border-radius:10px;` +
       `font:600 13px/1.4 sans-serif;color:#fff;background:${ok ? '#17916b' : '#b3801d'};box-shadow:0 4px 14px rgba(0,0,0,.2)`
     document.body.appendChild(el)
     setTimeout(() => el.remove(), 6000)
@@ -482,7 +485,7 @@
       'background:linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%);color:#fff;font-size:15.5px;font-weight:900;' +
       'box-shadow:0 3px 10px rgba(255,106,0,.45)">' + (on ? '상품 고르기' : '신청') + ' <span style="font-size:13px">▶</span></div>' +
       '<div style="margin-top:10px;font-size:10.5px;font-weight:700;color:#bfd3ff">' +
-      (on ? '✓ 작동 중 — 상품을 누르면 가격이 보입니다' : '쉽고 빠른 한국 → 베트남 배송') + '</div>' +
+      (on ? '✓ 작동 중 · 상품을 누르면 가격 표시' : '쉽고 빠른 한국 → 베트남 배송') + '</div>' +
       (on
         ? '<button id="kb-launch-off" type="button" style="margin-top:8px;border:1px solid rgba(255,255,255,.45);' +
           'border-radius:999px;background:transparent;color:#cfe0ff;font-size:10.5px;font-weight:800;' +
@@ -1150,10 +1153,11 @@
      * 보여주고, 한 번 눌러 복사하게 합니다.
      */
     const nm = getRecipientName()
-    const detail = `${code} ${nm || '성함'}`
+    // 예문은 「홍길동」 — 성함 칸의 자리표시와 같습니다 (운영자 26-09-06). 성함을 넣으면 그 이름으로 바뀝니다.
+    const detail = `${code} ${nm || '홍길동'}`
 
     /** 복사되는 한 줄 — 라벨 / 값 / [복사] */
-    const copyRow = (no, label, value, hot) =>
+    const copyRow = (no, label, value, hot, sampleHtml) =>
       '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:8px 9px;' +
       `border:${hot ? '2px solid #ff6a00' : '1px solid #dfe6f3'};border-radius:9px;` +
       `background:${hot ? '#fff8e6' : '#fff'}">` +
@@ -1162,8 +1166,9 @@
       '<span style="flex:1;min-width:0">' +
       `<span style="display:block;font-size:10px;color:#8b95a1">${esc(label)}</span>` +
       `<b style="display:block;font-size:13px;color:${hot ? '#d9480f' : '#191f28'};` +
-      `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(value)}</b></span>` +
-      `<button data-copy="${esc(value)}" style="flex-shrink:0;min-height:30px;padding:0 10px;border:0;` +
+      `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sampleHtml ?? esc(value)}</b></span>` +
+      // 예시 상태(성함 없음)에서는 복사 대신 성함 칸으로 안내합니다 — 「홍길동」이 소포에 적히면 안 됩니다.
+      `<button data-copy="${sampleHtml ? '' : esc(value)}"${sampleHtml ? ' data-needs-name="1"' : ''} style="flex-shrink:0;min-height:30px;padding:0 10px;border:0;` +
       `border-radius:999px;background:${hot ? 'linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%)' : '#1b4fd8'};color:#fff;` +
       'font-size:11.5px;font-weight:800;cursor:pointer">복사</button></div>'
 
@@ -1173,10 +1178,11 @@
       // 순서는 고객이 배송지 창에서 치는 순서 그대로 — 받는 사람 → 주소 → 상세주소 → 전화번호 (운영자 26-09-06)
       copyRow(1, '받는 사람', code) +
       copyRow(2, '주소 — 우편번호 찾기에 붙여넣고 검색', addr1) +
-      copyRow(3, '상세주소 — 이게 빠지면 소포 주인을 못 찾습니다', detail, true) +
+      copyRow(3, '상세주소 — 이게 빠지면 소포 주인을 못 찾습니다', detail, true,
+        nm ? null : `${esc(code)} <span style="color:#b0b8c1;font-weight:600">홍길동</span>`) +
       copyRow(4, '전화번호', phone) +
       (nm ? '' : '<div style="margin-top:5px;font-size:11px;font-weight:800;color:#d9480f;line-height:1.5">' +
-        '↑ 위 칸에 성함을 넣으면 «성함» 자리가 채워집니다</div>') +
+        '↑ 「홍길동」은 예시입니다 — 위 칸에 성함을 넣으면 본인 성함으로 바뀝니다</div>') +
       '</div>'
 
     /** 소포에 적을 성함 — 창고가 소포 주인을 찾는 유일한 단서입니다 */
@@ -1266,6 +1272,11 @@
 
     card.querySelectorAll('button[data-copy]').forEach((b) =>
       b.addEventListener('click', async () => {
+        if (b.dataset.needsName) {
+          card.querySelector('#kb-name-input')?.focus()
+          toast('소포에 적을 성함을 먼저 넣어주세요 — 「홍길동」은 예시입니다', false)
+          return
+        }
         try {
           await navigator.clipboard.writeText(b.dataset.copy)
           const orig = b.textContent
