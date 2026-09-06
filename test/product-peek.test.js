@@ -89,3 +89,45 @@ test('시간 초과·네트워크 오류는 조용히 ok:false', async () => {
   const r = await peekProduct('https://www.coupang.com/vp/products/2222222', { fetchImpl: boom, log: quiet })
   assert.equal(r.ok, false); assert.equal(r.reason, 'fetch-failed')
 })
+
+test('짧은 링크 페이지의 이스케이프(\\/)·URL 인코딩된 상품 주소도 찾습니다', async () => {
+  _resetPeekCache()
+  const body1 = '<script>var t="https:\\/\\/www.coupang.com\\/vp\\/products\\/8080?itemId=3&amp;vendorItemId=4"</script>'
+  const body2 = '<a href="intent://x#Intent;S.browser_fallback_url=https%3A%2F%2Fwww.coupang.com%2Fvp%2Fproducts%2F9090%3FitemId%3D1;end">앱</a>'
+  for (const [body, id] of [[body1, '8080'], [body2, '9090']]) {
+    const fetchImpl = async (url) => url.startsWith('https://link.coupang.com/') ? resp(200, { url, body }) : resp(200, { url, body: PAGE })
+    const r = await peekProduct(`https://link.coupang.com/a/${id}`, { fetchImpl, log: quiet })
+    assert.equal(r.ok, true, id); assert.equal(r.productId, id)
+  }
+  const fetchKey = async (url) => url.startsWith('https://link.coupang.com/') ? resp(200, { url, body: '{"pageKey":"7225189423","x":1}' }) : resp(200, { url, body: PAGE })
+  const k = await peekProduct('https://link.coupang.com/a/key', { fetchImpl: fetchKey, log: quiet })
+  assert.equal(k.ok, true); assert.equal(k.productId, '7225189423')
+})
+
+test('PC 주소는 PC 브라우저로 엽니다 — 폰 브라우저인 척하면 빈 화면이 옵니다', async () => {
+  _resetPeekCache()
+  const seen = []
+  const fetchImpl = async (url, opts) => {
+    seen.push([new URL(url).hostname, /Mobile/.test(opts.headers['User-Agent']) ? 'mobile' : 'pc'])
+    if (url.startsWith('https://www.')) return /Mobile/.test(opts.headers['User-Agent']) ? resp(200, { url, body: '<html><title>쿠팡!</title></html>' }) : resp(200, { url, body: PAGE })
+    return resp(200, { url, body: '<html><title>쿠팡!</title></html>' })
+  }
+  const r = await peekProduct('https://www.coupang.com/vp/products/5150', { fetchImpl, log: quiet })
+  assert.equal(r.ok, true); assert.equal(r.productPrice, 19900)
+  assert.deepEqual(seen[0], ['www.coupang.com', 'pc'])
+})
+
+test('같은 상품을 동시에 여러 번 물어도 한 번만 엽니다 (진행 중 합치기)', async () => {
+  _resetPeekCache()
+  let calls = 0
+  const fetchImpl = async (url) => { calls += 1; await new Promise((r) => setTimeout(r, 20)); return resp(200, { url, body: PAGE }) }
+  const url = 'https://www.coupang.com/vp/products/6060?itemId=1&vendorItemId=2'
+  const all = await Promise.all([1, 2, 3, 4, 5].map(() => peekProduct(url, { fetchImpl, log: quiet })))
+  assert.ok(all.every((r) => r.ok && r.productPrice === 19900))
+  assert.equal(calls, 1)
+})
+
+test('제목만 「쿠팡!」인 빈 화면은 이름으로 치지 않습니다', () => {
+  assert.equal(parseProductHtml('<title>쿠팡!</title>').productName, '')
+  assert.equal(parseProductHtml('<title>분유 360g | 쿠팡</title>').productName, '분유 360g')
+})
