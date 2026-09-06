@@ -10,11 +10,11 @@ import {
   confirmPayment, startPurchase, recordPurchase, recordWeighing,
   applySettlement, closeSettlement, markShipped, markDelivered, cancelOrder,
   linkInbound, getOrder, orderView,
-} from '../../../../lib/order/store'
-import { requireAdmin, UnauthorizedError } from '../../../../lib/auth'
-import { InvalidTransitionError } from '../../../../lib/order/states'
-import { checkAction } from '../../../../lib/maintenance'
-import { DESTINATION } from '../../../../config/eligibility'
+} from '../../../../lib/order/store.js'
+import { requireAdmin, UnauthorizedError } from '../../../../lib/auth.js'
+import { InvalidTransitionError } from '../../../../lib/order/states.js'
+import { checkAction } from '../../../../lib/maintenance.js'
+import { DESTINATION } from '../../../../config/eligibility.js'
 
 const ACTIONS = {
   confirmPayment: (id, p, op) => confirmPayment(id, { ...p, confirmedBy: p.confirmedBy ?? op }),

@@ -1,5 +1,10 @@
 /**
- * 폰에서 「📦 배송만」 하는 길 — 확장 없이 혼자 끝내는 화면
+ * 폰에서 하는 길 — 확장 없이 혼자 끝내는 화면 (📦 배송만 · 🛒 구매하고 배송까지)
+ *
+ * 구매하고 배송까지(구매대행)는 창고 주소가 필요 없습니다 — 상품 링크·가격·개수만 적으면
+ * 신청서에서 상품값+수수료+배송비를 한 번에 결제하고 나머지는 저희가 합니다 (운영자 26-09-06).
+ * 폰 웹앱(홈 화면에 추가) 상태에서 쿠팡 앱의 「공유」로 링크를 받으면 ?url=·?text=·?title= 로
+ * 들어와 첫 줄에 채워집니다 (public/manifest.webmanifest 의 share_target).
  *
  * 왜 필요한가
  *   PC 크롬은 확장이 쿠팡 배송지를 자동으로 채워줍니다. 그런데 **폰에는 확장이
@@ -22,6 +27,7 @@ import { WAREHOUSE, detailAddressFor } from '../config/warehouse'
 import { TRACKS } from '../config/tracks'
 import { krw, vnd } from '../lib/format'
 import { copyText } from '../lib/copy'
+import { fromShare, parseProductUrl } from '../lib/coupang-url'
 
 const RECIPIENT_KEY = 'kbeauty-hanoi:recipient'
 
@@ -69,11 +75,14 @@ function CopyRow({ label, value, display, hint, disabled, danger }) {
 
 export default function SendPage() {
   const router = useRouter()
+  const [track, setTrack] = useState('forwarding')
   const [name, setName] = useState('')
-  const [rows, setRows] = useState([{ productName: '', productPrice: '', quantity: 1 }])
+  const emptyRow = () => ({ productName: '', productPrice: '', quantity: 1, productUrl: '' })
+  const [rows, setRows] = useState([emptyRow()])
   const [quote, setQuote] = useState(null)
   const [quoting, setQuoting] = useState(false)
   const [error, setError] = useState(null)
+  const [shared, setShared] = useState(false)
 
   // 신청서에서 쓰던 이름이 있으면 그대로 씁니다 — 두 번 적지 않게.
   useEffect(() => {
@@ -83,6 +92,25 @@ export default function SendPage() {
     } catch { /* 없으면 빈 칸으로 */ }
   }, [])
 
+  /**
+   * 주소창으로 들어온 것 — ?track=agent (홈·바로가기) 와
+   * 쿠팡 앱 「공유」(share_target: ?url= ?text= ?title=) 는 첫 줄에 링크·이름을 채웁니다.
+   */
+  useEffect(() => {
+    if (!router.isReady) return
+    const q = router.query
+    if (q.track === 'agent') setTrack('agent')
+    const { link, productName } = fromShare({ title: q.title, text: q.text, url: q.url })
+    if (link) {
+      setRows([{ ...emptyRow(), productUrl: link.url, productName }])
+      setShared(true)
+      // 공유로 온 상품은 대부분 「대신 사 달라」는 뜻 — 배송만이 필요하면 위에서 바꿉니다
+      if (q.track !== 'forwarding') setTrack('agent')
+      router.replace('/send', undefined, { shallow: true })
+    }
+  }, [router.isReady]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isAgent = track === 'agent'
   const detail = name.trim() ? detailAddressFor(name) : ''
   /**
    * 예시 이름은 **누가 봐도 예시**여야 합니다.
@@ -99,18 +127,23 @@ export default function SendPage() {
   const sampleStyle = { ...markStyle, background: '#eef1f5', color: '#8b95a1', boxShadow: 'none' }
   const fullAddress = `${WAREHOUSE.address1}${WAREHOUSE.address2 ? ` ${WAREHOUSE.address2}` : ''}`
 
-  /** 신청서로 넘길 수 있는 줄만 (이름과 가격이 있는 것) */
+  /** 신청서로 넘길 수 있는 줄만 (이름과 가격이 있는 것 — 구매하고 배송까지는 링크도) */
   const items = useMemo(() => rows
-    .map((r, i) => ({
-      productId: `m-${i}`,
-      productName: String(r.productName ?? '').trim(),
-      productPrice: Math.max(0, Math.round(Number(r.productPrice) || 0)),
-      quantity: Math.max(1, Math.min(Number(r.quantity) || 1, 99)),
-      track: 'forwarding',
-    }))
-    .filter((r) => r.productName && r.productPrice > 0), [rows])
+    .map((r, i) => {
+      const link = parseProductUrl(r.productUrl)
+      return {
+        productId: link?.productId ?? `m-${i}`,
+        productName: String(r.productName ?? '').trim(),
+        productPrice: Math.max(0, Math.round(Number(r.productPrice) || 0)),
+        quantity: Math.max(1, Math.min(Number(r.quantity) || 1, 99)),
+        productUrl: link?.url ?? String(r.productUrl ?? '').trim().slice(0, 500),
+        track,
+      }
+    })
+    .filter((r) => r.productName && r.productPrice > 0 && (!isAgent || r.productUrl)), [rows, track, isAgent])
 
   const setRow = (i, patch) => setRows(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)))
+  const switchTrack = (next) => { setTrack(next); setQuote(null); setError(null) }
 
   const getQuote = async () => {
     if (items.length === 0) return
@@ -120,7 +153,7 @@ export default function SendPage() {
       const res = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, zone: 'hanoi', track: 'forwarding' }),
+        body: JSON.stringify({ items, zone: 'hanoi', track }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '계산에 실패했습니다.')
@@ -138,156 +171,231 @@ export default function SendPage() {
     router.push(`/checkout?cart=${cart}`)
   }
 
-  const t = TRACKS.forwarding
+  const t = TRACKS[track]
+  const toggleBtn = (id) => {
+    const on = track === id
+    const tt = TRACKS[id]
+    return (
+      <button key={id} type="button" onClick={() => switchTrack(id)} aria-pressed={on}
+        data-track={id}
+        style={{
+          flex: 1, minHeight: 64, borderRadius: 12, cursor: 'pointer', padding: '8px 6px',
+          border: on ? '2.5px solid #ff6a00' : '2px solid #dbe4f0',
+          background: on ? '#fff4e5' : '#fff', color: on ? '#7a3b00' : '#4e5968', font: 'inherit',
+        }}>
+        <span style={{ display: 'block', fontSize: 16, fontWeight: 900 }}>{tt.emoji} {tt.name}</span>
+        <span style={{ display: 'block', fontSize: 12, marginTop: 2 }}>{tt.line}</span>
+      </button>
+    )
+  }
+
+  const productRows = (
+    <>
+      {rows.map((r, i) => (
+        <div key={i} style={{
+          border: '1px solid #e5e8eb', borderRadius: 12, padding: 12, marginBottom: 10, background: '#fbfcfd',
+        }}>
+          <input className="input" type="url" inputMode="url" value={r.productUrl}
+            placeholder={isAgent ? '상품 링크 (쇼핑몰 앱 → 공유 → 링크 복사) — 꼭 필요' : '상품 링크 (있으면 붙여넣기 — 선택)'}
+            onChange={(e) => setRow(i, { productUrl: e.target.value })}
+            style={{ fontSize: 15, minHeight: 50, marginBottom: 8, borderColor: isAgent && !parseProductUrl(r.productUrl) && r.productUrl ? '#ff6a00' : undefined }} />
+          <input className="input" value={r.productName} placeholder="상품 이름 (쇼핑몰 화면 그대로)"
+            onChange={(e) => setRow(i, { productName: e.target.value })}
+            style={{ fontSize: 16, minHeight: 50, marginBottom: 8 }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice}
+              placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
+              style={{ flex: 2, fontSize: 16, minHeight: 50 }} />
+            <input className="input" type="number" inputMode="numeric" min="1" max="99" value={r.quantity}
+              placeholder="개수" onChange={(e) => setRow(i, { quantity: e.target.value })}
+              style={{ flex: 1, fontSize: 16, minHeight: 50 }} />
+            {rows.length > 1 && (
+              <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))}
+                style={{
+                  flexShrink: 0, width: 50, minHeight: 50, borderRadius: 10, border: '1px solid #ffd5d5',
+                  background: '#fff', color: '#c53030', fontSize: 18, fontWeight: 800, cursor: 'pointer',
+                }}>×</button>
+            )}
+          </div>
+        </div>
+      ))}
+
+      <button type="button"
+        onClick={() => setRows([...rows, emptyRow()])}
+        style={{
+          width: '100%', minHeight: 48, borderRadius: 10, border: '2px dashed #dbe4f0',
+          background: '#fff', color: '#3182f6', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+        }}>+ 상품 더 담기</button>
+
+      {error && <p className="note note--danger" style={{ marginTop: 10 }}>{error}</p>}
+
+      {quote && (
+        <div style={{
+          marginTop: 12, padding: '14px 16px', borderRadius: 12,
+          border: '2px solid #3182f6', background: '#f2f6fb',
+        }}>
+          <div style={{ fontSize: 13.5, color: '#4e5968' }}>
+            {isAgent ? '상품값 + 수수료 + 베트남까지 배송비 (예상)' : '베트남까지 배송비 (예상)'}
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#3182f6', marginTop: 2 }}>
+            {krw(quote.total)}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#f04452' }}>≈ {vnd(quote.totalVnd)}</div>
+          <div style={{ fontSize: 12.5, color: '#8b95a1', marginTop: 6 }}>
+            청구무게 {quote.shipping?.billableKg}kg · 창고에서 실제로 달아본 뒤 확정됩니다
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 12 }}>
+        {quote ? (
+          <button type="button" className="btn" onClick={goCheckout}
+            style={{ width: '100%', minHeight: 58, fontSize: 18, fontWeight: 800 }}>
+            신청서 쓰러 가기 →
+          </button>
+        ) : (
+          <button type="button" className="btn" onClick={getQuote}
+            disabled={items.length === 0 || quoting}
+            style={{ width: '100%', minHeight: 58, fontSize: 18, fontWeight: 800 }}>
+            {quoting ? '계산 중…'
+              : items.length === 0 ? (isAgent ? '상품 링크·이름·가격을 넣어주세요' : '상품 이름과 가격을 넣어주세요')
+              : isAgent ? '얼마인지 보기' : '배송비 얼마인지 보기'}
+          </button>
+        )}
+      </div>
+    </>
+  )
 
   return (
-    <Layout title="배송만 — 폰으로 하기">
+    <Layout title={`${t.name} — 폰으로 하기`}>
       <div className="section" style={{ paddingBottom: 6 }}>
         <h1 className="section__title">{t.emoji} {t.name}</h1>
         <p className="section__sub">{t.line} — 폰만 있으면 됩니다.</p>
       </div>
 
-      {/* ── 1. 쿠팡에 넣을 주소 ─────────────────────────────── */}
-      <section className="panel">
-        <div className="panel__head">1. 쇼핑몰 배송지에 이대로 넣어주세요</div>
-        <div className="panel__body">
-          <div className="field" style={{ marginBottom: 14 }}>
-            <label className="field__label" htmlFor="myname">받는 분 성함 (한글 또는 영문)</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input id="myname" className="input" value={name} placeholder={`예) ${SAMPLE_NAME}`}
-                onChange={(e) => setName(e.target.value)}
-                style={{ fontSize: 17, minHeight: 52, flex: 1, minWidth: 0 }} />
-              {name ? (
-                /* 지난번 이름이 남아 있으면 한 번에 지웁니다 — 남의 이름으로 보내지 않게 */
-                <button type="button" onClick={() => setName('')}
-                  style={{
-                    flexShrink: 0, minHeight: 52, padding: '0 14px', borderRadius: 10,
-                    border: '2px solid #e5e8eb', background: '#fff', color: '#8b95a1',
-                    fontSize: 14, fontWeight: 800, cursor: 'pointer',
-                  }}>지우기</button>
-              ) : null}
-            </div>
-            <p className="note" style={{ marginTop: 6, fontSize: 13 }}>
-              이 이름으로 창고에서 소포를 찾습니다. 신청서에 적으실 이름과 <b>같아야</b> 합니다.
-            </p>
-          </div>
-
-          <CopyRow label="받는 사람" value={WAREHOUSE.code} />
-          <CopyRow label="우편번호" value={WAREHOUSE.zip} hint="주소 검색 대신 우편번호로 찾으면 빠릅니다" />
-          <CopyRow label="주소" value={fullAddress} />
-          <CopyRow label="상세주소 — 이게 빠지면 소포 주인을 못 찾습니다" value={detail}
-            disabled={!detail} danger
-            display={detail ? (
-              <>
-                {WAREHOUSE.code} <span style={markStyle}>{name.trim()}</span>
-              </>
-            ) : (
-              <>
-                {WAREHOUSE.code} <span style={sampleStyle}>{SAMPLE_NAME}</span>
-                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: '#ff6a00', marginTop: 6 }}>
-                  ↑ <span style={sampleStyle}>{SAMPLE_NAME}</span> 자리에 <b>본인 이름</b>을 넣어주세요 — 위 칸에 적으면 여기가 채워집니다
-                </span>
-              </>
-            )}
-            hint={detail ? '쇼핑몰 배송지의 «상세주소» 칸에 이대로 넣어주세요' : undefined} />
-          <CopyRow label="전화번호" value={WAREHOUSE.phone} />
-
-          <p className="note note--danger" style={{ marginTop: 4, fontSize: 13.5, lineHeight: 1.7 }}>
-            ⚠️ <b>상세주소</b>가 가장 중요합니다. 「{WAREHOUSE.code}{' '}
-            <span style={detail ? markStyle : sampleStyle}>{name.trim() || SAMPLE_NAME}</span>」처럼
-            <b> 코드 뒤에 본인 이름</b>이 없으면, 창고에 물건이 도착해도 누구 것인지 알 수 없어
-            배송이 늦어집니다.
+      {/* ── 방식 고르기 — 배송만 / 구매하고 배송까지 ──────────── */}
+      <div className="section" style={{ paddingTop: 0, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 8 }}>{[toggleBtn('forwarding'), toggleBtn('agent')]}</div>
+        {shared && (
+          <p className="note" style={{ marginTop: 8, fontSize: 13 }}>
+            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. 이름·가격·개수를 확인해 주세요.
           </p>
-        </div>
-      </section>
+        )}
+      </div>
 
-      {/* ── 2. 쿠팡으로 ─────────────────────────────────────── */}
-      <section className="panel">
-        <div className="panel__head">2. 쇼핑몰에서 결제하고 오세요</div>
-        <div className="panel__body">
-          <a className="btn" href="https://m.coupang.com/" target="_blank" rel="noreferrer"
-            style={{ display: 'block', textAlign: 'center', minHeight: 56, fontSize: 17, lineHeight: '32px' }}>
-            쇼핑몰 열기 →
-          </a>
-          <p className="note" style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.75 }}>
-            결제하실 때 <b>배송지를 위 주소로 바꾸시면</b> 됩니다.
-            결제가 끝나면 이 화면으로 돌아와 아래 3번을 이어서 해주세요.
-          </p>
-        </div>
-      </section>
+      {!isAgent && (
+        <>
+          {/* ── 1. 쿠팡에 넣을 주소 ─────────────────────────────── */}
+          <section className="panel">
+            <div className="panel__head">1. 쇼핑몰 배송지에 이대로 넣어주세요</div>
+            <div className="panel__body">
+              <div className="field" style={{ marginBottom: 14 }}>
+                <label className="field__label" htmlFor="myname">받는 분 성함 (한글 또는 영문)</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input id="myname" className="input" value={name} placeholder={`예) ${SAMPLE_NAME}`}
+                    onChange={(e) => setName(e.target.value)}
+                    style={{ fontSize: 17, minHeight: 52, flex: 1, minWidth: 0 }} />
+                  {name ? (
+                    /* 지난번 이름이 남아 있으면 한 번에 지웁니다 — 남의 이름으로 보내지 않게 */
+                    <button type="button" onClick={() => setName('')}
+                      style={{
+                        flexShrink: 0, minHeight: 52, padding: '0 14px', borderRadius: 10,
+                        border: '2px solid #e5e8eb', background: '#fff', color: '#8b95a1',
+                        fontSize: 14, fontWeight: 800, cursor: 'pointer',
+                      }}>지우기</button>
+                  ) : null}
+                </div>
+                <p className="note" style={{ marginTop: 6, fontSize: 13 }}>
+                  이 이름으로 창고에서 소포를 찾습니다. 신청서에 적으실 이름과 <b>같아야</b> 합니다.
+                </p>
+              </div>
 
-      {/* ── 3. 상품 담고 신청 ───────────────────────────────── */}
-      <section className="panel">
-        <div className="panel__head">3. 무엇을 사셨나요</div>
-        <div className="panel__body">
-          <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-            상품 이름만 있으면 무게를 알아서 계산합니다. 쇼핑몰 화면의 이름을 그대로 넣어주세요.
-          </p>
-
-          {rows.map((r, i) => (
-            <div key={i} style={{
-              border: '1px solid #e5e8eb', borderRadius: 12, padding: 12, marginBottom: 10, background: '#fbfcfd',
-            }}>
-              <input className="input" value={r.productName} placeholder="상품 이름 (쇼핑몰 화면 그대로)"
-                onChange={(e) => setRow(i, { productName: e.target.value })}
-                style={{ fontSize: 16, minHeight: 50, marginBottom: 8 }} />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice}
-                  placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
-                  style={{ flex: 2, fontSize: 16, minHeight: 50 }} />
-                <input className="input" type="number" inputMode="numeric" min="1" max="99" value={r.quantity}
-                  placeholder="개수" onChange={(e) => setRow(i, { quantity: e.target.value })}
-                  style={{ flex: 1, fontSize: 16, minHeight: 50 }} />
-                {rows.length > 1 && (
-                  <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))}
-                    style={{
-                      flexShrink: 0, width: 50, minHeight: 50, borderRadius: 10, border: '1px solid #ffd5d5',
-                      background: '#fff', color: '#c53030', fontSize: 18, fontWeight: 800, cursor: 'pointer',
-                    }}>×</button>
+              <CopyRow label="받는 사람" value={WAREHOUSE.code} />
+              <CopyRow label="우편번호" value={WAREHOUSE.zip} hint="주소 검색 대신 우편번호로 찾으면 빠릅니다" />
+              <CopyRow label="주소" value={fullAddress} />
+              <CopyRow label="상세주소 — 이게 빠지면 소포 주인을 못 찾습니다" value={detail}
+                disabled={!detail} danger
+                display={detail ? (
+                  <>
+                    {WAREHOUSE.code} <span style={markStyle}>{name.trim()}</span>
+                  </>
+                ) : (
+                  <>
+                    {WAREHOUSE.code} <span style={sampleStyle}>{SAMPLE_NAME}</span>
+                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: '#ff6a00', marginTop: 6 }}>
+                      ↑ <span style={sampleStyle}>{SAMPLE_NAME}</span> 자리에 <b>본인 이름</b>을 넣어주세요 — 위 칸에 적으면 여기가 채워집니다
+                    </span>
+                  </>
                 )}
-              </div>
+                hint={detail ? '쇼핑몰 배송지의 «상세주소» 칸에 이대로 넣어주세요' : undefined} />
+              <CopyRow label="전화번호" value={WAREHOUSE.phone} />
+
+              <p className="note note--danger" style={{ marginTop: 4, fontSize: 13.5, lineHeight: 1.7 }}>
+                ⚠️ <b>상세주소</b>가 가장 중요합니다. 「{WAREHOUSE.code}{' '}
+                <span style={detail ? markStyle : sampleStyle}>{name.trim() || SAMPLE_NAME}</span>」처럼
+                <b> 코드 뒤에 본인 이름</b>이 없으면, 창고에 물건이 도착해도 누구 것인지 알 수 없어
+                배송이 늦어집니다.
+              </p>
             </div>
-          ))}
+          </section>
 
-          <button type="button"
-            onClick={() => setRows([...rows, { productName: '', productPrice: '', quantity: 1 }])}
-            style={{
-              width: '100%', minHeight: 48, borderRadius: 10, border: '2px dashed #dbe4f0',
-              background: '#fff', color: '#3182f6', fontSize: 15, fontWeight: 800, cursor: 'pointer',
-            }}>+ 상품 더 담기</button>
-
-          {error && <p className="note note--danger" style={{ marginTop: 10 }}>{error}</p>}
-
-          {quote && (
-            <div style={{
-              marginTop: 12, padding: '14px 16px', borderRadius: 12,
-              border: '2px solid #3182f6', background: '#f2f6fb',
-            }}>
-              <div style={{ fontSize: 13.5, color: '#4e5968' }}>베트남까지 배송비 (예상)</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#3182f6', marginTop: 2 }}>
-                {krw(quote.total)}
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f04452' }}>≈ {vnd(quote.totalVnd)}</div>
-              <div style={{ fontSize: 12.5, color: '#8b95a1', marginTop: 6 }}>
-                청구무게 {quote.shipping?.billableKg}kg · 창고에서 실제로 달아본 뒤 확정됩니다
-              </div>
+          {/* ── 2. 쿠팡으로 ─────────────────────────────────────── */}
+          <section className="panel">
+            <div className="panel__head">2. 쇼핑몰에서 결제하고 오세요</div>
+            <div className="panel__body">
+              <a className="btn" href="https://m.coupang.com/" target="_blank" rel="noreferrer"
+                style={{ display: 'block', textAlign: 'center', minHeight: 56, fontSize: 17, lineHeight: '32px' }}>
+                쇼핑몰 열기 →
+              </a>
+              <p className="note" style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.75 }}>
+                결제하실 때 <b>배송지를 위 주소로 바꾸시면</b> 됩니다.
+                결제가 끝나면 이 화면으로 돌아와 아래 3번을 이어서 해주세요.
+              </p>
             </div>
-          )}
+          </section>
 
-          <div style={{ marginTop: 12 }}>
-            {quote ? (
-              <button type="button" className="btn" onClick={goCheckout}
-                style={{ width: '100%', minHeight: 58, fontSize: 18, fontWeight: 800 }}>
-                신청서 쓰러 가기 →
-              </button>
-            ) : (
-              <button type="button" className="btn" onClick={getQuote}
-                disabled={items.length === 0 || quoting}
-                style={{ width: '100%', minHeight: 58, fontSize: 18, fontWeight: 800 }}>
-                {quoting ? '계산 중…' : items.length === 0 ? '상품 이름과 가격을 넣어주세요' : '배송비 얼마인지 보기'}
-              </button>
-            )}
-          </div>
+          {/* ── 3. 상품 담고 신청 ───────────────────────────────── */}
+          <section className="panel">
+            <div className="panel__head">3. 무엇을 사셨나요</div>
+            <div className="panel__body">
+              <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
+                상품 이름만 있으면 무게를 알아서 계산합니다. 쇼핑몰 화면의 이름을 그대로 넣어주세요.
+              </p>
+              {productRows}
+            </div>
+          </section>
+        </>
+      )}
+
+      {isAgent && (
+        <>
+          {/* ── 구매하고 배송까지 — 주소 필요 없음, 상품만 ───────────── */}
+          <section className="panel">
+            <div className="panel__head">1. 무엇을 사드릴까요</div>
+            <div className="panel__body">
+              <p className="note" style={{ marginBottom: 12, fontSize: 13.5, lineHeight: 1.7 }}>
+                🛒 한국 결제수단이 없어도 됩니다. <b>상품 링크·가격·개수</b>만 적어주시면
+                저희가 대신 사서 베트남까지 보내드립니다. 결제는 다음 화면(신청서)에서
+                <b> 상품값 + 수수료 + 배송비</b>를 한 번에 합니다.
+                <br />
+                <small>링크: 쇼핑몰 앱에서 상품 화면 → <b>공유</b> → 링크 복사 → 여기 붙여넣기.</small>
+              </p>
+              {productRows}
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ── 앱처럼 쓰기 ─────────────────────────────────────── */}
+      <section className="panel">
+        <div className="panel__head">📱 폰에 앱처럼 두기</div>
+        <div className="panel__body">
+          <p className="note" style={{ fontSize: 13.5, lineHeight: 1.75 }}>
+            <b>안드로이드(크롬)</b>: 오른쪽 위 ⋮ → <b>홈 화면에 추가</b>. 그 뒤로는 쇼핑몰 앱에서
+            상품 <b>공유</b> → 「베트남 직구」를 고르면 링크가 이 화면으로 바로 옵니다.
+            <br />
+            <b>아이폰(사파리)</b>: 공유 버튼 → <b>홈 화면에 추가</b>. 링크는 복사해서 위 칸에 붙여넣습니다.
+          </p>
         </div>
       </section>
     </Layout>

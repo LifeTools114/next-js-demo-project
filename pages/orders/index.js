@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
-import { readMyOrders } from '../../lib/my-orders'
+import { readMyOrders, authHeaders } from '../../lib/my-orders'
 import { krw, formatDateTime } from '../../lib/format'
 
 /** 상태별 표시 색 — 눈에 띄어야 하는 상태(미결제·취소)만 강조합니다. */
@@ -28,7 +28,7 @@ export default function OrderLookup() {
       const detailed = await Promise.all(
         saved.slice(0, 10).map(async (e) => {
           try {
-            const r = await fetch(`/api/orders/${e.orderNo}`)
+            const r = await fetch(`/api/orders/${e.orderNo}`, { headers: authHeaders() })
             const d = await r.json()
             if (!r.ok) return { ...e, missing: true }
             return {
@@ -73,6 +73,8 @@ export default function OrderLookup() {
         </form>
         <p className="note" style={{ marginTop: 12 }}>
           여러 주문을 한 번에 보시려면 <Link href="/my"><b>내 주문 전체 보기</b></Link> — 회원가입 없이 개인 링크로 봅니다.
+          <br />
+          <small>주문번호만으로는 <b>진행 상태만</b> 보입니다. 이름·주소·상품은 신청하신 브라우저나 개인 링크에서만 열립니다.</small>
         </p>
       </div>
 

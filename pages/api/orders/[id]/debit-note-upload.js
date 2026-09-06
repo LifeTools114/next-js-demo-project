@@ -10,11 +10,11 @@
  *    메모리에서 읽고 필요한 값만 추출한 뒤 버립니다.
  */
 
-import { getOrder, saveDebitNote } from '../../../../lib/order/store'
-import { extractPdfText } from '../../../../lib/debit-note/extract-text'
-import { parseDebitNote } from '../../../../lib/debit-note/parse'
-import { buildQuoteDoc } from '../../../../lib/quote-doc'
-import { isAdminRequest } from '../../../../lib/auth'
+import { getOrder, saveDebitNote } from '../../../../lib/order/store.js'
+import { extractPdfText } from '../../../../lib/debit-note/extract-text.js'
+import { parseDebitNote } from '../../../../lib/debit-note/parse.js'
+import { buildQuoteDoc } from '../../../../lib/quote-doc.js'
+import { isAdminRequest } from '../../../../lib/auth.js'
 
 /** 청구서 PDF 는 보통 수백 KB — 넉넉히 8MB 까지 받습니다. */
 export const config = { api: { bodyParser: { sizeLimit: '8mb' } } }

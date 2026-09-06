@@ -9,8 +9,9 @@ import { listOrders, customerView } from '../../../lib/order/store.js'
 import { findByKey, visibleOrders, hasPin } from '../../../lib/customer/store.js'
 import { checkUnlock } from '../../../lib/customer/session.js'
 import { allow, clientIp } from '../../../lib/throttle.js'
+import { maskPhone } from '../../../lib/mask.js'
 
-export const maskPhone = (p) => String(p ?? '').replace(/(\d{3})\d+(\d{4})$/, '$1****$2')
+export { maskPhone }
 
 export function myView(found) {
   const orders = visibleOrders(found, listOrders()).map(customerView)

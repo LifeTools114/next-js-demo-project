@@ -4,18 +4,23 @@
  *
  * 고객 본인이 결제한 쿠팡 주문번호(또는 운송장)를 등록하면 입고 매칭이
  * 자동화되고, 결제까지 끝난 주문은 상태도 자동으로 이어집니다.
- * 접근 제어는 주문 조회(GET /api/orders/:id)와 같은 수준입니다 —
- * 주문번호를 아는 사람 = 주문 당사자로 간주합니다.
+ * 접근 제어는 주문 조회(GET /api/orders/:id)와 같습니다 — 주문번호만으로는 안 되고
+ * 신청한 브라우저(열쇠)·개인 링크·운영자만 (lib/order/access.js).
  */
 
-import { linkInbound, customerView } from '../../../../lib/order/store'
-import { InvalidTransitionError } from '../../../../lib/order/states'
+import { getOrder, linkInbound, customerView } from '../../../../lib/order/store.js'
+import { orderAccess, OWNER_ONLY_MESSAGE } from '../../../../lib/order/access.js'
+import { InvalidTransitionError } from '../../../../lib/order/states.js'
 
 export default function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
     return res.status(405).json({ error: 'POST 요청만 지원합니다.' })
   }
+
+  const existing = getOrder(String(req.query.id ?? ''))
+  if (!existing) return res.status(404).json({ error: '주문을 찾을 수 없습니다.' })
+  if (orderAccess(req, existing) === 'public') return res.status(403).json({ error: OWNER_ONLY_MESSAGE })
 
   const { coupangOrderNo, trackingNo } = req.body ?? {}
   try {

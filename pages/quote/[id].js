@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
+import { authHeaders } from '../../lib/my-orders'
 
 const won = (n) => `${Math.round(Number(n) || 0).toLocaleString('ko-KR')}원`
 const dong = (n) => `₫${Math.round(Number(n) || 0).toLocaleString('ko-KR')}`
@@ -22,7 +23,8 @@ export default function QuotePage() {
   useEffect(() => {
     if (!id) return
     const url = `/api/orders/${id}/quote-doc${kind ? `?kind=${kind}` : ''}`
-    fetch(url)
+    // 견적서에는 이름·주소가 있어 열쇠(개인 링크) 또는 운영자 토큰이 있어야 열립니다.
+    fetch(url, { headers: authHeaders() })
       .then((r) => r.json())
       .then((d) => (d.ok ? setDoc(d.doc) : setError(d.error ?? '견적서를 불러오지 못했습니다.')))
       .catch(() => setError('서버에 연결할 수 없습니다.'))

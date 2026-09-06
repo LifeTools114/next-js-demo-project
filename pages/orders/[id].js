@@ -9,6 +9,7 @@ import CopyButton from '../../components/CopyButton'
 import { REFUND_DAYS, RETURN_POLICY } from '../../config/payment'
 import { RETURN_SHIPPING, estimateReturnShippingUsd } from '../../config/shipping'
 import { FX } from '../../config/fx'
+import { authHeaders } from '../../lib/my-orders'
 
 /**
  * 고객용 주문 조회.
@@ -49,6 +50,8 @@ export default function OrderPage() {
   const [linkError, setLinkError] = useState(null)
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState(null)
+  /** 'customer'(신청한 브라우저·개인 링크) | 'admin' | 'public'(주문번호만 — 진행 상태만) */
+  const [view, setView] = useState('customer')
 
   /** 고객 셀프 취소 — 입금 확인 전(주문 접수·입금 대기)에만 서버가 허용합니다. */
   const cancelNow = async () => {
@@ -58,7 +61,7 @@ export default function OrderPage() {
     try {
       const res = await fetch(`/api/orders/${id}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({}),
       })
       const d = await res.json()
@@ -79,7 +82,7 @@ export default function OrderPage() {
     try {
       const res = await fetch(`/api/orders/${id}/link-coupang`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(linkForm),
       })
       const d = await res.json()
@@ -95,11 +98,13 @@ export default function OrderPage() {
 
   useEffect(() => {
     if (!id) return
-    fetch(`/api/orders/${id}`)
+    // 열쇠(이 브라우저에 저장된 개인 링크)를 함께 보냅니다 — 없으면 진행 상태만 옵니다.
+    fetch(`/api/orders/${id}`, { headers: authHeaders() })
       .then(async (r) => {
         const d = await r.json()
         if (!r.ok) throw new Error(d.error)
         setOrder(d.order)
+        setView(d.view ?? 'customer')
       })
       .catch((e) => setError(e.message))
   }, [id])
@@ -129,6 +134,8 @@ export default function OrderPage() {
   const currentIndex = PROGRESS_ORDER.indexOf(order.state)
   const cancelled = order.state === 'CANCELLED'
   const balance = order.balance.krw
+  // 주문번호만으로 연 화면 — 개인정보·상품명이 가려져 있고 취소·연결·견적서는 닫혀 있습니다.
+  const limited = view === 'public'
 
   return (
     <Layout title={`주문 ${order.orderNo}`}>
@@ -140,6 +147,21 @@ export default function OrderPage() {
           {order.stateInfo.description}
         </p>
       </div>
+
+      {limited && (
+        <div className="section" style={{ paddingBottom: 0 }}>
+          <div className="note" style={{
+            background: '#fff8e6', border: '1px solid #ffe0a3', color: '#7a4b00', fontWeight: 700, lineHeight: 1.6,
+          }}>
+            🔒 주문번호만으로 열어서 <b>진행 상태만</b> 보입니다. 이름·주소·상품·취소·견적서는
+            신청하신 브라우저나 <b>「내 주문 링크」</b>에서만 열립니다.
+            <br />
+            <small style={{ fontWeight: 500 }}>
+              링크를 잃으셨다면 <Link href="/my"><b>내 주문 전체 보기</b></Link>에서 전화번호와 입금이 끝난 주문번호로 다시 받으세요.
+            </small>
+          </div>
+        </div>
+      )}
 
       {/* 구매대행 — 표시가 그대로 주문한다는 약속과 예외(품절·마감·가격 변동) 안내 */}
       {order.track === 'agent' && !cancelled && (
@@ -241,7 +263,7 @@ export default function OrderPage() {
         /quote/[주문번호]?kind=provisional|final 은 전부터 있었지만 고객 화면에 가는 길이 없어
         운영자 콘솔에서만 열 수 있었습니다 (운영자 26-09-06: "견적서 출력 부분이 빠진 것 같다").
       */}
-      {(() => {
+      {!limited && (() => {
         const finalReady = Boolean(order.settlement) || ['SETTLEMENT_DUE', 'SETTLED', 'SHIPPED', 'DELIVERED'].includes(order.state)
         return (
           <section className="panel">
@@ -344,7 +366,7 @@ export default function OrderPage() {
               </p>
             )}
 
-            <form onSubmit={submitLink} style={{ marginTop: 14 }}>
+            {!limited && <form onSubmit={submitLink} style={{ marginTop: 14 }}>
               <p className="note" style={{ marginBottom: 8 }}>
                 쇼핑몰 주문을 마치셨다면 주문번호를 등록해 주세요 — 입고·배송 추적이 빨라집니다.
               </p>
@@ -365,7 +387,7 @@ export default function OrderPage() {
                 disabled={linking || (!linkForm.coupangOrderNo.trim() && !linkForm.trackingNo.trim())}>
                 {linking ? '등록 중…' : '쇼핑몰 주문 연결'}
               </button>
-            </form>
+            </form>}
 
             {order.inbound?.coupangOrderNo && (
               <p className="note" style={{ marginTop: 10 }}>
@@ -493,7 +515,12 @@ export default function OrderPage() {
         <div className="panel__body">
           {order.items.map((it, i) => (
             <div className="row" key={i}>
-              <span className="row__label">{it.productName} × {it.quantity}</span>
+              <span className="row__label">
+                {/* 폰에서 링크로 적은 상품은 이름을 누르면 그 상품이 열립니다 — 운영자도 여기서 바로 삽니다 */}
+                {it.productUrl
+                  ? <a href={it.productUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>{it.productName}</a>
+                  : it.productName} × {it.quantity}
+              </span>
               <span className="row__value">{krw(it.productPrice * it.quantity)}</span>
             </div>
           ))}
@@ -513,7 +540,7 @@ export default function OrderPage() {
       )}
 
       {/* 입금 확인 전에는 고객이 직접 취소할 수 있습니다 (중복 접수 정리 포함) */}
-      {['REQUESTED', 'AWAITING_PAYMENT'].includes(order.state) && (
+      {!limited && ['REQUESTED', 'AWAITING_PAYMENT'].includes(order.state) && (
         <div className="section" style={{ paddingBottom: 0 }}>
           {cancelError && <p className="note note--danger">{cancelError}</p>}
           <button type="button" className="btn btn--ghost" disabled={cancelling} onClick={cancelNow}

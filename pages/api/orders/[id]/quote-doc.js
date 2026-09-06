@@ -6,10 +6,11 @@
  * 청구서의 단가·금액(당사 원가)은 저장하지도, 응답에 담지도 않습니다.
  */
 
-import { getOrder, saveDebitNote } from '../../../../lib/order/store'
-import { buildQuoteDoc } from '../../../../lib/quote-doc'
-import { isAdminRequest } from '../../../../lib/auth'
-import { getMethod } from '../../../../lib/payment/methods'
+import { getOrder, saveDebitNote } from '../../../../lib/order/store.js'
+import { buildQuoteDoc } from '../../../../lib/quote-doc.js'
+import { isAdminRequest } from '../../../../lib/auth.js'
+import { orderAccess, OWNER_ONLY_MESSAGE } from '../../../../lib/order/access.js'
+import { getMethod } from '../../../../lib/payment/methods.js'
 
 /**
  * 견적서에 실을 입금 계좌 — 한국(원화)·베트남(동화) 계좌를 모두 표기합니다.
@@ -68,6 +69,9 @@ export default function handler(req, res) {
     res.setHeader('Allow', 'GET, POST')
     return res.status(405).json({ ok: false, error: 'GET 또는 POST 만 지원합니다.' })
   }
+
+  // 견적서에는 이름·전화·주소가 있습니다 — 주문번호만으로는 열리지 않습니다.
+  if (orderAccess(req, order) === 'public') return res.status(403).json({ ok: false, error: OWNER_ONLY_MESSAGE })
 
   try {
     const doc = buildQuoteDoc(order, { kind: req.query.kind })

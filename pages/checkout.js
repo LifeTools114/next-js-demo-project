@@ -106,6 +106,12 @@ export default function Checkout() {
     } catch { /* 저장값이 없거나 손상 — 빈 폼으로 시작 */ }
     recipientLoaded.current = true
   }, [])
+  /** 채워진 지난 정보를 지우고 빈 칸으로 — 다른 분이 이 브라우저로 신청할 때 */
+  const clearRecipient = () => {
+    try { window.localStorage.removeItem(RECIPIENT_KEY) } catch { /* 무시 */ }
+    setForm({ name: '', phone: '', address: '', email: '', messenger: '' })
+    setRecipientRestored(false)
+  }
   useEffect(() => {
     // 저장값을 불러오기 전에 빈 폼으로 덮어쓰지 않도록 로드 후에만 저장합니다.
     if (!recipientLoaded.current) return
@@ -367,7 +373,12 @@ export default function Checkout() {
                 marginBottom: 12, fontSize: 12.5, fontWeight: 700, color: '#17916b',
                 background: '#e6f6f0', border: '1px solid #b7e4d2', borderRadius: 9, padding: '9px 11px',
               }}>
-                ✓ 지난번에 넣으신 정보를 불러왔습니다 — <b>이 주소가 맞는지 확인해 주세요.</b>
+                ✓ 지난번에 이 브라우저에서 넣으신 정보를 채웠습니다 — <b>이 주소가 맞는지 확인해 주세요.</b>
+                {/* 채워진 값을 기본값으로 오해했습니다 (운영자 26-09-06) — 지우는 길을 바로 옆에 둡니다 */}
+                <button type="button" onClick={clearRecipient} style={{
+                  marginLeft: 8, border: '1px solid #b7e4d2', background: '#fff', color: '#0f6e4f',
+                  borderRadius: 7, padding: '3px 9px', fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                }}>다른 분이면 비우기</button>
               </p>
             ) : (
               <p className="note" style={{ marginBottom: 12, fontSize: 12 }}>

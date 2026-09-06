@@ -33,10 +33,10 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
           display: 'block', textAlign: 'center', minHeight: 62, fontSize: 19,
           fontWeight: 800, lineHeight: '38px',
         }}>
-          📦 폰으로 바로 시작하기
+          📱 폰으로 바로 시작하기
         </Link>
         <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5 }}>
-          쇼핑몰에 넣을 <b>한국 창고 주소</b>를 알려드리고, 배송비까지 계산해 드립니다.
+          <b>배송만</b>은 쇼핑몰에 넣을 한국 창고 주소와 배송비를, <b>구매하고 배송까지</b>는 상품 링크만 주시면 전부 계산해 드립니다.
         </p>
       </div>
 
