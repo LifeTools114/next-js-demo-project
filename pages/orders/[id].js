@@ -288,6 +288,9 @@ export default function OrderPage() {
               <br />
               {/* 이름 부분을 칠해 "여기가 당신 이름" 임을 눈에 띄게 (운영자 26-09-06) */}
               <b>세부주소에 <span style={NAME_MARK}>{order.forwardingGuide.addressDetail}</span> 이(가) 있어야 창고가 접수합니다.</b>
+              <br />
+              {/* 예시가 아니라 이 주문의 이름입니다 — 예시로 오해해 다른 이름을 넣는 일을 막습니다 (운영자 26-09-06) */}
+              <small>「{order.customer?.name}」은 이 신청서에 적으신 받으실 분 성함입니다. 예시가 아니니 그대로 넣어주세요.</small>
             </p>
             <div className="note" style={{ marginTop: 10, userSelect: 'all' }}>
               · 받는 사람(이름): <b>{order.forwardingGuide.recipient}</b>
