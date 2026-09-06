@@ -10,7 +10,7 @@ import { compareConsolidation } from '../lib/consolidation'
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { MAINTENANCE } from '../config/maintenance'
 import { maintenanceStatus } from '../lib/maintenance'
-import { DESTINATION, LISTED_BLOCK_RULES } from '../config/eligibility'
+import { DESTINATION, LISTED_BLOCK_RULES, LISTED_CONSULT_RULES } from '../config/eligibility'
 import { TAXES } from '../config/taxes'
 import { FEES } from '../config/fees'
 import { REFUND_DAYS, RETURN_POLICY } from '../config/payment'
@@ -385,6 +385,17 @@ export default function RatesPage() {
                 <small style={{ color: 'var(--ink-500)' }}>{r.reason}</small>
               </span>
               <span className="row__value">🚫</span>
+            </div>
+          ))}
+          {/* 막지 않고 상담으로 받는 것 — 30kg 초과 (운영자 26-09-06) */}
+          {LISTED_CONSULT_RULES.map((r) => (
+            <div className="row" key={r.id}>
+              <span className="row__label">
+                {r.label}
+                <br />
+                <small style={{ color: 'var(--ink-500)' }}>{r.reason}</small>
+              </span>
+              <span className="row__value">💬</span>
             </div>
           ))}
           <p className="note" style={{ marginTop: 12 }}>

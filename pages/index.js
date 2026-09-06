@@ -5,7 +5,7 @@ import Flag from '../components/Flag'
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
 import { FEES } from '../config/fees'
 import { TAXES } from '../config/taxes'
-import { DESTINATION, LISTED_BLOCK_RULES } from '../config/eligibility'
+import { DESTINATION, LISTED_BLOCK_RULES, LISTED_CONSULT_RULES } from '../config/eligibility'
 import { krw, usd } from '../lib/format'
 import { usdToKrw, roundingRuleText } from '../lib/pricing/shipping'
 
@@ -152,7 +152,7 @@ export async function getStaticProps() {
     props: {
       ratePerKgUsd: SHIPPING.ratePerKgUsd,
       agencyBaseKrw: FEES.agencyBaseKrw,
-      blockedCategories: LISTED_BLOCK_RULES.length + 1, // +1 = 해외직구 상품 (요금 페이지 목록의 첫 줄)
+      blockedCategories: LISTED_BLOCK_RULES.length + LISTED_CONSULT_RULES.length + 1, // +1 = 해외직구 상품 (요금 페이지 목록의 첫 줄)
       roundingRule: roundingRuleText(),
     },
   }

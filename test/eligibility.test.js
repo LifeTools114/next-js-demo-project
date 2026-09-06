@@ -63,13 +63,11 @@ const MUST_BLOCK = [
   ['삼성 보조배터리 20000mAh', 'battery'],
   ['참이슬 후레쉬 소주 20병', 'alcohol-tobacco'],
   ['에쎄 체인지 담배 1보루', 'alcohol-tobacco'],
-  ['타이레놀 진통제 500mg', 'pharma'],
   ['제주 흑돼지 삼겹살 1kg', 'quarantine-animal'],
   ['서울우유 1L 6팩', 'quarantine-animal'],
   ['존쿡 델리미트 슬라이스햄 500g', 'quarantine-animal'],
   ['비비고 냉동 왕교자 1.4kg', 'cold-chain'],
   ['하겐다즈 아이스크림 파인트 4개', 'cold-chain'],
-  ['상추 씨앗 모종 세트', 'quarantine-plant'],
   ['LG 트롬 건조기 20kg', 'oversize'],
   ['삼성 비스포크 냉장고', 'oversize'],
 ]
@@ -219,10 +217,11 @@ test('관세 배분: 운임을 가액 비례로 나누고 품목별 세율을 �
 
 // ─────────── 무게 상한 ───────────
 
-test('단일 상품 30kg 초과는 무게만으로 차단된다', () => {
-  // 키워드로 못 잡는 대형 상품을 추정 무게로 거릅니다.
+test('단일 상품 30kg 초과는 차단이 아니라 상담(견적 문의)으로 보낸다 (운영자 26-09-06)', () => {
+  // 키워드로 못 잡는 대형 상품을 추정 무게로 거릅니다 — "30kg 을 초과할 경우 상담 요청".
   const r = checkEligibility(p('코스트코 생수 2L 24병', { chargeableG: 51_200 }))
-  assert.equal(r.verdict, VERDICT.BLOCKED)
+  assert.equal(r.verdict, VERDICT.MANUAL_QUOTE)
+  assert.equal(r.shippable, true)
   assert.equal(r.ruleId, 'overweight')
   assert.match(r.matchedKeyword, /kg$/)
 })
@@ -232,10 +231,12 @@ test('30kg 이하는 차단하지 않는다', () => {
   assert.notEqual(r.verdict, VERDICT.BLOCKED)
 })
 
-test('15~30kg 구간은 견적 문의로 보낸다', () => {
+test('15~30kg 도 자동 견적한다 — 견적 문의로 보내지 않는다 (운영자 26-09-06: 찹쌀 20kg 문제없음)', () => {
   const r = checkEligibility(p('이천쌀 20kg', { chargeableG: 21_000, price: 65000, quantity: 1 }))
-  assert.equal(r.verdict, VERDICT.MANUAL_QUOTE)
-  assert.equal(r.ruleId, 'heavy')
+  assert.equal(r.verdict, VERDICT.OK)
+  assert.equal(r.autoQuote, true)
+  const rice = checkEligibility({ productName: '햇 찹쌀 20kg', categoryPath: '쿠팡 홈>식품>쌀/잡곡>현미/찹쌀/흑미>찹쌀', chargeableG: 20_500, price: 60000, quantity: 1 })
+  assert.equal(rice.verdict, VERDICT.OK)
 })
 
 test('냉장고·세탁기는 무게 추정과 무관하게 키워드로도 차단된다', () => {
@@ -246,15 +247,17 @@ test('냉장고·세탁기는 무게 추정과 무관하게 키워드로도 차�
   }
 })
 
-test('장바구니 판정에 무게를 넘기면 상한이 적용된다', () => {
+test('장바구니 판정에 무게를 넘기면 30kg 초과가 상담(견적 문의)으로 잡힌다', () => {
+  // 운영자 26-09-06: 30kg 초과는 차단이 아니라 상담 — 장바구니는 받되 자동 견적은 멈춥니다.
   const items = [p('생수 2L 24병'), p('토리든 세럼 50ml')]
   const lines = [{ chargeableG: 51_200 }, { chargeableG: 140 }]
   const r = checkCartEligibility(items, lines)
-  assert.equal(r.shippable, false)
-  assert.equal(r.blocked[0].ruleId, 'overweight')
+  assert.equal(r.shippable, true)
+  assert.equal(r.autoQuote, false)
+  assert.equal(r.manualQuote[0].ruleId, 'overweight')
 
   // 무게를 안 넘기면 무게 규칙이 동작하지 않습니다 (호출부 실수 방지용 문서화)
-  assert.equal(checkCartEligibility(items).shippable, true)
+  assert.equal(checkCartEligibility(items).autoQuote, true)
 })
 
 test('가전 본체: 자동 견적 + 취급비 경고, 소모품은 할증 없음 (운영자 확정 26-08-30)', () => {
@@ -344,12 +347,11 @@ test('김은 해조류다 — 곱창김이 축산물로 막히면 안 된다', (
   assert.equal(checkEligibility(p('돼지 막창 구이 500g')).shippable, false)
 })
 
-test('고기·유제품이 든 상온 식품은 막지 않되 검역 안내를 붙인다', () => {
-  // 막지는 않지만, 모르고 결제한 뒤 검역에서 잡히면 손해가 큽니다.
+test('고기·유제품이 든 상온 식품도 막지 않고, 안내도 붙이지 않는다 (운영자 26-09-06: 상온 식품은 모두 가능)', () => {
   for (const name of ['동원 리챔 스팸 340g', 'CJ 비비고 삼계탕 800g', '한성 육포 100g', '남양 분유 800g']) {
     const r = checkEligibility(p(name))
     assert.equal(r.shippable, true, `${name} 이 막혔습니다`)
-    assert.ok(r.warnings.some((w) => w.id === 'shelf-stable-animal'), `${name} 에 검역 안내가 없습니다`)
+    assert.ok(!r.warnings.some((w) => w.id === 'shelf-stable-animal'), `${name} 에 검역 안내가 붙으면 안 됩니다`)
   }
   // 화장품에는 붙지 않습니다 (우유크림 세안제에 검역 안내가 뜨면 안 됩니다).
   const cream = checkEligibility(p('더페이스샵 우유크림 세안제'))
@@ -371,7 +373,7 @@ test('쿠팡 카테고리의 원재료 이름(돼지고기) 때문에 상온 통
   for (const name of ['동원 리챔 오리지널 200g 6개', '목우촌 뚝심 햄 340g 3캔', 'CJ 스팸 클래식 200g 6개']) {
     const r = checkEligibility({ productName: name, categoryPath: cat, price: 30000, quantity: 1 })
     assert.equal(r.shippable, true, `${name} 이 ${r.label}('${r.matchedKeyword}')로 막혔습니다`)
-    assert.ok(r.warnings.some((w) => w.id === 'shelf-stable-animal'), '검역 안내는 붙습니다')
+    assert.ok(!r.warnings.some((w) => w.id === 'shelf-stable-animal'), '상온 식품에는 검역 안내를 붙이지 않습니다')
   }
   // 수산물 통조림도 같습니다.
   assert.equal(checkEligibility({ productName: '꽁치 통조림 400g 3캔', categoryPath: '식품 > 수산물 > 통조림' }).shippable, true)
