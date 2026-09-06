@@ -347,7 +347,11 @@ const KBPanel = (() => {
       ? `<div class="note" style="color:#c92a2a">개수를 확실히 읽지 못해 <b>1개 기준</b>으로 계산했습니다.
            쿠팡 화면의 개수를 1로 두고 담은 뒤, 신청서에서 개수를 정해 주세요.</div>`
       : qty > 1
-        ? `<div class="qtyline"><b>${qty}개</b> 기준 금액입니다</div>`
+        ? `<div class="qtyline"><b>${qty}개</b> 기준 금액입니다${
+            // 수량 칸 대신 화면 금액으로 알아낸 개수는 그 셈을 같이 보여줍니다 — 고객이 맞는지 바로 봅니다.
+            state.quantityHow === 'ratio' && state.shownPrice && state.unitPrice
+              ? ` · 화면 ${esc(state.fmt.krw(state.shownPrice))} = ${esc(state.fmt.krw(state.unitPrice))} × ${qty}개`
+              : ''}</div>`
         : ''
 
     return `<div class="body">

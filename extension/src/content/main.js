@@ -249,6 +249,10 @@
       quantity: safeQty,
       quantityUncertain: qtyUncertain,
       pageQuantity: pageQty,
+      // 화면 금액으로 되짚은 개수는 그 계산을 화면에 보여줍니다 (321,300원 = 21,420원 × 15개)
+      quantityHow: extracted.quantityHow ?? '',
+      unitPrice: extracted.price,
+      shownPrice: extracted.shownPrice ?? null,
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
       ruleText: K.roundingRuleText(),

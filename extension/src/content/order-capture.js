@@ -616,7 +616,13 @@
     // 손이 안 닿는(다른 출처) 프레임의 주소 호스트 — 배송지 창이 여기 있으면 프레임 도우미 몫.
     out.crossHosts = [...document.querySelectorAll('iframe')].filter((f) => {
       try { return !f.contentDocument } catch { return true }
-    }).map((f) => { try { return new URL(f.src, location.href).host } catch { return '?' } }).slice(0, 8)
+    }).map((f) => {
+      let host = '?'
+      try { host = new URL(f.src, location.href).host } catch { /* 주소 없음 */ }
+      const r = f.getBoundingClientRect()
+      // 0x0·숨김이면 세션 동기화용 다리 프레임 — 배송지 창은 그 안에 없습니다.
+      return `${host} ${Math.round(r.width)}x${Math.round(r.height)}${f.offsetParent && r.width > 0 ? '' : '(숨김)'}`
+    }).slice(0, 8)
     // 프레임 도우미가 마지막으로 보고한 것 (없으면 프레임이 창을 못 봤거나 스크립트가 안 실림)
     out.frameState = lastFrameState
     const scan = (key) => {
@@ -659,7 +665,8 @@
     }
     out.loose = { add: loose('addAddr'), pick: loose('pick'), zip: loose('zipSearch') }
     for (const d of allDocs()) {
-      const body = (d.body?.innerText ?? '').replace(/\s+/g, '')
+      // 우리 카드에도 "[배송지 변경]" 이 적혀 있어 그대로 보면 진단이 우리 글로 채워집니다.
+      const body = (d === document ? pageTextSansOurUi() : (d.body?.innerText ?? '')).replace(/\s+/g, '')
       const nearRe = new RegExp((PAT?.list('openAddr') ?? []).map((r) => r.source).join('|') || '배송지변경', 'g')
       for (const m of body.matchAll(nearRe)) {
         out.near.push(body.slice(Math.max(0, m.index - 15), m.index + 25))

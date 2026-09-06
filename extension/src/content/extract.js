@@ -264,13 +264,105 @@ const KBExtract = (() => {
    */
   function readQuantity() {
     const el = first(selectors.quantity)
-    if (!el) return { value: 1, found: false }
-    const raw = el.value ?? el.getAttribute('value') ?? ''
-    const n = Number.parseInt(String(raw).replace(/[^0-9]/g, ''), 10)
-    if (!Number.isFinite(n) || n < 1) return { value: 1, found: false }
-    // 화면 값이 터무니없으면(오타·자동입력) 믿지 않습니다.
-    if (n > 999) return { value: 1, found: false }
-    return { value: n, found: true }
+    if (el) {
+      const n = intValue(el.value ?? el.getAttribute('value') ?? '')
+      // 화면 값이 터무니없으면(오타·자동입력) 믿지 않습니다 — intValue 가 1~999 만 인정.
+      if (n) return { value: n, found: true, how: 'selector' }
+    }
+    /**
+     * 셀렉터가 모두 빗나갔습니다 — 쿠팡이 화면을 바꾼 것입니다 (26-09-06 운영자
+     * 화면: 수량 15 인데 1개 견적). 셀렉터 목록은 원격으로 고칠 수 있지만 그때까지
+     * 고객이 틀린 개수를 보게 둘 수는 없으므로, 구조에 덜 기대는 그물을 던집니다.
+     */
+    const wide = findQuantityWide()
+    if (wide) return wide
+    return { value: 1, found: false, how: '' }
+  }
+
+  /** 1~999 의 정수만 인정 — 수량으로 말이 되는 범위 */
+  const intValue = (raw) => {
+    const n = Number.parseInt(String(raw ?? '').replace(/[^0-9]/g, ''), 10)
+    return Number.isFinite(n) && n >= 1 && n <= 999 ? n : null
+  }
+  const rectOf = (el) => { try { return el.getBoundingClientRect() } catch { return null } }
+  const visible = (el) => { const r = rectOf(el); return Boolean(r && r.width > 0 && r.height > 0) }
+  /** 요소의 이름표들 — aria-label·name·id·class·placeholder·title 을 한 줄로 */
+  const hintOf = (el) => [
+    el.getAttribute?.('aria-label'), el.getAttribute?.('name'), el.id, el.className,
+    el.getAttribute?.('placeholder'), el.getAttribute?.('title'), el.getAttribute?.('data-testid'),
+  ].map((v) => String(v ?? '')).join(' ')
+  const QTY_WORDS = /수량|quantity|qty|개수/i
+  const isSearchy = (el) =>
+    el.type === 'search' || /search|검색/i.test(hintOf(el)) ||
+    Boolean(el.closest?.('[role="search"], form[action*="search" i], header'))
+  /** [장바구니 담기]·[바로구매] 의 위치 — 수량 칸은 그 줄에 있습니다 */
+  function buyButtonRects() {
+    const out = []
+    let nodes
+    try { nodes = document.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]') } catch { return out }
+    for (const b of nodes) {
+      const t = String(b.textContent || b.value || '').replace(/\s+/g, '')
+      if (!/장바구니담기|바로구매|구매하기|주문하기/.test(t)) continue
+      const r = rectOf(b)
+      if (r && r.width > 0) out.push(r)
+    }
+    return out
+  }
+  const sameRow = (el, rects) => {
+    const r = rectOf(el)
+    if (!r || rects.length === 0) return false
+    const mid = (r.top + r.bottom) / 2
+    return rects.some((b) => Math.abs((b.top + b.bottom) / 2 - mid) <= 120)
+  }
+
+  /**
+   * 수량 칸을 구조 없이 찾습니다 — 셀렉터가 다 빗나갔을 때의 그물.
+   *   ① 이름표(aria-label·name·id·class·placeholder)에 '수량' 이 있는 입력칸
+   *   ② 화면에 숫자 입력칸(type=number·inputmode=numeric)이 하나뿐이면 그것
+   *   ③ [장바구니 담기]·[바로구매] 와 같은 줄에 있는 작은 입력칸
+   *   ④ [+]·[−] 버튼 사이의 숫자 (입력칸이 아니라 글자로 그리는 화면)
+   * 검색창·헤더 안의 칸은 제외합니다.
+   */
+  function findQuantityWide() {
+    let fields
+    try {
+      fields = [...document.querySelectorAll('input[type="number"], input[inputmode="numeric"], input[type="tel"], input[type="text"], input:not([type]), select')]
+    } catch { fields = [] }
+    const valued = fields
+      .filter((el) => visible(el) && !isSearchy(el))
+      .map((el) => ({
+        el,
+        n: el.tagName === 'SELECT'
+          ? intValue(el.options?.[el.selectedIndex]?.text ?? el.value)
+          : intValue(el.value),
+      }))
+      .filter((x) => x.n)
+    const labeled = valued.find((x) => QTY_WORDS.test(hintOf(x.el)))
+    if (labeled) return { value: labeled.n, found: true, how: 'labeled' }
+    const numeric = valued.filter((x) => x.el.type === 'number' || x.el.getAttribute?.('inputmode') === 'numeric')
+    if (numeric.length === 1) return { value: numeric[0].n, found: true, how: 'number-input' }
+    const rects = buyButtonRects()
+    const near = valued.filter((x) => sameRow(x.el, rects) && (rectOf(x.el)?.width ?? 999) <= 160)
+    if (near.length === 1) return { value: near[0].n, found: true, how: 'near-buy' }
+
+    // ④ 스테퍼: [+] 나 "수량 늘리기" 버튼 옆의 숫자
+    let btns
+    try { btns = [...document.querySelectorAll('button, [role="button"], a')] } catch { btns = [] }
+    for (const b of btns) {
+      if (!visible(b)) continue
+      const label = String(b.getAttribute?.('aria-label') ?? '')
+      const t = String(b.textContent ?? '').replace(/\s+/g, '')
+      const plus = /^[+＋]$/.test(t) || /증가|늘리|plus|increase/i.test(label)
+      const minus = /^[-−–－]$/.test(t) || /감소|줄이|minus|decrease/i.test(label)
+      if (!plus && !minus) continue
+      const kin = [b.previousElementSibling, b.nextElementSibling, ...(b.parentElement?.children ?? [])]
+      for (const k of kin) {
+        if (!k || k === b) continue
+        const n = intValue(k.tagName === 'INPUT' || k.tagName === 'SELECT' ? k.value : k.textContent)
+        if (n && String(k.tagName === 'INPUT' ? k.value : k.textContent).trim().length <= 4) return { value: n, found: true, how: 'stepper' }
+      }
+    }
+    return null
   }
 
   /**
@@ -315,7 +407,7 @@ const KBExtract = (() => {
     }
 
     const notice = extractNoticeSpec()
-    const qty = readQuantity()
+    let qty = readQuantity()
 
     // 선택된 수량 옵션이 있으면 가격과 상품명 끝의 "N개" 를 그 값으로.
     // (상품명의 개수는 무게 계산이 그대로 쓰므로 함께 맞춰야 합니다)
@@ -327,6 +419,21 @@ const KBExtract = (() => {
       productName = /,?\s*\d+\s*개\s*$/.test(productName)
         ? productName.replace(/,?\s*\d+\s*개\s*$/, `, ${opt.count}개`)
         : `${productName}, ${opt.count}개`
+    }
+    /**
+     * 화면 금액으로 개수를 되짚습니다 — 수량 칸을 끝내 못 찾았을 때의 마지막 그물.
+     *
+     * 쿠팡은 수량을 올리면 큰 가격을 곱해진 총액으로 바꿉니다 (15개 → 321,300원 =
+     * 21,420원 × 15, 26-09-06 운영자 화면). 낱개 값(JSON-LD·meta)이 있고 화면 금액이
+     * 그 정수배(2~999)이면 그 배수가 곧 화면에서 고른 개수입니다. 딱 나누어떨어질
+     * 때만 씁니다 — 할인가·다른 옵션처럼 배수가 아닌 차이는 건드리지 않습니다.
+     * (수량 옵션 보정이 들어간 뒤의 가격과 비교하므로 "2개 세트" 옵션과 겹쳐
+     *  두 번 곱하지 않습니다)
+     */
+    const shownPrice = base.source === 'selector' ? null : toNumber(text(first(selectors.price)))
+    if (!qty.found && shownPrice && price && shownPrice > price && shownPrice % price === 0) {
+      const n = shownPrice / price
+      if (n >= 2 && n <= 999) qty = { value: n, found: true, how: 'ratio' }
     }
 
     return {
@@ -345,6 +452,10 @@ const KBExtract = (() => {
        */
       quantity: qty.value,
       quantityFound: qty.found,
+      /** 개수를 어떻게 알았나 — selector·labeled·number-input·near-buy·stepper·ratio·'' */
+      quantityHow: qty.how ?? '',
+      /** 화면의 큰 금액(낱개 값과 다를 때만) — ratio 로 알아낸 개수를 화면에 설명하는 데 씁니다 */
+      shownPrice: shownPrice && shownPrice !== price ? shownPrice : null,
       /**
        * 가격을 어디서 읽었는가 — 개수 계산의 안전 판단에 씁니다.
        *
