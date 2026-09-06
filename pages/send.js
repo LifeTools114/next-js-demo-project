@@ -261,12 +261,15 @@ export default function SendPage() {
                   <span style={{ fontSize: 18, fontWeight: 900, color: '#1b64da' }}>{krw(Number(r.productPrice) || 0)}</span>
                   {r.spec ? <span style={{ fontSize: 12.5, color: '#4e5968' }}>용량 {r.spec}</span> : null}
                   <span style={{ flex: 1 }} />
-                  <span style={{ fontSize: 12.5, color: '#4e5968', fontWeight: 700 }}>개수</span>
-                  <button type="button" aria-label="개수 줄이기" onClick={() => setRow(i, { quantity: Math.max(1, qty - 1) })}
-                    style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>−</button>
-                  <span data-qty="1" style={{ minWidth: 24, textAlign: 'center', fontSize: 18, fontWeight: 900 }}>{qty}</span>
-                  <button type="button" aria-label="개수 늘리기" onClick={() => setRow(i, { quantity: Math.min(99, qty + 1) })}
-                    style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>+</button>
+                  {/* 개수 − n + 는 한 덩어리로 — 좁은 폰에서 줄이 갈라지지 않게 */}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 12.5, color: '#4e5968', fontWeight: 700 }}>개수</span>
+                    <button type="button" aria-label="개수 줄이기" onClick={() => setRow(i, { quantity: Math.max(1, qty - 1) })}
+                      style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>−</button>
+                    <span data-qty="1" style={{ minWidth: 24, textAlign: 'center', fontSize: 18, fontWeight: 900 }}>{qty}</span>
+                    <button type="button" aria-label="개수 늘리기" onClick={() => setRow(i, { quantity: Math.min(99, qty + 1) })}
+                      style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>+</button>
+                  </span>
                 </div>
                 <div style={{ marginTop: 6, textAlign: 'right' }}>
                   <button type="button" onClick={() => setRow(i, { edit: true })}
