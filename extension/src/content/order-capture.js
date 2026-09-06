@@ -467,31 +467,12 @@
    *   파란 그라데이션 · 위 작은 라벨 · 국기와 큰 글씨 · 주황 [신청 ▶] · 아래 한 줄
    */
   /**
-   * 시작 배너 — 꺼짐/켜짐 두 모습 (운영자 26-09-06: "쿠팡 접속하면 우측 하단에
-   * 미리 이미지가 떠야 합니다. 그래야 제대로 작동하는지 고객들이 알 수 있습니다").
-   * 켜진 뒤에도 사라지지 않고 「● 켜짐 · 작동 중」으로 바뀌어 남습니다.
+   * 시작 배너 — 홈·검색·카테고리 화면. 그림은 상품 화면의 견적 카드와 같은 공용 것
+   * (lib/ui/banner.js → KBCalc.bannerHtml)입니다. 운영자 26-09-06: "파란색 바탕에 큰
+   * 이미지가 뜨는 팝업으로 통일." 켜진 뒤에도 사라지지 않고 「● 켜짐 · 작동 중」으로 남습니다.
    */
   function bannerHtml(on = false) {
-    return '<div id="kb-banner" role="button" tabindex="0" style="' +
-      'cursor:pointer;border-radius:14px;padding:14px 14px 12px;text-align:center;' +
-      'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);' +
-      'box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);font-family:sans-serif">' +
-      '<div style="font-size:10.5px;font-weight:700;color:#cfe0ff;letter-spacing:.2px">' +
-      (on ? '<span style="color:#7cffb2;font-weight:900">● 켜짐</span> &nbsp;' : '') +
-      '<span style="color:#fff;font-weight:900">베트남 직구 도우미</span></div>' +
-      '<div style="margin-top:9px;font-size:19px;font-weight:900;color:#fff;line-height:1.32">' +
-      flag('vn', 17) + ' 베트남에서 ' + flag('kr', 17) + '<br>한국 직구하기</div>' +
-      '<div style="margin-top:11px;display:inline-block;min-width:150px;padding:9px 20px;border-radius:22px;' +
-      'background:linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%);color:#fff;font-size:15.5px;font-weight:900;' +
-      'box-shadow:0 3px 10px rgba(255,106,0,.45)">' + (on ? '상품 고르기' : '신청') + ' <span style="font-size:13px">▶</span></div>' +
-      '<div style="margin-top:10px;font-size:10.5px;font-weight:700;color:#bfd3ff">' +
-      (on ? '✓ 작동 중 · 상품을 누르면 가격 표시' : '쉽고 빠른 한국 → 베트남 배송') + '</div>' +
-      (on
-        ? '<button id="kb-launch-off" type="button" style="margin-top:8px;border:1px solid rgba(255,255,255,.45);' +
-          'border-radius:999px;background:transparent;color:#cfe0ff;font-size:10.5px;font-weight:800;' +
-          'padding:3px 10px;cursor:pointer">끄기</button>'
-        : '') +
-      '</div>'
+    return globalThis.KBCalc?.bannerHtml?.({ on }) ?? ''
   }
 
   /** 카드 만들기 — 켜짐·꺼짐 두 화면이 같은 상자를 씁니다 */
@@ -1251,9 +1232,7 @@
       '<div style="display:flex;align-items:center;gap:6px;margin:-12px -12px 10px;padding:11px 12px;' +
       'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);color:#fff">' +
       '<b style="flex:1;min-width:0;font-weight:900;font-size:13.5px">' + flag('vn', 14) + ' 베트남 직구 주문</b>' +
-      `<span style="font-size:10px;color:#cfe0ff">v${ver}</span>` +
-      '<button id="kb-mode-off" style="flex-shrink:0;border:1px solid rgba(255,255,255,.55);border-radius:999px;' +
-      'background:transparent;color:#fff;font-size:11px;font-weight:800;padding:4px 10px;cursor:pointer">끄기</button></div>' +
+      `<span style="font-size:10px;color:#cfe0ff">v${ver}</span></div>` +
       statusBlock +
       cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:999px;' +
@@ -1311,10 +1290,6 @@
     nameInput?.addEventListener('change', (e) => saveName(e.target.value))
     nameInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(e.target.value) })
     card.querySelector('#kb-name-clear')?.addEventListener('click', () => saveName(''))
-    card.querySelector('#kb-mode-off')?.addEventListener('click', async () => {
-      await setDirectOff(true)
-      redrawCard()
-    })
     card.querySelector('#kb-diag')?.addEventListener('click', async (e) => {
       const b = e.currentTarget
       const text = addrDiagnostics()
@@ -1426,11 +1401,6 @@
       if (!PRODUCT_PATH.test(location.pathname)) {
         toast('먼저 사고 싶은 상품을 골라주세요 — 상품 화면에서 베트남 도착 가격이 바로 보입니다.', true)
       }
-    })
-    wrap.querySelector('#kb-launch-off')?.addEventListener('click', async (e) => {
-      e.stopPropagation()
-      try { await chrome.storage.local.set({ kbOn: false }) } catch { /* 무시 */ }
-      renderLauncher()
     })
     wrap.querySelector('#kb-launch-x').addEventListener('click', (e) => {
       e.stopPropagation()

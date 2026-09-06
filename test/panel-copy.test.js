@@ -339,39 +339,40 @@ test('입력 방법은 네 줄, 값마다 [복사]', () => {
 test('시작 배너 — 누르기 전에는 꺼짐, 상품을 고르기 전이면 알려준다', () => {
   /*
    * 운영자 확정 26-09-06: 쿠팡에 들어오면 배너만 보이고, 눌러야 켜집니다.
-   * 배너 모양은 보내주신 K-Global 광고 이미지를 그대로 옮겼습니다.
+   * 배너 모양은 보내주신 광고 이미지를 그대로 옮겼고, 이제 상품 화면의 견적
+   * 카드와 같은 공용 그림(lib/ui/banner.js)입니다 — "파란색 바탕에 큰 이미지로 통일".
    */
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
-  assert.ok(cap.includes('function bannerHtml'), '배너를 그리는 곳')
-  for (const line of ['베트남 직구 도우미', '베트남에서', '한국 직구하기', '신청', '쉽고 빠른 한국 → 베트남 배송']) {
-    assert.ok(cap.includes(line), `배너 문구: ${line}`)
+  const ban = readFileSync(new URL('../lib/ui/banner.js', import.meta.url), 'utf8')
+  assert.ok(cap.includes('function bannerHtml(on = false)') && cap.includes('KBCalc?.bannerHtml?.({ on })'), '공용 그림을 씁니다')
+  for (const line of ['베트남 직구 도우미', '베트남에서', '한국 직구하기', '쉽고 빠른 한국 → 베트남 배송', '● 켜짐', '작동 중', '상품 고르기']) {
+    assert.ok(ban.includes(line), `배너 문구: ${line}`)
   }
+  // 끄기는 없습니다 — 화면을 조작하지 않으니 끌 것도 없습니다 (운영자 26-09-06). ✕(이 화면에서 숨기기)는 그대로.
+  assert.ok(!ban.includes('끄기') && !cap.includes('kb-mode-off') && !cap.includes('kb-launch-off'), '끄기 버튼이 남아 있으면 안 됩니다')
+  assert.ok(cap.includes('kb-launch-x'), '✕ 는 그대로 둡니다')
   /*
    * 남의 브랜드는 쓰지 않습니다. 사장님이 보내주신 광고 이미지에는
    * 「coupang K-Global Extension」이 적혀 있었지만, 그대로 쓰면 그 회사의
-   * 공식 확장으로 오인하게 만들어 크롬 웹스토어 심사에서 바로 걸립니다
-   * (사칭 금지). 모양만 가져오고 이름은 우리 것으로 바꿨습니다.
+   * 공식 확장으로 오인하게 만들어 크롬 웹스토어 심사에서 바로 걸립니다.
    */
-  const banner = cap.slice(at(cap, 'function bannerHtml'), at(cap, 'function bannerHtml') + 1600)
-  assert.ok(!/coupang|K-Global/i.test(banner), '남의 브랜드 이름을 배너에 쓰면 안 됩니다')
-  assert.ok(/linear-gradient\(180deg,#ff9a1f/.test(cap), '[신청] 은 주황색 알약 버튼')
+  assert.ok(!/coupang|K-Global/i.test(ban), '남의 브랜드 이름을 배너에 쓰면 안 됩니다')
+  assert.ok(/linear-gradient\(180deg,#ff9a1f/.test(ban), '[신청] 은 주황색 알약 버튼')
+  assert.ok(/#1b4fd8 0%,#0a2e9c 55%/.test(ban), '파란 그라데이션 바탕')
   // 기본은 꺼짐 — 눌러야 켜집니다.
   assert.ok(cap.includes('let directOff = true'), '기본은 꺼짐')
   assert.ok(cap.includes("chrome.storage.local.set({ kbOn: true })"), '누르면 켜집니다')
   assert.ok(cap.includes('먼저 사고 싶은 상품을 골라주세요'), '상품을 고르기 전이면 알려줍니다')
-  /*
-   * 켜진 뒤에도 배너는 남습니다 — 「● 켜짐 · 작동 중」 모습으로 (운영자 26-09-06:
-   * "쿠팡 접속하면 우측 하단에 미리 이미지가 떠야 합니다. 그래야 제대로 작동하는지
-   * 고객들이 알 수 있습니다"). 상품 화면에서 켜져 있을 때만 견적 패널에 자리를 내줍니다.
-   */
-  assert.ok(cap.includes('function bannerHtml(on = false)'), '배너는 꺼짐/켜짐 두 모습')
-  for (const line of ['● 켜짐', '작동 중', '상품 고르기', 'kb-launch-off']) {
-    assert.ok(cap.includes(line), `켜짐 모습: ${line}`)
-  }
+  // 켜진 뒤에도 배너는 남습니다 — 상품 화면에서 켜져 있을 때만 견적 카드가 대신합니다.
   assert.ok(!cap.includes('if (on) { wrapOld?.remove(); return }'), '켜져 있다고 배너를 없애면 안 됩니다')
   assert.ok(cap.includes('if (on && PRODUCT_PATH.test(location.pathname)) { wrapOld?.remove(); return }'),
-    '상품 화면에서 켜져 있을 때만 견적 패널에 자리를 내줍니다')
+    '상품 화면에서 켜져 있을 때만 견적 카드에 자리를 내줍니다')
   assert.ok(cap.includes('chrome.storage.onChanged.addListener'), '다른 탭에서 켜고 끄면 따라 바뀝니다')
+  // 상품 화면의 견적 버튼도 같은 그림 — 작은 알약 버튼은 남아 있으면 안 됩니다.
+  const panel = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
+  assert.ok(panel.includes('KBCalc?.bannerHtml?.('), '상품 화면도 공용 배너 그림')
+  assert.ok(!panel.includes('배송·구매대행 신청'), '옛 알약 버튼 문구가 남아 있으면 안 됩니다')
+  assert.ok(panel.includes('도착 가격 보기'), '상품 화면 버튼 글자')
 })
 
 test('제휴(파트너스) 연동은 코드에 남아 있지 않다', () => {

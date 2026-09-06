@@ -114,6 +114,11 @@
   KBPanel.mount(handlers)
 
   // ── 2~4. 추출 → 판정 → 계산 ──
+  // 시작 배너(다른 스크립트)가 kbOn 을 켜면 새로고침 없이 바로 이 화면의 견적 카드를 띄웁니다.
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.kbOn) compute() })
+  } catch { /* 무시 */ }
+
   async function compute() {
     /**
      * 점검 시간 가드 — 쿠팡 페이지를 읽기 전에 먼저 확인합니다.

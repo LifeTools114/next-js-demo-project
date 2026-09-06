@@ -20,14 +20,9 @@ const KBPanel = (() => {
  * 무슨 버튼인지 알 수 없고 눈에도 안 띈다는 지적(운영자 26-09-06)에 따라
  * 하는 일을 글로 쓴 **큰 버튼**으로 바꿉니다 (넓이 기준 약 3배).
  */
-.fab { min-width: 188px; min-height: 60px; border-radius: 15px; border: 0; margin-left: auto;
-  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px;
-  font: 800 16px/1.25 inherit; text-align: left; cursor: pointer;
-  background: linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%); color: #fff; box-shadow: 0 6px 20px rgba(255,106,0,.45); }
-.fab .fab-ico { font-size: 25px; line-height: 1 }
-.fab .fab-sub { display: block; font-size: 11.5px; font-weight: 700; opacity: .9; margin-top: 2px }
-.fab[data-state="blocked"] { background: #c53030; }
-.fab[data-state="error"] { background: #4e5968; }
+/* 상품 화면의 견적 카드 — 홈 화면 시작 배너와 같은 공용 그림(KBCalc.bannerHtml).
+   운영자 26-09-06: "파란색 바탕에 큰 이미지가 뜨는 팝업으로 통일." 누르면 가격 패널이 열립니다. */
+.fab { width: 232px; margin-left: auto; cursor: pointer; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.28); }
 .card { background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(10,46,156,.22);
   overflow: hidden; border: 1px solid #e5e8eb; max-height: 76vh; display: flex; flex-direction: column; }
 /* 머리·버튼은 시작 배너와 같은 색 — 파란 바탕에 흰 굵은 글자, 행동 버튼은 주황 알약 (운영자 26-09-06) */
@@ -510,14 +505,16 @@ const KBPanel = (() => {
     ensureHost()
     const wrap = root.querySelector('.wrap')
     if (!open) {
-      const icon =
-        state.view === 'blocked' ? '🚫'
-        : state.view === 'maintenance' ? '🌙'
-        : state.view === 'manual-quote' ? '📋'
-        : flag('vn', 22)
-      wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="베트남 배송 견적">` +
-        `<span class="fab-ico">${icon}</span><span>배송·구매대행 신청` +
-        '<span class="fab-sub">베트남 도착 가격 보기</span></span></button>'
+      // 시작 배너와 같은 카드 — 버튼 글자와 색만 상품 상태에 따라 바뀝니다.
+      const st = fabState()
+      const look =
+        st === 'blocked' ? { button: '🚫 배송 불가 — 이유 보기', tone: 'red', foot: '이 상품은 베트남으로 보낼 수 없습니다' }
+        : st === 'error' ? { button: '읽지 못함 — 자세히', tone: 'grey', foot: '상품 정보를 읽지 못했습니다' }
+        : st === 'maintenance' ? { button: '점검 중 — 자세히', tone: 'grey', foot: '쇼핑몰 점검 시간에는 잠시 멈춥니다' }
+        : st === 'manual' ? { button: '상담 필요 — 자세히', tone: 'orange', foot: '물류사 확인 뒤 요금을 안내합니다' }
+        : { button: '도착 가격 보기', tone: 'orange', foot: '✓ 작동 중 · 이 상품의 베트남 도착 가격' }
+      wrap.innerHTML = `<div class="fab" data-state="${st}" title="베트남 도착 견적">` +
+        (globalThis.KBCalc?.bannerHtml?.({ on: true, id: 'kb-fab-banner', ...look }) ?? '') + '</div>'
       wrap.querySelector('.fab').addEventListener('click', () => {
         open = true
         render()
@@ -527,16 +524,11 @@ const KBPanel = (() => {
 
     wrap.innerHTML = `<div class="card">
       <div class="head"><b>${flag('vn', 14)} 베트남 도착 견적</b>
-        <button data-act="mode-off" style="font-size:11px;font-weight:800;color:#fff;
-          border:1px solid rgba(255,255,255,.55);border-radius:999px;padding:3px 9px">끄기</button>
         <button data-act="close" aria-label="닫기">✕</button></div>
       ${renderShortcut()}
       ${renderBody()}${renderButtons()}
     </div>`
 
-    // 맨 위 스위치 — 이 도우미를 통째로 끄고 켭니다 (하노이가 아니라 한국으로 받으실 때).
-    wrap.querySelector('[data-act="mode-off"]')?.addEventListener('click', () => handlers.onMode?.(true))
-    wrap.querySelector('[data-act="mode-on"]')?.addEventListener('click', () => handlers.onMode?.(false))
     wrap.querySelector('[data-act="close"]').addEventListener('click', () => {
       open = false
       render()
