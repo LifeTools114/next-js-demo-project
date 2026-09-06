@@ -58,7 +58,7 @@
   const handlers = {
     /** 맨 위 스위치 — 끄면 이 화면도, 결제 화면 카드도 함께 조용해집니다 */
     onMode: async (off) => {
-      try { await chrome.storage.local.set({ kbDirectOff: Boolean(off) }) } catch { /* 무시 */ }
+      try { await chrome.storage.local.set({ kbOn: !off }) } catch { /* 무시 */ }
       compute()
     },
     onTrackChange: (t) => {
@@ -136,8 +136,9 @@
      * 쿠팡 일반 주문으로 쓰시는 중이니 견적도 안내도 방해가 됩니다.
      */
     try {
-      if ((await chrome.storage.local.get('kbDirectOff'))?.kbDirectOff) {
-        KBPanel.setState({ view: 'off' })
+      // 켜기 전에는 패널을 아예 띄우지 않습니다 — 시작 배너만 보입니다.
+      if (!(await chrome.storage.local.get('kbOn'))?.kbOn) {
+        KBPanel.hide()
         return
       }
     } catch { /* 저장소를 못 읽으면 평소대로 */ }
