@@ -5,6 +5,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/srv/kb}"
 DATA_DIR="${ORDER_STORE_DIR:-$APP_DIR/.data}"
 OUT_DIR="${BACKUP_DIR:-$APP_DIR/backups}"
+[ -d "$DATA_DIR" ] || { echo "$(date -Is) 아직 주문 파일이 없습니다 ($DATA_DIR) — 건너뜀"; exit 0; }
 mkdir -p "$OUT_DIR"
 STAMP="$(date +%Y%m%d-%H%M)"
 tar -czf "$OUT_DIR/data-$STAMP.tgz" -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")"

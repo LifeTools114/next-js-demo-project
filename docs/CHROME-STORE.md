@@ -109,18 +109,20 @@
 
 ```
 npm run build:ext
-STORE_BACKEND_URL=https://<사이트 주소> npm run pack:store
+npm run pack:store
 ```
-(윈도우 PowerShell: `$env:STORE_BACKEND_URL="https://<사이트 주소>"; npm run pack:store`)
+기본 서버 주소는 `https://naka.1dollartool.com` 입니다. 다른 서버로 만들 때만
+`STORE_BACKEND_URL=https://<주소> npm run pack:store`
+(윈도우 PowerShell: `$env:STORE_BACKEND_URL="https://<주소>"; npm run pack:store`).
 
 결과: `dist/vietnam-helper-<버전>.zip`. 이 명령이 대신 해주는 것:
 - `host_permissions` 에서 개발용 `http://localhost:3000/*` 제거
-- 확장이 붙는 기본 서버 주소(`DEFAULT_BACKEND`)를 `STORE_BACKEND_URL` 로 교체
+- 확장이 붙는 기본 서버 주소(`DEFAULT_BACKEND`)를 `https://naka.1dollartool.com`(또는 `STORE_BACKEND_URL`)로 교체
   (https 여야 하고 `manifest.json` 의 host_permissions 에 있는 도메인이어야 합니다 — 아니면 중단)
 - 번들(`vendor/calc.js`)이 소스와 같은지 확인
 
 > ⚠️ **사이트가 먼저 공개 서버에 떠 있어야 합니다.** 확장은 그 서버에서 요율·창고 주소를 받고,
-> 스토어 등록 양식의 개인정보 처리방침 URL(`https://<사이트 주소>/privacy`)도 심사관이 실제로 엽니다.
+> 스토어 등록 양식의 개인정보 처리방침 URL(`https://naka.1dollartool.com/privacy`)도 심사관이 실제로 엽니다.
 > localhost 로는 등록할 수 없습니다.
 
 포함되는 것: `manifest.json`, `_locales/`, `icons/`, `src/`, `vendor/calc.js`

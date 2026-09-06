@@ -1,7 +1,8 @@
 /**
  * 크롬 웹스토어용 zip 만들기 — 개발용 흔적을 걷어낸 배포본.
  *
- *   STORE_BACKEND_URL=https://app.example.com npm run pack:store
+ *   npm run pack:store                                   # 기본 서버 https://naka.1dollartool.com
+ *   STORE_BACKEND_URL=https://다른.주소 npm run pack:store   # 다른 서버면
  *
  * 하는 일
  *   1. extension/ 을 dist/store/ 로 복사
@@ -18,10 +19,11 @@ import { join, resolve } from 'node:path'
 const root = resolve(new URL('..', import.meta.url).pathname)
 const src = join(root, 'extension')
 const stage = join(root, 'dist', 'store')
-const backend = String(process.env.STORE_BACKEND_URL ?? '').replace(/\/$/, '')
+const DEFAULT_STORE_BACKEND = 'https://naka.1dollartool.com'
+const backend = String(process.env.STORE_BACKEND_URL || DEFAULT_STORE_BACKEND).replace(/\/$/, '')
 
 const fail = (msg) => { console.error(`✗ ${msg}`); process.exit(1) }
-if (!/^https:\/\/[^/]+$/.test(backend)) fail('STORE_BACKEND_URL 이 필요합니다 — 예: STORE_BACKEND_URL=https://app.example.com (https, 경로 없이)')
+if (!/^https:\/\/[^/]+$/.test(backend)) fail(`STORE_BACKEND_URL 이 이상합니다: ${backend} — 예: https://naka.1dollartool.com (https, 경로 없이)`)
 
 // 0. 번들이 소스와 같은지
 try { execFileSync(process.execPath, [join(root, 'scripts', 'check-ext-fresh.mjs')], { stdio: 'inherit' }) } catch { fail('먼저 npm run build:ext 를 실행하세요') }

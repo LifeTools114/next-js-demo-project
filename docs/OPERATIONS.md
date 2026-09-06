@@ -36,16 +36,16 @@ cd C:\Users\acma2\next-js-demo-project ; git pull ; npm run dev
 ## 0-1. 공개 도메인으로 옮길 때 (1dollartool.com 서브도메인)
 
 고객이 쓰려면 백엔드가 인터넷에 있어야 합니다. `localhost` 는 사장님 PC 안에서만
-보입니다. 자사 도메인의 **서브도메인**을 쓰면 됩니다 (예: `hanoi.1dollartool.com`).
+보입니다. 자사 도메인의 **서브도메인**을 쓰면 됩니다 — 정한 주소는 **`naka.1dollartool.com`** 입니다.
 
 바꿀 곳은 세 군데뿐입니다.
 
-1. **서버 배포** — 그 서브도메인이 이 Next.js 앱을 가리키게 하고 **HTTPS** 로 엽니다.
-2. **확장 설정** — 확장 팝업 아래 [백엔드 주소] 칸에 `https://hanoi.1dollartool.com`
+1. **서버 배포** — `docs/DEPLOY.md` 의 명령 한 줄(`deploy/setup-server.sh`)이 HTTPS 까지 다 합니다.
+2. **확장 설정** — 확장 팝업 아래 [백엔드 주소] 칸에 `https://naka.1dollartool.com`
    을 넣습니다. (도메인을 바꾸면 설정 캐시가 자동으로 비워져 바로 반영됩니다.
    `manifest.json` 의 `host_permissions` 에 `https://*.1dollartool.com/*` 가
    이미 들어 있어 어떤 서브도메인이든 됩니다.)
-3. **환경변수** — `.env.local` 에 `BASE_URL=https://hanoi.1dollartool.com`.
+3. **환경변수** — `.env.local` 에 `BASE_URL=https://naka.1dollartool.com`.
    알림 문구의 관리자 링크가 이 주소로 나갑니다.
 
 **공개 서버에서는 `ADMIN_TOKEN` 이 반드시 있어야 합니다.** 없으면 운영자 API 가
