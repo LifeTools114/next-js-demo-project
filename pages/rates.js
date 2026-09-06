@@ -10,7 +10,7 @@ import { compareConsolidation } from '../lib/consolidation'
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { MAINTENANCE } from '../config/maintenance'
 import { maintenanceStatus } from '../lib/maintenance'
-import { DESTINATION, BLOCK_RULES } from '../config/eligibility'
+import { DESTINATION, LISTED_BLOCK_RULES } from '../config/eligibility'
 import { TAXES } from '../config/taxes'
 import { FEES } from '../config/fees'
 import { REFUND_DAYS, RETURN_POLICY } from '../config/payment'
@@ -377,7 +377,7 @@ export default function RatesPage() {
             </span>
             <span className="row__value">🚫</span>
           </div>
-          {BLOCK_RULES.map((r) => (
+          {LISTED_BLOCK_RULES.map((r) => (
             <div className="row" key={r.id}>
               <span className="row__label">
                 {r.label}

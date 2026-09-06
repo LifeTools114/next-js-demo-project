@@ -64,6 +64,13 @@ export const CONTEXT_MARKERS = {
   ],
 }
 
+/**
+ * 고객에게 보여주는 「보낼 수 없는 물건」 목록 — 운영자 확정 26-09-06 (8줄):
+ *   해외직구 · 인화성 · 배터리 · 주류담배 · 냉장냉동 · 축산물 · 중량 초과 · 대형 가전
+ * 목록에서 뺀 네 가지(특별소비세·의약품·식물 검역·통관 금지)는 `listed: false` 로
+ * 숨기되 **차단은 그대로** 둡니다 — 베트남 수입 규제라 풀면 통관에서 압수·반송됩니다.
+ * 차단까지 풀려면 운영자 확인 뒤 규칙을 지우세요.
+ */
 export const BLOCK_RULES = [
   {
     id: 'flammable',
@@ -98,6 +105,7 @@ export const BLOCK_RULES = [
   },
   {
     id: 'sct',
+    listed: false, // 고객 목록(/rates·첫 화면)에서는 숨김 — 운영자 26-09-06 목록에 없음. 차단은 유지합니다.
     label: '특별소비세 대상',
     reason: '베트남 특별소비세가 부과되는 품목이라 취급하지 않습니다.',
     // 골프채는 배송 가능 (운영자 확정 26-08-30) — 장척 화물 견적 문의로 처리합니다.
@@ -105,6 +113,7 @@ export const BLOCK_RULES = [
   },
   {
     id: 'pharma',
+    listed: false, // 고객 목록(/rates·첫 화면)에서는 숨김 — 운영자 26-09-06 목록에 없음. 차단은 유지합니다.
     label: '의약품',
     reason: '베트남은 의약품 개인 반입을 엄격히 제한합니다. 통관 보류·폐기 위험이 큽니다.',
     keywords: [
@@ -126,7 +135,7 @@ export const BLOCK_RULES = [
   {
     id: 'cold-chain',
     label: '냉장·냉동 식품',
-    reason: '항공 배송 중에는 냉장·냉동을 유지할 수 없어 상하거나 검역에서 폐기됩니다. 상온으로 파는 식품은 보내드릴 수 있습니다.',
+    reason: '항공 배송 중에는 냉장·냉동을 유지할 수 없어 상할 수 있습니다. 상온으로 파는 식품은 문제 없음',
     exemptIfContext: ['cosmetic'],
     // 가전·주방용품이 '냉장/냉동'을 품고 있습니다 — 식품이 아닌 것들.
     excludeIfAny: [
@@ -143,7 +152,7 @@ export const BLOCK_RULES = [
      * **배송 가능**해졌습니다 — CAUTION_RULES 의 안내만 붙습니다.
      * 여기 남는 것은 냉장·냉동이 필요하거나 날것인 축·수산물입니다.
      */
-    reason: '생고기·냉장 유제품·회는 베트남 동물 검역 대상이라 반입이 금지됩니다. 상온으로 파는 가공식품은 보내드릴 수 있습니다.',
+    reason: '생고기·냉장 유제품·회는 상할 수 있습니다. 상온으로 파는 식품은 문제 없음',
     /**
      * 적용하지 않는 두 문맥
      *   cosmetic    한국 화장품에는 유제품 이름이 흔합니다 (자음생크림·요거트팩)
@@ -172,6 +181,7 @@ export const BLOCK_RULES = [
   },
   {
     id: 'quarantine-plant',
+    listed: false, // 고객 목록(/rates·첫 화면)에서는 숨김 — 운영자 26-09-06 목록에 없음. 차단은 유지합니다.
     label: '식물 검역 대상',
     reason: '종자·묘목·흙은 베트남 식물 검역 대상으로 반입이 금지됩니다.',
     exemptIfContext: ['cosmetic'],
@@ -179,6 +189,7 @@ export const BLOCK_RULES = [
   },
   {
     id: 'restricted-goods',
+    listed: false, // 고객 목록(/rates·첫 화면)에서는 숨김 — 운영자 26-09-06 목록에 없음. 차단은 유지합니다.
     label: '통관 금지 품목',
     reason: '베트남 수입 금지 품목입니다.',
     keywords: [
@@ -194,7 +205,7 @@ export const BLOCK_RULES = [
   {
     id: 'overweight',
     label: '중량 초과',
-    reason: '단일 상품 30kg 을 초과해 취급하지 않습니다.',
+    reason: '단일 상품 30kg 을 초과할 경우 상담 요청해주세요.',
     /**
      * 무게 기반 차단 — 키워드보다 확실합니다.
      * 냉장고·세탁기를 키워드로 놓쳐도 추정 무게로 걸러집니다.
@@ -290,3 +301,6 @@ export const WARN_RULES = {
   maxSameItemQty: 5,
   maxParcelKg: 30,
 }
+
+/** 고객 화면에 보여주는 차단 유형 — 숨긴 규칙(listed: false)은 차단만 하고 목록에는 없습니다 */
+export const LISTED_BLOCK_RULES = BLOCK_RULES.filter((r) => r.listed !== false)
