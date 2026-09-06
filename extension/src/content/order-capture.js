@@ -404,6 +404,19 @@
   ]
   let helperAddrStep = ''
 
+  /**
+   * 고객에게 보여줄 여섯 줄 — 배송지와 배송 요청사항이 **한 흐름**입니다.
+   * 안쪽의 잔단계(우편번호·검색·상세주소…)는 이 여섯 줄로 묶습니다.
+   */
+  const FLOW_STEPS = [
+    '배송지 창 열기',
+    '창고 주소 채우기',
+    '[저장] 누르기',
+    '배송 요청사항 열기',
+    '문 앞 · 비밀번호없이 출입',
+    '[동의하고 저장하기]',
+  ]
+
   // 배송지 자동 등록 진행/실패 상태 — 실패 시에만 수동 방법 버튼을 보여줍니다.
   let helperAddrBusy = false
   let helperAddrFailed = false
@@ -673,6 +686,18 @@
     ['noteSave', '[동의하고 저장하기] 누르기'],
   ]
   let helperNoteStep = ''
+  /**
+   * 고객이 [✋ 자동 끄고 직접 입력]을 눌렀는가.
+   * 자동이 도는 동안에는 우리가 계속 버튼을 누르고 칸을 채우기 때문에,
+   * 고객이 직접 고치려 하면 서로 싸웁니다 (운영자 26-09-06:
+   * "다시 수동으로 변경하려면 입력이 안 된다"). 이 스위치가 켜지면
+   * 모든 자동 동작이 그 자리에서 멈추고, 다시 누르기 전까지 끼어들지 않습니다.
+   */
+  let helperStopped = false
+  /** 배송지 다음에 배송 요청사항까지 한 번에 이어갈 것인가 */
+  let helperChain = false
+  /** 직구 주문 스위치 — 끄면 이 도우미는 아무것도 하지 않습니다 (쿠팡 일반 주문) */
+  let directOff = false
   let helperNoteBusy = false
   let helperNoteDone = false
   let helperNoteManual = ''
@@ -710,6 +735,67 @@
     if (noteModalOpen()) return false
     const t = squash(text ?? '')
     return t.includes('문앞') && (t.includes('비밀번호없이') || t.includes('출입번호없') || t.includes('비밀번호없음'))
+  }
+
+  /**
+   * 자동을 **전부** 멈춥니다 — 최상위 루프, 프레임 도우미, 우편번호 자동검색까지.
+   * 작업(kbAddrJob·kbNoteJob)을 지우면 프레임 쪽 루프도 스스로 빠져나옵니다.
+   */
+  function stopAutomation() {
+    helperStopped = true
+    helperChain = false
+    helperAddrBusy = false
+    helperNoteBusy = false
+    helperAddrWaitManual = ''
+    helperNoteManual = ''
+    helperAddrStep = ''
+    helperNoteStep = ''
+    clearSpotlight()
+    try {
+      chrome.storage.local.remove([JOB_KEY, JOB_STATE_KEY, NOTE_JOB_KEY, NOTE_STATE_KEY, 'kbPostcodeQuery'])
+      /**
+       * 우편번호 창(다른 출처 프레임)에서 도는 postcode-fill.js 는 이 값을 봅니다.
+       * 이게 없으면, 고객이 **본인 주소**를 찾으려고 검색창을 열었을 때 우리가
+       * 창고 주소를 대신 검색해 골라버립니다 (운영자 26-09-06의 바로 그 불편).
+       */
+      chrome.storage.local.set({ kbAutoStopped: true })
+    } catch { /* 무시 */ }
+  }
+
+  /** 카드 만들기 — 켜짐·꺼짐 두 화면이 같은 상자를 씁니다 */
+  function ensureCard() {
+    let el = document.getElementById('kb-checkout-helper')
+    if (el) return el
+    el = document.createElement('div')
+    el.id = 'kb-checkout-helper'
+    el.dataset.kbUi = '1'
+    el.style.cssText =
+      'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:280px;background:#fff;' +
+      'border:1px solid #dbe4f0;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);' +
+      'padding:13px;font:12.5px/1.55 sans-serif;color:#191f28;' +
+      // 상세·비용 안내를 펼치면 카드가 화면보다 길어질 수 있어 내부 스크롤로 감쌉니다.
+      'max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain'
+    document.body.appendChild(el)
+    return el
+  }
+
+  /** 직구 주문 스위치 저장 — 껐다 켰다를 화면들이 함께 씁니다 */
+  async function setDirectOff(off) {
+    directOff = Boolean(off)
+    try { await chrome.storage.local.set({ kbDirectOff: directOff }) } catch { /* 무시 */ }
+    if (directOff) stopAutomation()
+    else helperStopped = false
+  }
+
+  /** 지금 여섯 줄 중 어디인가 (-1 = 아직 시작 전이거나 다 끝남) */
+  function flowStage() {
+    if (helperNoteStep === 'noteSave') return 5
+    if (helperNoteStep === 'noteDoor' || helperNoteStep === 'noteNoCode') return 4
+    if (helperNoteStep === 'noteOpen') return 3
+    if (helperAddrStep === 'save') return 2
+    if (['fill', 'zip', 'search', 'detail'].includes(helperAddrStep)) return 1
+    if (helperAddrStep) return 0
+    return -1
   }
 
   /** 카드를 다시 그립니다 — card 변수는 renderCheckoutHelper 안에만 있으므로 id 로 찾습니다 */
@@ -800,6 +886,7 @@
     let asked = false
     let fromFrame = null
     while (Date.now() - started < WAIT) {
+      if (helperStopped) return stop('자동을 껐습니다 — 직접 입력하실 수 있습니다.', true)
       fromFrame = await readNoteState(jobAt)
       if (fromFrame || noteModalOpen()) break
       const opener = noteOpenTarget()
@@ -819,6 +906,7 @@
       helperNoteManual = ''
       const until = Date.now() + 150_000
       while (Date.now() < until) {
+        if (helperStopped) return stop('자동을 껐습니다 — 직접 입력하실 수 있습니다.', true)
         /**
          * 저장하면 창(프레임)이 통째로 사라져 마지막 보고를 못 남깁니다.
          * 그래서 화면 요약이 맞아졌는지도 함께 봅니다 — 그게 진짜 결과입니다.
@@ -853,6 +941,7 @@
 
     // ②-b 이 화면에서 창이 보입니다 — 문 앞 → 비밀번호없이 출입.
     for (const key of ['noteDoor', 'noteNoCode']) {
+      if (helperStopped) return stop('자동을 껐습니다 — 직접 입력하실 수 있습니다.', true)
       step(key)
       let hit = null
       for (let i = 0; i < 8 && !hit; i++) {
@@ -1413,7 +1502,15 @@
       }
       const until = Date.now() + 150_000
       const picked = { noteDoor: false, noteNoCode: false }
+      /** 최상위가 작업을 지우면(=고객이 자동을 껐으면) 여기서도 손을 뗍니다 */
+      const noteAlive = async () => {
+        try {
+          const j = (await chrome.storage.local.get(NOTE_JOB_KEY))?.[NOTE_JOB_KEY]
+          return Boolean(j) && j.at === job.at
+        } catch { return true }
+      }
       while (Date.now() < until) {
+        if (!(await noteAlive())) { clearSpotlight(); noteRunning = 0; return }
         if (!noteModalOpen()) { await sleep(500); continue }
         const root = noteModalRoot()
         for (const key of ['noteDoor', 'noteNoCode']) {
@@ -1553,6 +1650,35 @@
       }
     } catch { /* 무시 */ }
 
+    /**
+     * 직구 주문 스위치 — 꺼져 있으면 이 도우미는 **아무것도 하지 않습니다.**
+     * 자동도, 경고도, 결제 전 확인도 없습니다. 쿠팡 일반 주문 그대로입니다.
+     */
+    try { directOff = Boolean((await chrome.storage.local.get('kbDirectOff'))?.kbDirectOff) } catch { /* 무시 */ }
+    if (directOff) {
+      payGuard.warn = ''
+      const off = ensureCard()
+      off.style.border = '1px solid #dbe4f0'
+      off.style.boxShadow = '0 8px 28px rgba(0,0,0,.18)'
+      const offHtml =
+        '<b>🇻🇳 직구 주문 <span style="color:#8b95a1">꺼짐</span></b>' +
+        `<span style="float:right;font-size:10px;color:#b0b8c1">v${ver}</span>` +
+        '<div style="margin-top:5px;font-size:11.5px;color:#8b95a1;line-height:1.5">' +
+        '쿠팡 일반 주문으로 쓰고 계십니다.<br>하노이로 보내시려면 켜주세요.</div>' +
+        '<button id="kb-mode-on" style="margin-top:8px;width:100%;min-height:40px;border:0;border-radius:9px;' +
+        'background:#3182f6;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">🇻🇳 직구 주문 켜기</button>'
+      if (off.dataset.kbHtml !== offHtml) {
+        off.dataset.kbHtml = offHtml
+        off.innerHTML = offHtml
+        off.querySelector('#kb-mode-on')?.addEventListener('click', async () => {
+          await setDirectOff(false)
+          off.dataset.kbHtml = ''
+          renderCheckoutHelper()
+        })
+      }
+      return
+    }
+
     const cfg = await send('getConfig')
     // 서버가 내려준 쿠팡 문구 설정 반영 — 쿠팡이 화면을 바꿔도 재배포 없이 대응.
     PAT?.apply(cfg?.config?.coupang)
@@ -1565,7 +1691,8 @@
     const phone = w.phone || '010-7360-1156'
 
     // 배송지 다이얼로그가 열려 있으면 빈 칸을 조용히 채워둡니다 (받는사람·전화·상세주소).
-    autofillAddressDialog({ code, phone })
+    // 고객이 직접 하겠다고 했으면 손대지 않습니다 — 지우고 다시 치는 것을 방해합니다.
+    if (!helperStopped) autofillAddressDialog({ code, phone })
 
     /**
      * 배송지 검사는 "배송지 섹션"만 봅니다 — 페이지 전체를 보면 주소록
@@ -1623,25 +1750,22 @@
     const quotes = cart.length > 0 ? await cartQuotes(cart, cfg?.config) : { fwd: null, agent: null }
     const autoAdded = pageItems.length > 0
 
-    let card = document.getElementById('kb-checkout-helper')
-    if (!card) {
-      card = document.createElement('div')
-      card.id = 'kb-checkout-helper'
-      card.dataset.kbUi = '1'
-      card.style.cssText =
-        'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:280px;background:#fff;' +
-        'border:1px solid #dbe4f0;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);' +
-        'padding:13px;font:12.5px/1.55 sans-serif;color:#191f28;' +
-        // 상세·비용 안내를 펼치면 카드가 화면보다 길어질 수 있어 내부 스크롤로 감쌉니다.
-        'max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain'
-      document.body.appendChild(card)
-    }
+    const card = ensureCard()
 
     const ok = okAddr && okCode
     helperAddrOk = ok && !onCart
     // 주소가 맞아졌으면 단계 표시도 끝. 단, 배송 요청사항을 맞추는 중이면
     // 그쪽이 짚어 둔 표시까지 지우면 안 됩니다 (0.5초마다 다시 그려집니다).
     if (ok) { helperAddrStep = ''; if (!helperNoteBusy) clearSpotlight() }
+    /**
+     * 배송지가 맞아지면 **이어서** 배송 요청사항까지 갑니다 — 고객이 버튼을
+     * 두 번 누르지 않게 (운영자 26-09-06: "한 번에 차례대로").
+     */
+    if (helperChain && ok && !onCart && !helperStopped && !helperAddrBusy && !helperNoteBusy
+        && !helperNoteDone && !noteLooksSet(pageTextSansOurUi())) {
+      helperChain = false
+      runDeliveryNote()
+    }
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
     /**
@@ -1789,6 +1913,8 @@
       let frameSeen = false  // 배송지 창이 다른 출처 프레임이라 프레임 쪽 도우미가 맡았는가
       let frameFinal = null  // 프레임이 보고한 마지막 상태 (done-pick / save / failed)
       while (!mode) {
+        // 고객이 [✋ 자동 끄고 직접 입력]을 눌렀으면 그 자리에서 손을 뗍니다.
+        if (helperStopped) { helperAddrBusy = false; clearSpotlight(); redrawCard(); return }
         // 프레임이 맡았으면 그쪽의 입력·검색 시간까지 더 기다립니다.
         if (Date.now() - started >= WATCH_MS + (frameSeen ? FRAME_EXTRA_MS : 0)) break
         /**
@@ -1954,6 +2080,7 @@
        * 못 알아채고 60초 뒤 엉뚱한 실패 문구를 냈습니다 (가짜 화면 재현 26-09-04).
        */
       while (Date.now() < zipUntil) {
+        if (helperStopped) { helperAddrBusy = false; clearSpotlight(); redrawCard(); return }
         await sleep(600)
         if (daumOpen()) {
           daumSeen = true
@@ -2198,21 +2325,24 @@
      * 단계 표 — 자동으로 된 것(✓)·지금 하는 것(▶)·남은 것(○)을 보여줍니다.
      * "직접 눌러주세요" 단계는 ▶ 옆에 빨갛게 적습니다.
      */
+    /**
+     * 진행 표 — 배송지와 배송 요청사항을 **한 흐름**으로 보여줍니다
+     * (운영자 26-09-06: "분리하지 말고 차례대로"). 안쪽의 잔단계는 여섯 줄로 묶어
+     * 카드가 길어지지 않게 합니다.
+     */
     const stepsBlock = (() => {
-      if (onCart || ok || helperTrack !== 'forwarding' || !helperAddrStep) return ''
-      if (helperAddrStep === 'pick') {
-        return '<div class="kb-steps"><div class="kb-step now">▶ 저장된 창고 주소의 [선택] 누르기' +
-          (helperAddrFailed || helperAddrWaitManual === 'pick' ? ' <b style="color:#d92d20">— 직접 눌러주세요</b>' : '') + '</div></div>'
-      }
-      const idx = ADDR_STEPS.findIndex(([id]) => id === helperAddrStep)
-      const manualNow = helperAddrWaitManual || (helperAddrFailed && helperAddrStep !== 'save') || helperAddrStep === 'save'
+      if (onCart || helperTrack !== 'forwarding') return ''
+      const at = flowStage()
+      if (at < 0) return ''
+      const manualNow = Boolean(helperAddrWaitManual || helperNoteManual
+        || (helperAddrFailed && helperAddrStep !== 'save') || helperAddrStep === 'save')
       return '<style>.kb-steps{margin-top:7px;padding:8px 10px;border-radius:9px;background:#f9fafb;font-size:12px;line-height:1.7}' +
         '.kb-step{color:#8b95a1}.kb-step.done{color:#17916b}.kb-step.now{color:#191f28;font-weight:800}</style>' +
         '<div class="kb-steps">' +
-        ADDR_STEPS.map(([id, label], i) =>
-          `<div class="kb-step ${i < idx ? 'done' : i === idx ? 'now' : ''}">` +
-          `${i < idx ? '✓' : i === idx ? '▶' : '○'} ${esc(label)}` +
-          (i === idx && manualNow ? ' <b style="color:#d92d20">— 직접 눌러주세요</b>' : '') +
+        FLOW_STEPS.map((label, i) =>
+          `<div class="kb-step ${i < at ? 'done' : i === at ? 'now' : ''}">` +
+          `${i < at ? '✓' : i === at ? '▶' : '○'} ${esc(label)}` +
+          (i === at && manualNow ? ' <b style="color:#d92d20">— 직접 눌러주세요</b>' : '') +
           '</div>').join('') +
         '</div>'
     })()
@@ -2243,18 +2373,24 @@
        * 정작 무엇을 넣는 칸인지 눈이 가지 않습니다. 이름을 치기 시작하면
        * 안내는 저절로 사라집니다 (운영자 26-09-06).
        */
+      // 말 먼저, 칸은 그 아래 — 읽는 순서와 하는 순서를 맞춥니다 (운영자 26-09-06)
+      '<div style="font-size:13.5px;font-weight:900;color:#7a4b00;line-height:1.5">' +
+      '주문하는 고객님의 성함을 입력하세요.</div>' +
       `<input id="kb-name-input" value="${esc(nm)}" placeholder="여기에 받으시는 분 성함을 입력" ` +
-      'style="width:100%;min-height:44px;box-sizing:border-box;padding:0 11px;' +
+      'style="margin-top:6px;width:100%;min-height:44px;box-sizing:border-box;padding:0 11px;' +
       'border:1.5px solid #f0b429;border-radius:8px;font-size:14.5px;font-weight:700;color:#191f28;background:#fff">' +
       (nm
         ? '<button id="kb-name-clear" style="margin-top:4px;border:0;background:transparent;color:#8b95a1;' +
           'font-size:10.5px;cursor:pointer;text-decoration:underline">이 이름 지우기</button>'
         : '') +
-      // 한 줄로 굵게 — 무엇을 넣는 칸인지가 첫눈에 보여야 합니다 (운영자 26-09-06)
-      '<div style="margin-top:6px;font-size:13.5px;font-weight:900;color:#7a4b00;line-height:1.5">' +
-      '주문하는 고객님의 성함을 입력하세요.</div></div>'
+      '</div>'
 
-    const miniForm = onCart || ok || helperTrack !== 'forwarding'
+    /** 자동이 도는 동안 **항상** 보이는 탈출구 — 막히면 여기서 손을 뗍니다 */
+    const stopBtn = '<button id="kb-stop" style="margin-top:5px;width:100%;min-height:38px;border:1.5px solid #8b95a1;' +
+      'border-radius:8px;background:#fff;color:#4e5968;font-size:12.5px;font-weight:800;cursor:pointer">' +
+      '✋ 자동 끄고 직접 입력</button>'
+
+    const miniForm = onCart || (ok && (helperNoteDone || noteLooksSet(allText))) || helperTrack !== 'forwarding'
       ? ''
       : helperAddrStep === 'save'
         // 자동입력이 끝났습니다 — 마지막 [저장] 만 고객 몫. 빨간 버튼 대신 초록 안내.
@@ -2272,15 +2408,25 @@
                 : '[배송지 변경]을') + ' 직접 눌러주세요<br>' +
               '<span style="font-weight:700;font-size:11px">누르면 나머지는 자동으로 진행됩니다</span></div>'
             : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
-              'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>') + diagBtn
-        : nameBlock +
+              'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>') + stopBtn + diagBtn
+        : helperNoteBusy
+        ? (helperNoteManual
+            ? '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#fff8e6;color:#d9480f;' +
+              'font-size:13px;font-weight:800;text-align:center;line-height:1.5">🖱 쿠팡 창에서 ' +
+              (helperNoteManual === 'noteOpen' ? '[배송 요청사항 변경]을'
+                : helperNoteManual === 'noteSave' ? '[동의하고 저장하기]를'
+                : helperNoteManual === 'noteDoor' ? '«문 앞»을'
+                : '«비밀번호없이 출입 가능해요»를') + ' 직접 눌러주세요</div>'
+            : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
+              'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송 요청사항 맞추는 중…</div>') + stopBtn + diagBtn
+        : (ok ? '' : nameBlock) +
           '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:52px;border:0;border-radius:10px;' +
           // 주소가 틀린 동안에는 빨강 — 초록은 "다 됐다" 는 뜻이라 여기서는 거짓말입니다.
-          'background:#d92d20;color:#fff;font-weight:900;font-size:15.5px;cursor:pointer;' +
-          'animation:kbAlert 1.6s ease-out 3">' +
-          (helperAddrFailed ? '⚡ 자동입력 — 다시 시도' : '⚡ 자동입력') +
+          `background:${ok ? '#3182f6' : '#d92d20'};color:#fff;font-weight:900;font-size:15.5px;cursor:pointer;` +
+          (ok ? '"' : 'animation:kbAlert 1.6s ease-out 3">') +
+          (helperAddrFailed || helperStopped ? '⚡ 자동입력 — 다시 시도' : '⚡ 자동입력') +
           '<span style="display:block;font-size:11px;font-weight:700;opacity:.9;margin-top:2px">' +
-          '저희 창고 주소를 자동으로 넣어드립니다</span></button>' +
+          '창고 주소와 배송 요청사항을 차례대로 넣어드립니다</span></button>' +
           // 직접 입력은 항상 보이게 — 자동이 안 될 때만 숨겨두면 막힌 고객이
           // 빠져나갈 길을 못 찾습니다 (운영자 지시 26-09-04).
           '<button id="kb-addr-help" style="margin-top:5px;width:100%;min-height:36px;border:1.5px solid #d92d20;' +
@@ -2307,28 +2453,22 @@
      * 물어보는 설정이면 배송이 그 자리에서 막힙니다 (운영자 확정 26-09-06).
      * 배송지가 창고로 맞아진 다음에 보여줍니다 — 순서가 그게 맞습니다.
      */
+    /**
+     * 배송 요청사항 — 창고 공동현관에는 출입번호가 없습니다. 기사님이 번호를
+     * 물어보는 설정이면 배송이 그 자리에서 막힙니다 (운영자 확정 26-09-06).
+     * 버튼은 위 [⚡ 자동입력] 하나로 합쳤습니다 — 배송지 다음에 이어서 합니다.
+     */
     const noteBlock = (() => {
       if (onCart || helperTrack !== 'forwarding' || !ok) return ''
-      const done = helperNoteDone || noteLooksSet(allText)
-      if (done) {
+      if (helperNoteDone || noteLooksSet(allText)) {
         return '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
           'font-size:12px;font-weight:800">✓ 배송 요청사항 확인됨 — 문 앞 · 비밀번호없이 출입</div>'
       }
-      const rows = NOTE_STEPS.slice(1, 3)
-        .map(([id, label]) => `<div style="font-size:12px;font-weight:800;color:#7a4b00;line-height:1.7">${
-          helperNoteManual === id ? '👉 ' : ''}${esc(label.replace(' 고르기', ''))}</div>`).join('')
-      return '<div style="margin-top:7px;padding:10px 11px;border-radius:11px;background:#fff8e6;border:2px solid #f0b429">' +
-        '<div style="font-size:13px;font-weight:900;color:#7a4b00">🚪 배송 요청사항을 이렇게 맞춰주세요</div>' +
+      if (helperNoteBusy) return ''
+      return '<div style="margin-top:7px;padding:9px 10px;border-radius:10px;background:#fff8e6;border:1.5px solid #f0b429">' +
+        '<div style="font-size:12.5px;font-weight:900;color:#7a4b00">🚪 배송 요청사항: 문 앞 · 비밀번호없이 출입</div>' +
         '<div style="margin-top:2px;font-size:11px;color:#7a4b00;line-height:1.5">' +
-        '창고 공동현관은 <b>출입번호가 없습니다.</b> 이대로 두면 기사님이 못 들어가 배송이 막힙니다.</div>' +
-        `<div style="margin-top:6px">${rows}</div>` +
-        (helperNoteBusy
-          ? '<div style="margin-top:6px;padding:9px;border-radius:9px;background:#fff;color:#7a4b00;' +
-            'font-size:12px;font-weight:800;text-align:center">⏳ 맞추는 중…</div>'
-          : '<button id="kb-note-fix" style="margin-top:6px;width:100%;min-height:42px;border:0;border-radius:9px;' +
-            'background:#f0b429;color:#3b2600;font-weight:900;font-size:14px;cursor:pointer">' +
-            '🚪 배송 요청사항 자동 선택</button>') +
-        '</div>'
+        '창고 공동현관은 <b>출입번호가 없습니다.</b></div></div>'
     })()
 
     const statusBlock = onCart
@@ -2371,8 +2511,16 @@
      * "아직 옛 버전이다" 인지 두 번이나 헷갈렸습니다 (26-09-04).
      */
 
+    /**
+     * 맨 위 스위치 — 이 도우미를 통째로 끄고 켜는 자리입니다 (운영자 26-09-06).
+     * 끄면 자동도 경고도 없습니다. 하노이가 아니라 한국으로 받으실 때 씁니다.
+     */
     const html =
-      `<b>🇻🇳 하노이 배송</b><span style="float:right;font-size:10px;color:#b0b8c1">v${ver}</span>` +
+      '<div style="display:flex;align-items:center;gap:6px">' +
+      '<b style="flex:1;min-width:0">🇻🇳 하노이 직구 주문</b>' +
+      `<span style="font-size:10px;color:#b0b8c1">v${ver}</span>` +
+      '<button id="kb-mode-off" style="flex-shrink:0;border:1px solid #e5e8eb;border-radius:6px;background:#fff;' +
+      'color:#8b95a1;font-size:11px;font-weight:800;padding:4px 9px;cursor:pointer">끄기</button></div>' +
       statusBlock +
       cartLine +
       '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
@@ -2432,8 +2580,32 @@
       renderCheckoutHelper()
     })
     // [⚡ 배송지 자동 등록] — 실제 흐름은 runAddrAutofill (위) 하나로 통일.
-    card.querySelector('#kb-addr-fill')?.addEventListener('click', () => { runAddrAutofill() })
-    card.querySelector('#kb-note-fix')?.addEventListener('click', () => { runDeliveryNote() })
+    /**
+     * [⚡ 자동입력] 하나로 배송지 → 배송 요청사항까지 차례대로 갑니다
+     * (운영자 26-09-06: "분리하지 말고 한 번에 차례대로").
+     */
+    card.querySelector('#kb-addr-fill')?.addEventListener('click', () => {
+      helperStopped = false
+      try { chrome.storage.local.set({ kbAutoStopped: false }) } catch { /* 무시 */ }
+      helperChain = true
+      if (helperAddrOk) runDeliveryNote()
+      else runAddrAutofill()
+    })
+    /**
+     * [✋ 자동 끄고 직접 입력] — 막혔을 때의 탈출구입니다. 자동이 계속 버튼을
+     * 누르고 칸을 채우면 고객이 직접 고칠 수 없습니다 (운영자 26-09-06).
+     * 누르면 그 자리에서 전부 멈추고, 수동 입력 안내를 펼쳐 둡니다.
+     */
+    card.querySelector('#kb-stop')?.addEventListener('click', () => {
+      stopAutomation()
+      helperAddrHelpOpen = true
+      toast('자동을 껐습니다 — 이제 직접 입력하실 수 있습니다.', true)
+      redrawCard()
+    })
+    card.querySelector('#kb-mode-off')?.addEventListener('click', async () => {
+      await setDirectOff(true)
+      redrawCard()
+    })
     card.querySelector('#kb-diag')?.addEventListener('click', async (e) => {
       const b = e.currentTarget
       const text = addrDiagnostics()
@@ -2516,6 +2688,8 @@
     if (document.getElementById('kb-launch')) return
     if (!document.body) return
 
+    let off = false
+    try { off = Boolean((await chrome.storage.local.get('kbDirectOff'))?.kbDirectOff) } catch { /* 무시 */ }
     const cart = (await send('getCart'))?.cart ?? []
     const wrap = document.createElement('div')
     wrap.id = 'kb-launch'
@@ -2526,11 +2700,25 @@
       'min-width:188px;min-height:60px;display:flex;align-items:center;justify-content:center;gap:8px;' +
       'padding:0 18px;border:0;border-radius:15px;background:#3182f6;color:#fff;' +
       'font:800 16px/1.25 sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(49,130,246,.42)'
-    btn.innerHTML = '<span style="font-size:25px;line-height:1">🇻🇳</span>' +
-      '<span style="text-align:left">배송·구매대행 신청' +
-      `<span style="display:block;font-size:11.5px;font-weight:700;opacity:.9;margin-top:2px">${
-        cart.length > 0 ? `견적함 ${cart.length}개 — 신청서 열기` : '하노이 도착 가격 보기'}</span></span>`
-    btn.addEventListener('click', () => { send('openSite') })
+    if (off) {
+      // 직구 주문을 꺼 두셨습니다 — 조용한 작은 버튼으로 다시 켤 길만 남깁니다.
+      btn.style.cssText =
+        'min-height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;border:1px solid #dbe4f0;' +
+        'border-radius:9px;background:#fff;color:#8b95a1;font:800 12px/1.2 sans-serif;cursor:pointer;' +
+        'box-shadow:0 2px 10px rgba(0,0,0,.12)'
+      btn.textContent = '🇻🇳 직구 주문 켜기'
+      btn.addEventListener('click', async () => {
+        try { await chrome.storage.local.set({ kbDirectOff: false }) } catch { /* 무시 */ }
+        wrap.remove()
+        renderLauncher()
+      })
+    } else {
+      btn.innerHTML = '<span style="font-size:25px;line-height:1">🇻🇳</span>' +
+        '<span style="text-align:left">배송·구매대행 신청' +
+        `<span style="display:block;font-size:11.5px;font-weight:700;opacity:.9;margin-top:2px">${
+          cart.length > 0 ? `견적함 ${cart.length}개 — 신청서 열기` : '하노이 도착 가격 보기'}</span></span>`
+      btn.addEventListener('click', () => { send('openSite') })
+    }
     const x = document.createElement('button')
     x.textContent = '✕'
     x.title = '이 탭에서 숨기기'

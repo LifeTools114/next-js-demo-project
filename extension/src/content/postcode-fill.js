@@ -17,6 +17,13 @@
 
   let req
   try {
+    /*
+     * 손대지 않아야 하는 두 경우 — 고객이 본인 주소를 찾는 중일 수 있습니다.
+     *   · 직구 주문을 꺼 두셨다
+     *   · [✋ 자동 끄고 직접 입력]을 누르셨다
+     */
+    const mode = await chrome.storage.local.get(['kbDirectOff', 'kbAutoStopped'])
+    if (mode?.kbDirectOff || mode?.kbAutoStopped) return
     req = (await chrome.storage.local.get(KEY))?.[KEY]
   } catch { return }
   if (!req?.q || !req.at || Date.now() - req.at > FRESH_MS) return

@@ -439,9 +439,11 @@ test('배송 요청사항 — 창고는 「문 앞 + 비밀번호없이 출입�
     assert.ok(PATTERN_LABELS[key], `${key} 의 사람이 읽을 이름`)
   }
   // 카드에 두 가지가 글로 적혀 있어야 합니다 — 자동이 안 되면 직접 고를 수 있게.
-  assert.ok(cap.includes('① 문 앞') && cap.includes('② 비밀번호없이 출입 가능해요'), '두 가지를 그대로 보여줍니다')
+  assert.ok(cap.includes('문 앞 · 비밀번호없이 출입'), '두 가지를 그대로 보여줍니다')
   assert.ok(cap.includes('출입번호가 없습니다'), '왜 필요한지 말해야 합니다')
-  assert.ok(cap.includes('kb-note-fix') && cap.includes('배송 요청사항 자동 선택'), '자동 선택 버튼')
+  // 버튼은 [⚡ 자동입력] 하나로 합쳤습니다 — 배송지 다음에 이어서 합니다 (운영자 26-09-06).
+  assert.ok(!cap.includes('kb-note-fix'), '따로 버튼을 두지 않습니다 — 한 흐름입니다')
+  assert.ok(cap.includes("if (helperAddrOk) runDeliveryNote()"), '주소가 맞으면 바로 요청사항으로')
   // 결제 전에도 막아 세웁니다.
   assert.ok(cap.includes('⚠️ 배송 요청사항을 확인해 주세요'), '요청사항이 안 맞으면 결제 전에 알립니다')
 })
@@ -471,4 +473,66 @@ test('숨어 있는 창의 글을 화면 글로 읽지 않는다 (틀린 주소�
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
   const fn = cap.slice(at(cap, 'function pageTextSansOurUi'), at(cap, 'const NOT_A_NAME'))
   assert.ok(fn.includes('getClientRects().length > 0'), '보이는 덩어리만 읽어야 합니다')
+})
+
+test('맨 위 [직구 주문] 스위치 — 끄면 아무것도 하지 않는다', () => {
+  /*
+   * 운영자 26-09-06: "직구 주문 끄기 옵션을 맨 위에". 하노이가 아니라 한국으로
+   * 받으실 때는 우리가 참견할 일이 없습니다. 끄면 자동도, 경고도, 결제 전
+   * 확인도 없습니다.
+   */
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const panel = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
+  const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
+  const post = readFileSync(new URL('../extension/src/content/postcode-fill.js', import.meta.url), 'utf8')
+
+  assert.ok(cap.includes('kb-mode-off') && cap.includes('kb-mode-on'), '결제 화면 카드에 끄기·켜기')
+  assert.ok(cap.includes('직구 주문 <span style="color:#8b95a1">꺼짐</span>'), '꺼진 상태를 보여줍니다')
+  // 꺼지면 경고도 자동도 없습니다.
+  const offBranch = cap.slice(at(cap, 'if (directOff) {')).slice(0, 1400)
+  assert.ok(offBranch.includes("payGuard.warn = ''"), '결제 전 경고도 끕니다')
+  assert.ok(offBranch.includes('return'), '나머지는 아예 하지 않습니다')
+  // 상품 화면·시작 버튼·우편번호 자동검색까지 같은 스위치를 따릅니다.
+  assert.ok(main.includes("kbDirectOff") && main.includes("view: 'off'"), '상품 화면도 조용해집니다')
+  assert.ok(panel.includes("state.view === 'off'"), '상품 패널에 꺼짐 화면')
+  assert.ok(panel.includes('data-act="mode-off"') && panel.includes('data-act="mode-on"'), '패널에도 스위치')
+  assert.ok(post.includes('kbDirectOff'), '우편번호 자동검색도 멈춥니다')
+})
+
+test('막히면 [✋ 자동 끄고 직접 입력] 으로 빠져나올 수 있다', () => {
+  /*
+   * 운영자 26-09-06: "자동입력될 때 막히더라도 기능 해제하고 다시 수동으로
+   * 입력 가능하게." 자동이 도는 동안 우리가 계속 버튼을 누르고 칸을 채우면
+   * 고객이 직접 고칠 수 없습니다.
+   */
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const post = readFileSync(new URL('../extension/src/content/postcode-fill.js', import.meta.url), 'utf8')
+  assert.ok(cap.includes('✋ 자동 끄고 직접 입력'), '탈출구 버튼')
+  assert.ok(cap.includes('function stopAutomation'), '전부 멈추는 함수')
+  const stop = cap.slice(at(cap, 'function stopAutomation'), at(cap, '/** 카드 만들기'))
+  assert.ok(stop.includes('helperStopped = true') && stop.includes('clearSpotlight()'), '표시도 치웁니다')
+  assert.ok(stop.includes('JOB_KEY, JOB_STATE_KEY, NOTE_JOB_KEY, NOTE_STATE_KEY'), '프레임 쪽 도우미도 멈춥니다')
+  assert.ok(stop.includes("'kbPostcodeQuery'") && stop.includes('kbAutoStopped'),
+    '우편번호 창에서 고객이 본인 주소를 찾을 수 있어야 합니다')
+  assert.ok(post.includes('kbAutoStopped'), '우편번호 자동검색이 그 신호를 봐야 합니다')
+  // 도는 루프들이 멈춤을 존중해야 실제로 멈춥니다.
+  assert.ok(cap.split('if (helperStopped)').length - 1 >= 5, '모든 루프가 멈춤을 확인해야 합니다')
+  // 자동이 도는 동안에는 항상 보여야 합니다 (막힌 뒤에 찾을 수 없으면 소용없습니다).
+  assert.ok(cap.includes("+ stopBtn + diagBtn"), '진행 중 화면에 늘 붙어 있어야 합니다')
+  // 손대지 않기 — 멈춘 뒤에는 칸을 다시 채우지 않습니다.
+  assert.ok(cap.includes('if (!helperStopped) autofillAddressDialog({ code, phone })'), '멈춘 뒤에는 채우지 않습니다')
+})
+
+test('배송지와 배송 요청사항은 한 흐름 — 여섯 줄로 보여준다', () => {
+  // 운영자 26-09-06: "입력을 분리하지 말고 한 번에 차례대로".
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const steps = cap.slice(at(cap, 'const FLOW_STEPS = ['), at(cap, 'let helperAddrStep = \'\'\n\n  /**') + 1)
+  for (const label of ['배송지 창 열기', '창고 주소 채우기', '[저장] 누르기',
+    '배송 요청사항 열기', '문 앞 · 비밀번호없이 출입', '[동의하고 저장하기]']) {
+    assert.ok(cap.includes(label), `여섯 줄에 "${label}"`)
+  }
+  assert.ok(cap.includes('function flowStage'), '지금 어느 줄인지 알려주는 함수')
+  assert.ok(cap.includes('창고 주소와 배송 요청사항을 차례대로 넣어드립니다'), '버튼도 한 번에라고 말합니다')
+  // 주소가 맞아지면 이어서 요청사항으로 — 두 번 누르지 않게.
+  assert.ok(cap.includes('if (helperChain && ok'), '주소 다음에 이어서 진행합니다')
 })

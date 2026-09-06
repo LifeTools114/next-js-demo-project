@@ -205,6 +205,7 @@ const KBPanel = (() => {
   }
 
   function fabState() {
+    if (state.view === 'off') return 'off'
     if (state.view === 'manual-quote') return 'manual'
     if (state.view === 'maintenance') return 'maintenance'
     if (state.view === 'blocked') return 'blocked'
@@ -213,6 +214,15 @@ const KBPanel = (() => {
   }
 
   function renderBody() {
+    /**
+    * 직구 주문을 꺼 두셨습니다 — 견적도 안내도 내지 않습니다 (운영자 26-09-06).
+    * 쿠팡 일반 주문으로 쓰시다가 언제든 켜실 수 있게 켜는 버튼만 남깁니다.
+    */
+    if (state.view === 'off') {
+      return '<div class="body"><div class="disc" style="font-size:12px;line-height:1.6">' +
+        '쿠팡 일반 주문으로 쓰고 계십니다.<br>하노이로 보내시려면 켜주세요.</div>' +
+        '<button class="btn" data-act="mode-on" style="margin-top:8px">🇻🇳 직구 주문 켜기</button></div>'
+    }
     if (state.view === 'loading') return '<div class="body"><div class="err">계산 중…</div></div>'
 
     if (state.view === 'manual-quote') {
@@ -512,11 +522,17 @@ const KBPanel = (() => {
     }
 
     wrap.innerHTML = `<div class="card">
-      <div class="head"><b>🇻🇳 하노이 도착 견적</b><button data-act="close" aria-label="닫기">✕</button></div>
+      <div class="head"><b>🇻🇳 하노이 도착 견적</b>${state.view === 'off' ? '' :
+        '<button data-act="mode-off" style="font-size:11px;font-weight:800;color:#8b95a1;' +
+        'border:1px solid #e5e8eb;border-radius:6px;padding:3px 8px">끄기</button>'
+      }<button data-act="close" aria-label="닫기">✕</button></div>
       ${renderShortcut()}
       ${renderBody()}${renderButtons()}
     </div>`
 
+    // 맨 위 스위치 — 이 도우미를 통째로 끄고 켭니다 (하노이가 아니라 한국으로 받으실 때).
+    wrap.querySelector('[data-act="mode-off"]')?.addEventListener('click', () => handlers.onMode?.(true))
+    wrap.querySelector('[data-act="mode-on"]')?.addEventListener('click', () => handlers.onMode?.(false))
     wrap.querySelector('[data-act="close"]').addEventListener('click', () => {
       open = false
       render()

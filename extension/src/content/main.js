@@ -56,6 +56,11 @@
   let safeQty = 1
 
   const handlers = {
+    /** 맨 위 스위치 — 끄면 이 화면도, 결제 화면 카드도 함께 조용해집니다 */
+    onMode: async (off) => {
+      try { await chrome.storage.local.set({ kbDirectOff: Boolean(off) }) } catch { /* 무시 */ }
+      compute()
+    },
     onTrackChange: (t) => {
       track = t
       send('setPreference', { track: t })
@@ -126,6 +131,17 @@
      * 아예 못 읽을 수 있습니다. 그 값으로 견적을 만들면 완전히 틀린 금액이 나옵니다.
      * 확장이 설정값으로 스스로 판정하므로 서버가 죽어도 정확합니다.
      */
+    /**
+     * 직구 주문 스위치가 꺼져 있으면 아무것도 하지 않습니다 (운영자 26-09-06).
+     * 쿠팡 일반 주문으로 쓰시는 중이니 견적도 안내도 방해가 됩니다.
+     */
+    try {
+      if ((await chrome.storage.local.get('kbDirectOff'))?.kbDirectOff) {
+        KBPanel.setState({ view: 'off' })
+        return
+      }
+    } catch { /* 저장소를 못 읽으면 평소대로 */ }
+
     const gate = K.checkMaintenanceAction('readProductPage', { country })
     if (!gate.allowed) {
       KBPanel.setState({ view: 'maintenance', maintenance: K.maintenanceStatus(new Date(), country) })
