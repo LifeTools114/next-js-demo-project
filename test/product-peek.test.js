@@ -38,15 +38,30 @@ test('peekProduct — 정상 응답이면 ok, 차단(403)이면 ok:false 이유�
   assert.equal((await peekProduct('https://example.com/x', { fetchImpl: fetchOk, log: quiet })).reason, 'not-a-product-link')
 })
 
-test('짧은 링크는 Location 을 따라가 상품 번호를 찾습니다', async () => {
+test('짧은 링크는 redirect 뒤 최종 주소(res.url)로 상품 번호를 찾습니다', async () => {
   _resetPeekCache()
   const fetchImpl = async (url, opts) => {
-    if (url.startsWith('https://link.coupang.com/')) return { ok: true, status: 302, headers: { get: (k) => (k === 'location' ? 'https://www.coupang.com/vp/products/424242?itemId=5' : null) }, text: async () => '' }
     assert.equal(opts.redirect, 'follow')
-    return { ok: true, status: 200, headers: { get: () => null }, text: async () => PAGE }
+    if (url.startsWith('https://link.coupang.com/')) return { ok: true, status: 200, url: 'https://www.coupang.com/vp/products/424242?itemId=5', headers: { get: () => null }, text: async () => PAGE }
+    return { ok: true, status: 200, url, headers: { get: () => null }, text: async () => PAGE }
   }
   const r = await peekProduct('https://link.coupang.com/a/abc', { fetchImpl, log: quiet })
   assert.equal(r.ok, true); assert.equal(r.productId, '424242'); assert.equal(r.productPrice, 19900)
+})
+
+test('짧은 링크가 중간 페이지에서 멈추면 HTML 속 상품 주소를 찾아 한 번 더 엽니다', async () => {
+  _resetPeekCache()
+  const calls = []
+  const fetchImpl = async (url) => {
+    calls.push(url)
+    if (url.startsWith('https://link.coupang.com/')) return { ok: true, status: 200, url, headers: { get: () => null }, text: async () => '<html><script>location.href="https://www.coupang.com/vp/products/777?itemId=1&vendorItemId=2&lptag=x"</script></html>' }
+    return { ok: true, status: 200, url, headers: { get: () => null }, text: async () => PAGE }
+  }
+  const r = await peekProduct('[쿠팡] 세럼 https://link.coupang.com/a/zzz 보세요', { fetchImpl, log: quiet })
+  assert.equal(r.ok, true); assert.equal(r.productId, '777'); assert.equal(r.url, 'https://www.coupang.com/vp/products/777?itemId=1&vendorItemId=2')
+  assert.equal(calls.length, 2)
+  const stuck = await peekProduct('https://link.coupang.com/a/none', { fetchImpl: async (url) => ({ ok: true, status: 200, url, headers: { get: () => null }, text: async () => '<html>아무것도</html>' }), log: quiet })
+  assert.equal(stuck.ok, false); assert.equal(stuck.reason, 'unresolved')
 })
 
 test('시간 초과·네트워크 오류는 조용히 ok:false', async () => {
