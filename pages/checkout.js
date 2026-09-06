@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import ServiceAreaNotice from '../components/ServiceAreaNotice'
+import Flag from '../components/Flag'
 import CostBreakdown from '../components/CostBreakdown'
 import { SHIPPING, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { PAYMENT, REFUND_DAYS, RETURN_POLICY } from '../config/payment'
@@ -344,7 +345,7 @@ export default function Checkout() {
             여기에 한국 주소를 적는 분이 실제로 계십니다 (운영자 지시 26-09-04).
           */}
           <div className="panel__head panel__head--accent">
-            1. 받으실 분<span className="hint-strong">🇻🇳 베트남 주소 입력</span>
+            1. 받으실 분<span className="hint-strong"><Flag code="vn" size={13} style={{ marginRight: 5 }} />베트남 주소 입력</span>
           </div>
           <div className="panel__body">
             {/* 배송 지역 — 목록에 있는 도시만. 운영자 26-09-06: "중부·남부는 현재 안 되니까 눈에 띄게" */}
@@ -369,11 +370,11 @@ export default function Checkout() {
             {[
               ['name', '받는 분 이름 *', 'Nguyễn Thị Mai / 홍길동', 'text'],
               ['phone', '베트남 전화번호 *', '09xx xxx xxx', 'tel'],
-              ['address', '🇻🇳 베트남 주소 * (한국 주소 아님)', 'Số nhà, đường, phường, quận', 'text'],
+              ['address', '베트남 주소 * (한국 주소 아님)', 'Số nhà, đường, phường, quận', 'text', 'vn'],
               ['email', '이메일 (선택 — 진행 알림 수신)', 'you@example.com', 'email'],
-            ].map(([key, label, ph, type]) => (
+            ].map(([key, label, ph, type, flagCode]) => (
               <div className="field" key={key}>
-                <label className="field__label" htmlFor={key}>{label}</label>
+                <label className="field__label" htmlFor={key}>{flagCode ? <Flag code={flagCode} size={13} style={{ marginRight: 5 }} /> : null}{label}</label>
                 <input id={key} className="input" required={label.includes('*')} type={type} placeholder={ph}
                   value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
               </div>
@@ -436,7 +437,7 @@ export default function Checkout() {
                         border: on ? '3px solid #3182f6' : '2px solid #e5e8eb',
                         background: on ? '#eef4fb' : '#fff',
                       }}>
-                      <span style={{ fontSize: 30 }}>{m.currency === 'KRW' ? '🇰🇷' : '🇻🇳'}</span>
+                      <Flag code={m.currency === 'KRW' ? 'kr' : 'vn'} size={26} />
                       <span style={{ flex: 1 }}>
                         <span style={{ display: 'block', fontSize: 17, fontWeight: 800, color: '#191f28' }}>
                           {m.currency === 'KRW' ? '한국 계좌로 원화 보내기' : '베트남 계좌로 동화 보내기'}

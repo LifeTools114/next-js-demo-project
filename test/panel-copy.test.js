@@ -355,8 +355,19 @@ test('시작 배너 — 누르기 전에는 꺼짐, 상품을 고르기 전이�
   assert.ok(cap.includes('let directOff = true'), '기본은 꺼짐')
   assert.ok(cap.includes("chrome.storage.local.set({ kbOn: true })"), '누르면 켜집니다')
   assert.ok(cap.includes('먼저 사고 싶은 상품을 골라주세요'), '상품을 고르기 전이면 알려줍니다')
-  // 켜져 있으면 배너는 물러납니다 (견적 패널·카드가 대신합니다).
-  assert.ok(cap.includes('if (on) { wrapOld?.remove(); return }'), '켜져 있으면 배너는 사라집니다')
+  /*
+   * 켜진 뒤에도 배너는 남습니다 — 「● 켜짐 · 작동 중」 모습으로 (운영자 26-09-06:
+   * "쿠팡 접속하면 우측 하단에 미리 이미지가 떠야 합니다. 그래야 제대로 작동하는지
+   * 고객들이 알 수 있습니다"). 상품 화면에서 켜져 있을 때만 견적 패널에 자리를 내줍니다.
+   */
+  assert.ok(cap.includes('function bannerHtml(on = false)'), '배너는 꺼짐/켜짐 두 모습')
+  for (const line of ['● 켜짐', '작동 중', '상품 고르기', 'kb-launch-off']) {
+    assert.ok(cap.includes(line), `켜짐 모습: ${line}`)
+  }
+  assert.ok(!cap.includes('if (on) { wrapOld?.remove(); return }'), '켜져 있다고 배너를 없애면 안 됩니다')
+  assert.ok(cap.includes('if (on && PRODUCT_PATH.test(location.pathname)) { wrapOld?.remove(); return }'),
+    '상품 화면에서 켜져 있을 때만 견적 패널에 자리를 내줍니다')
+  assert.ok(cap.includes('chrome.storage.onChanged.addListener'), '다른 탭에서 켜고 끄면 따라 바뀝니다')
 })
 
 test('제휴(파트너스) 연동은 코드에 남아 있지 않다', () => {

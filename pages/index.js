@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import ServiceAreaNotice from '../components/ServiceAreaNotice'
+import Flag from '../components/Flag'
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
 import { FEES } from '../config/fees'
 import { TAXES } from '../config/taxes'
@@ -12,7 +13,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
   return (
     <Layout badge="베트남 북부">
       <div className="hero">
-        <h1 className="hero__title">쇼핑몰에서 산 물건, 베트남까지 🇰🇷 → 🇻🇳</h1>
+        <h1 className="hero__title">쇼핑몰에서 산 물건, 베트남까지 <Flag code="kr" size={20} /> → <Flag code="vn" size={20} /></h1>
         <p className="hero__desc">
           쇼핑몰에서 직접 사시면 저희가 베트남까지 보내드립니다.
           한국 카드가 없으셔도 <strong>대신 사드릴 수</strong> 있습니다.

@@ -7,6 +7,8 @@
  */
 
 const KBPanel = (() => {
+  /** 국기 그림 — 이모지는 윈도우에서 「VN」 글자로 보입니다 (운영자 26-09-06) */
+  const flag = (code, h = 16) => globalThis.KBCalc?.flagSvg?.(code, { height: h }) ?? ''
   const HOST_ID = 'kb-hanoi-panel-host'
 
   const CSS = `
@@ -512,7 +514,7 @@ const KBPanel = (() => {
         state.view === 'blocked' ? '🚫'
         : state.view === 'maintenance' ? '🌙'
         : state.view === 'manual-quote' ? '📋'
-        : '🇻🇳'
+        : flag('vn', 22)
       wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="베트남 배송 견적">` +
         `<span class="fab-ico">${icon}</span><span>배송·구매대행 신청` +
         '<span class="fab-sub">베트남 도착 가격 보기</span></span></button>'
@@ -524,7 +526,7 @@ const KBPanel = (() => {
     }
 
     wrap.innerHTML = `<div class="card">
-      <div class="head"><b>🇻🇳 베트남 도착 견적</b>
+      <div class="head"><b>${flag('vn', 14)} 베트남 도착 견적</b>
         <button data-act="mode-off" style="font-size:11px;font-weight:800;color:#fff;
           border:1px solid rgba(255,255,255,.55);border-radius:999px;padding:3px 9px">끄기</button>
         <button data-act="close" aria-label="닫기">✕</button></div>

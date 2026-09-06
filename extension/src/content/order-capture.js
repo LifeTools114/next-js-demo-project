@@ -16,6 +16,8 @@
    * 카드·수집은 최상위에서만 합니다 (창 안에서 또 그리면 안 되니까요).
    */
   const IS_TOP = (() => { try { return window.top === window } catch { return false } })()
+  /** 국기 그림 — 이모지는 윈도우에서 「VN」「KR」 글자로 보입니다 (운영자 26-09-06) */
+  const flag = (code, h = 16) => globalThis.KBCalc?.flagSvg?.(code, { height: h }) ?? ''
 
   const send = (type, payload) =>
     new Promise((resolve) => chrome.runtime.sendMessage({ type, payload }, (r) => resolve(r ?? { ok: false })))
@@ -89,7 +91,7 @@
       'position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;border:1px solid #dbe4f0;' +
       'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#191f28'
     card.innerHTML =
-      '<b>🇻🇳 방금 결제하신 주문,<br>베트남에서 받아보세요</b>' +
+      '<b>' + flag('vn', 15) + ' 방금 결제하신 주문,<br>베트남에서 받아보세요</b>' +
       '<div style="font-size:11.5px;color:#4e5968;margin-top:4px">쇼핑몰 주문이 자동 연결되고, 배송 신청서로 이어집니다.</div>' +
       '<button id="kb-fwd-go" style="margin-top:10px;width:100%;min-height:38px;border:0;border-radius:9px;' +
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">베트남 배송 신청</button>' +
@@ -105,7 +107,7 @@
       // 이 카드를 닫아도 늘 있는 길 — 팝업의 [이 주문번호로 신청서 열기]
       const alt = document.createElement('div')
       alt.style.cssText = 'margin-top:6px;font-size:11px;color:#8b95a1;line-height:1.5'
-      alt.textContent = `이 화면을 닫으셨다면: 브라우저 오른쪽 위 확장 아이콘(🇻🇳) → 쇼핑몰 주문번호 ${coupangOrderNo} 를 적고 [이 주문번호로 신청서 열기]`
+      alt.textContent = `이 화면을 닫으셨다면: 브라우저 오른쪽 위 확장 아이콘 → 쇼핑몰 주문번호 ${coupangOrderNo} 를 적고 [이 주문번호로 신청서 열기]`
       card.insertBefore(alt, card.querySelector('#kb-fwd-go'))
     }
     document.body.appendChild(card)
@@ -147,7 +149,7 @@
       '<b style="font-size:14px">✅ 쇼핑몰 결제 완료</b>' +
       '<div id="kb-fwd-msg" style="margin-top:8px;padding:10px;border-radius:10px;background:#e8f1ff;' +
       'font-weight:800;color:#1b64da;animation:kbBlink .9s ease-in-out infinite">' +
-      '🇻🇳 배송 신청서로 연결됩니다…</div>' +
+      flag('vn', 13) + ' 배송 신청서로 연결됩니다…</div>' +
       '<div style="margin-top:8px;font-size:11.5px;color:#4e5968">이 쇼핑몰 화면은 사라지지 않고 그대로 유지됩니다.</div>'
     document.body.appendChild(card)
     return card
@@ -159,7 +161,7 @@
     const msg = card.querySelector('#kb-fwd-msg')
     if (msg) {
       msg.style.animation = 'none'
-      msg.textContent = '🇻🇳 배송 신청서가 새 탭에 열렸습니다'
+      msg.textContent = '✓ 배송 신청서가 새 탭에 열렸습니다'
     }
     if (card.querySelector('#kb-fwd-reopen')) return
     const wrap = document.createElement('div')
@@ -461,20 +463,32 @@
    * (26-09-06). 누르기 전에는 **꺼진 상태**, 누르면 켜집니다.
    *   파란 그라데이션 · 위 작은 라벨 · 국기와 큰 글씨 · 주황 [신청 ▶] · 아래 한 줄
    */
-  function bannerHtml() {
+  /**
+   * 시작 배너 — 꺼짐/켜짐 두 모습 (운영자 26-09-06: "쿠팡 접속하면 우측 하단에
+   * 미리 이미지가 떠야 합니다. 그래야 제대로 작동하는지 고객들이 알 수 있습니다").
+   * 켜진 뒤에도 사라지지 않고 「● 켜짐 · 작동 중」으로 바뀌어 남습니다.
+   */
+  function bannerHtml(on = false) {
     return '<div id="kb-banner" role="button" tabindex="0" style="' +
       'cursor:pointer;border-radius:14px;padding:14px 14px 12px;text-align:center;' +
       'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);' +
       'box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);font-family:sans-serif">' +
       '<div style="font-size:10.5px;font-weight:700;color:#cfe0ff;letter-spacing:.2px">' +
+      (on ? '<span style="color:#7cffb2;font-weight:900">● 켜짐</span> &nbsp;' : '') +
       '<span style="color:#fff;font-weight:900">베트남 직구 도우미</span></div>' +
       '<div style="margin-top:9px;font-size:19px;font-weight:900;color:#fff;line-height:1.32">' +
-      '🇻🇳 베트남에서 🇰🇷<br>한국 직구하기</div>' +
+      flag('vn', 17) + ' 베트남에서 ' + flag('kr', 17) + '<br>한국 직구하기</div>' +
       '<div style="margin-top:11px;display:inline-block;min-width:150px;padding:9px 20px;border-radius:22px;' +
       'background:linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%);color:#fff;font-size:15.5px;font-weight:900;' +
-      'box-shadow:0 3px 10px rgba(255,106,0,.45)">신청 <span style="font-size:13px">▶</span></div>' +
+      'box-shadow:0 3px 10px rgba(255,106,0,.45)">' + (on ? '상품 고르기' : '신청') + ' <span style="font-size:13px">▶</span></div>' +
       '<div style="margin-top:10px;font-size:10.5px;font-weight:700;color:#bfd3ff">' +
-      '쉽고 빠른 한국 → 베트남 배송</div></div>'
+      (on ? '✓ 작동 중 — 상품을 누르면 가격이 보입니다' : '쉽고 빠른 한국 → 베트남 배송') + '</div>' +
+      (on
+        ? '<button id="kb-launch-off" type="button" style="margin-top:8px;border:1px solid rgba(255,255,255,.45);' +
+          'border-radius:999px;background:transparent;color:#cfe0ff;font-size:10.5px;font-weight:800;' +
+          'padding:3px 10px;cursor:pointer">끄기</button>'
+        : '') +
+      '</div>'
   }
 
   /** 카드 만들기 — 켜짐·꺼짐 두 화면이 같은 상자를 씁니다 */
@@ -748,7 +762,7 @@
     chip.dataset.kbUi = '1'
     // 무슨 버튼인지 글로 씁니다 — 지름 46px 짜리 🇻🇳 동그라미는 눈에 띄지도,
     // 뜻이 통하지도 않았습니다 (운영자 26-09-06).
-    chip.innerHTML = '<span style="font-size:25px;line-height:1">🇻🇳</span>' +
+    chip.innerHTML = '<span style="line-height:1;display:inline-flex">' + flag('vn', 22) + '</span>' +
       '<span style="text-align:left">배송·구매대행 신청' +
       '<span style="display:block;font-size:11.5px;font-weight:700;opacity:.9;margin-top:2px">베트남 도착 가격 보기</span></span>'
     chip.title = '베트남 직구 도우미 다시 열기'
@@ -1230,7 +1244,7 @@
     const html =
       '<div style="display:flex;align-items:center;gap:6px;margin:-12px -12px 10px;padding:11px 12px;' +
       'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);color:#fff">' +
-      '<b style="flex:1;min-width:0;font-weight:900;font-size:13.5px">🇻🇳 베트남 직구 주문</b>' +
+      '<b style="flex:1;min-width:0;font-weight:900;font-size:13.5px">' + flag('vn', 14) + ' 베트남 직구 주문</b>' +
       `<span style="font-size:10px;color:#cfe0ff">v${ver}</span>` +
       '<button id="kb-mode-off" style="flex-shrink:0;border:1px solid rgba(255,255,255,.55);border-radius:999px;' +
       'background:transparent;color:#fff;font-size:11px;font-weight:800;padding:4px 10px;cursor:pointer">끄기</button></div>' +
@@ -1366,24 +1380,31 @@
     let on = false
     try { on = Boolean((await chrome.storage.local.get('kbOn'))?.kbOn) } catch { /* 무시 */ }
     const wrapOld = document.getElementById('kb-launch')
-    // 켜져 있으면 배너는 물러납니다 — 상품 화면의 견적 패널이 대신합니다.
-    if (on) { wrapOld?.remove(); return }
+    // 상품 화면에서 켜져 있으면 견적 패널이 같은 자리에 뜨므로 배너는 비켜줍니다.
+    // 그 밖의 화면(홈·검색·카테고리)에서는 켜져 있어도 「● 켜짐」 모습으로 남습니다 —
+    // 확장이 제대로 작동 중이라는 표시입니다 (운영자 26-09-06).
+    if (on && PRODUCT_PATH.test(location.pathname)) { wrapOld?.remove(); return }
     try { if (sessionStorage.getItem(LAUNCH_CLOSED_KEY)) return } catch { /* 무시 */ }
-    if (wrapOld) return
+    if (wrapOld && wrapOld.dataset.kbOn === String(on)) return
+    wrapOld?.remove()
 
     const wrap = document.createElement('div')
     wrap.id = 'kb-launch'
     wrap.dataset.kbUi = '1'
+    wrap.dataset.kbOn = String(on)
     wrap.style.cssText =
       'position:fixed;right:16px;bottom:16px;z-index:2147483646;width:232px;' +
       'border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28)'
-    wrap.innerHTML = bannerHtml() +
+    wrap.innerHTML = bannerHtml(on) +
       '<button id="kb-launch-x" title="이 탭에서 숨기기" style="position:absolute;right:-7px;top:-7px;' +
       'width:24px;height:24px;border:0;border-radius:50%;background:#fff;color:#8b95a1;font-size:12px;' +
       'cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)">✕</button>'
     wrap.querySelector('#kb-banner').addEventListener('click', async () => {
-      try { await chrome.storage.local.set({ kbOn: true }) } catch { /* 무시 */ }
-      wrap.remove()
+      if (!on) {
+        try { await chrome.storage.local.set({ kbOn: true }) } catch { /* 무시 */ }
+        // 켜진 모습으로 바로 다시 그립니다 — 사라지지 않습니다.
+        renderLauncher()
+      }
       /**
        * 상품을 고르기 전이면 견적을 낼 것이 없습니다 — 무엇을 해야 하는지
        * 알려줍니다 (운영자 지시 26-09-06).
@@ -1391,6 +1412,11 @@
       if (!PRODUCT_PATH.test(location.pathname)) {
         toast('먼저 사고 싶은 상품을 골라주세요 — 상품 화면에서 베트남 도착 가격이 바로 보입니다.', true)
       }
+    })
+    wrap.querySelector('#kb-launch-off')?.addEventListener('click', async (e) => {
+      e.stopPropagation()
+      try { await chrome.storage.local.set({ kbOn: false }) } catch { /* 무시 */ }
+      renderLauncher()
     })
     wrap.querySelector('#kb-launch-x').addEventListener('click', (e) => {
       e.stopPropagation()
@@ -1406,6 +1432,13 @@
     // 그 밖의 쿠팡 화면 — 꺼져 있으면 시작 배너를 띄웁니다.
     return renderLauncher()
   }
+
+  // 다른 탭이나 팝업에서 켜고 끄면 이 탭의 배너도 그 자리에서 바뀝니다.
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.kbOn && IS_TOP && !MONEY_HOSTS.includes(location.host)) renderLauncher()
+    })
+  } catch { /* 무시 */ }
 
   if (IS_TOP) {
     // 결제·완료 화면이 SPA 전환으로 나타나는 경우까지 재시도합니다.
