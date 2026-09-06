@@ -233,6 +233,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const { adminToken } = await storage.get('adminToken')
         return { ok: true, hasToken: Boolean(adminToken) }
       }
+      case 'resetAll': {
+        // 「모두 지우기」 — 견적함·결제창 초안·설정 캐시·운영자 토큰·켜짐 상태를 전부 비웁니다.
+        // 서버 주소만 남깁니다 — 지우면 개발용 기본값(localhost)으로 돌아가 고객이 서버를 잃습니다.
+        // (운영자 26-09-06: "아예 모두 지우고 고객용으로 다시 테스트")
+        const { backend } = await storage.get('backend')
+        await new Promise((r) => chrome.storage.local.clear(r))
+        if (backend) await storage.set({ backend })
+        hintsCache = { at: 0, hints: null }
+        return { ok: true }
+      }
       case 'adminFetch':
         return adminFetch(msg.payload ?? {})
       case 'operatorHints':

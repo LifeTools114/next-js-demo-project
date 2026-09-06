@@ -284,6 +284,14 @@ $('btn-clear').addEventListener('click', async () => {
   render()
 })
 
+// 「모두 지우기」 — 고객 상태로 처음부터 다시 시험할 때 (운영자 26-09-06). 서버 주소는 남습니다.
+$('btn-reset').addEventListener('click', async () => {
+  if (!confirm('견적함·설정·운영자 토큰을 모두 지우고 처음 설치한 상태로 돌아갑니다. 서버 주소는 남습니다.')) return
+  const res = await send('resetAll')
+  if (!res?.ok) { alert(res?.error ?? '지우지 못했습니다.'); return }
+  location.reload()
+})
+
 /**
  * [주문 요청하기]
  *   판단은 **견적함에 실제로 담긴 상품의 방식**으로 합니다. 설정의 "기본 이용
