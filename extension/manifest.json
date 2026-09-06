@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "베트남 직구 도우미",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "한국 온라인몰 상품의 베트남 도착 예상 가격을 계산하고, 배송지 입력 방법을 안내합니다. 화면을 대신 조작하지 않습니다.",
   "default_locale": "ko",
   "permissions": [

@@ -1187,9 +1187,13 @@
       `<input id="kb-name-input" value="${esc(nm)}" placeholder="홍길동" autocomplete="off" ` +
       'style="margin-top:6px;width:100%;min-height:44px;box-sizing:border-box;padding:0 11px;' +
       'border:1.5px solid #f0b429;border-radius:8px;font-size:14.5px;font-weight:700;color:#191f28;background:#fff">' +
+      // 남아 있는 이름은 이 브라우저에서 전에 적은 것입니다 — 기본값이 아닙니다.
+      // 시험 이름이 남아 「아직도 그 이름으로 들어간다」고 보였습니다 (운영자 26-09-06).
       (nm
-        ? '<button id="kb-name-clear" style="margin-top:4px;border:0;background:transparent;color:#8b95a1;' +
-          'font-size:10.5px;cursor:pointer;text-decoration:underline">이 이름 지우기</button>'
+        ? '<div style="margin-top:5px;font-size:10.5px;color:#8b95a1;line-height:1.5">' +
+          '지난번에 이 브라우저에서 적어 두신 이름입니다. 다른 분이면 ' +
+          '<button id="kb-name-clear" style="border:0;padding:0;background:transparent;color:#1b64da;' +
+          'font-size:10.5px;font-weight:700;cursor:pointer;text-decoration:underline">이 이름 지우기</button></div>'
         : '') +
       '</div>'
 
