@@ -508,10 +508,10 @@ const KBPanel = (() => {
       // 시작 배너와 같은 카드 — 버튼 글자와 색만 상품 상태에 따라 바뀝니다.
       const st = fabState()
       const look =
-        st === 'blocked' ? { button: '🚫 배송 불가 — 이유 보기', tone: 'red', foot: '이 상품은 베트남으로 보낼 수 없습니다' }
-        : st === 'error' ? { button: '읽지 못함 — 자세히', tone: 'grey', foot: '상품 정보를 읽지 못했습니다' }
-        : st === 'maintenance' ? { button: '점검 중 — 자세히', tone: 'grey', foot: '쇼핑몰 점검 시간에는 잠시 멈춥니다' }
-        : st === 'manual' ? { button: '상담 필요 — 자세히', tone: 'orange', foot: '물류사 확인 뒤 요금을 안내합니다' }
+        st === 'blocked' ? { button: '🚫 배송 불가 · 이유', tone: 'red', foot: '이 상품은 베트남으로 보낼 수 없습니다' }
+        : st === 'error' ? { button: '읽지 못함 · 자세히', tone: 'grey', foot: '상품 정보를 읽지 못했습니다' }
+        : st === 'maintenance' ? { button: '점검 중 · 자세히', tone: 'grey', foot: '쇼핑몰 점검 시간에는 잠시 멈춥니다' }
+        : st === 'manual' ? { button: '상담 필요 · 자세히', tone: 'orange', foot: '물류사 확인 뒤 요금을 안내합니다' }
         : { button: '도착 가격 보기', tone: 'orange', foot: '✓ 작동 중 · 이 상품의 베트남 도착 가격' }
       wrap.innerHTML = `<div class="fab" data-state="${st}" title="베트남 도착 견적">` +
         (globalThis.KBCalc?.bannerHtml?.({ on: true, id: 'kb-fab-banner', ...look }) ?? '') + '</div>'
