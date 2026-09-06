@@ -66,8 +66,9 @@ const MUST_BLOCK = [
   ['타이레놀 진통제 500mg', 'pharma'],
   ['제주 흑돼지 삼겹살 1kg', 'quarantine-animal'],
   ['서울우유 1L 6팩', 'quarantine-animal'],
-  ['동원 리챔 스팸 340g', 'quarantine-animal'],
   ['존쿡 델리미트 슬라이스햄 500g', 'quarantine-animal'],
+  ['비비고 냉동 왕교자 1.4kg', 'cold-chain'],
+  ['하겐다즈 아이스크림 파인트 4개', 'cold-chain'],
   ['상추 씨앗 모종 세트', 'quarantine-plant'],
   ['LG 트롬 건조기 20kg', 'oversize'],
   ['삼성 비스포크 냉장고', 'oversize'],
@@ -281,4 +282,78 @@ test('해외직구(타국 발송) 상품은 접수하지 않는다 (운영자 �
   // 국내 로켓배송은 정상
   const domestic = checkEligibility(p('토리든 세럼 50ml', { badges: ['로켓배송'] }))
   assert.equal(domestic.verdict, VERDICT.OK)
+})
+
+/* ─────────── 상온 식품은 보낼 수 있습니다 (운영자 확정 26-09-06) ─────────── */
+
+test('상온으로 파는 식품은 보낼 수 있고, 냉장·냉동만 막는다', () => {
+  /*
+   * 운영자 확정 26-09-06: "항공은 냉동제품 제외하고 상온으로 판매하는 식품도
+   * 베트남 배송이 가능합니다." 그래서 기준은 **온도**입니다 — 식품이라는
+   * 사실 자체가 아니라, 냉기를 유지해야 하는지가 가릅니다.
+   */
+  for (const name of [
+    '농심 신라면 5개입', '종가집 김치 3kg', '동원 리챔 스팸 340g',
+    'CJ 비비고 삼계탕 800g 3팩', '오뚜기 3분 카레 200g 5개', '서울우유 멸균우유 200ml 24개',
+    '광천김 재래김 20봉', '오징어채 500g',
+  ]) {
+    assert.equal(checkEligibility(p(name)).shippable, true, `${name} 이 막혔습니다 — 상온 식품은 보낼 수 있습니다`)
+  }
+  // 냉기를 유지해야 하는 것만 막습니다.
+  for (const [name, ruleId] of [
+    ['비비고 냉동 왕교자 490g', 'cold-chain'],
+    ['하겐다즈 아이스크림 파인트', 'cold-chain'],
+    ['광어회 500g 냉장', 'cold-chain'],
+    ['제주 흑돼지 삼겹살 1kg', 'quarantine-animal'],
+    ['서울우유 흰우유 1L 6팩', 'quarantine-animal'],
+    ['목우촌 계란 30구', 'quarantine-animal'],
+  ]) {
+    const r = checkEligibility(p(name))
+    assert.equal(r.shippable, false, `${name} 이 통과했습니다`)
+    assert.equal(r.ruleId, ruleId, `${name} → ${r.ruleId}`)
+  }
+})
+
+test('냉장·냉동 규칙이 가전·주방용품을 먹지 않는다', () => {
+  // '냉장고'·'냉동실'이 '냉장'·'냉동'을 품고 있습니다.
+  const r = checkEligibility(p('삼성 비스포크 냉장고'))
+  assert.equal(r.ruleId, 'oversize', `냉장고는 대형 가전으로 막혀야 합니다 (지금: ${r.ruleId})`)
+  for (const name of ['냉동실 정리함 6개세트', '냉장 보관용기 10P', '냉동식품 지퍼백 50매', '아이스팩 20개']) {
+    assert.equal(checkEligibility(p(name)).shippable, true, `${name} 이 막혔습니다`)
+  }
+})
+
+test('김은 해조류다 — 곱창김이 축산물로 막히면 안 된다', () => {
+  /*
+   * 26-09-06 사장님 화면: "대천김 곱창 캔김 4p, 2세트" 가 **축산물·검역 대상**으로
+   * 막혔습니다. 곱창김은 김의 한 종류(모양이 곱창을 닮아 붙은 이름)인데
+   * '곱창' 키워드에 걸린 것입니다. 김 선물세트는 명절 주력 상품입니다.
+   */
+  const seaweed = [
+    ['대천김 곱창 캔김 4p, 2세트', '식품 > 수산물/건어물 > 수산물선물세트 > 김선물세트'],
+    ['대천김 곱창김 재래김 20봉', ''],
+    ['광천 파래김 도시락김 54봉', ''],
+    ['성경김 돌김 김자반 선물세트', ''],
+  ]
+  for (const [name, cat] of seaweed) {
+    const r = checkEligibility({ productName: name, categoryPath: cat, price: 39200, quantity: 1 })
+    assert.equal(r.shippable, true, `${name} 이 ${r.label}('${r.matchedKeyword}')로 막혔습니다`)
+  }
+  // 진짜 곱창(고기)은 그대로 막힙니다.
+  assert.equal(checkEligibility(p('한우 소곱창 1kg 냉장')).shippable, false)
+  assert.equal(checkEligibility(p('돼지 막창 구이 500g')).shippable, false)
+})
+
+test('고기·유제품이 든 상온 식품은 막지 않되 검역 안내를 붙인다', () => {
+  // 막지는 않지만, 모르고 결제한 뒤 검역에서 잡히면 손해가 큽니다.
+  for (const name of ['동원 리챔 스팸 340g', 'CJ 비비고 삼계탕 800g', '한성 육포 100g', '남양 분유 800g']) {
+    const r = checkEligibility(p(name))
+    assert.equal(r.shippable, true, `${name} 이 막혔습니다`)
+    assert.ok(r.warnings.some((w) => w.id === 'shelf-stable-animal'), `${name} 에 검역 안내가 없습니다`)
+  }
+  // 화장품에는 붙지 않습니다 (우유크림 세안제에 검역 안내가 뜨면 안 됩니다).
+  const cream = checkEligibility(p('더페이스샵 우유크림 세안제'))
+  assert.ok(!cream.warnings.some((w) => w.id === 'shelf-stable-animal'))
+  // 안내가 없는 평범한 식품에는 아무것도 안 붙습니다.
+  assert.deepEqual(checkEligibility(p('농심 신라면 5개입')).warnings, [])
 })

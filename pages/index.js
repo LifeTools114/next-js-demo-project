@@ -83,7 +83,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
             <span className="row__value">무료 보관 {CONSOLIDATION.freeStorageDays}일</span>
           </div>
           <p className="note" style={{ marginTop: 12 }}>
-            결제한 뒤 창고에서 반송되면 왕복 배송비가 발생합니다. 향수·주류·의약품·축산물처럼
+            결제한 뒤 창고에서 반송되면 왕복 배송비가 발생합니다. 향수·주류·의약품·냉장냉동 식품처럼
             {DESTINATION.label} 통관이 막히는 품목은 <strong>주문 전에</strong> 차단해 드립니다.
           </p>
         </div>

@@ -120,9 +120,15 @@ test('L10 항공 위험물 고지 + 실제 차단 (배터리)', () => {
   assert.throws(() => order({ items: [item('앤커 보조배터리 20000mAh', 39000)] }), /배송할 수 없는/)
 })
 
-test('L11 검역 품목 고지 + 실제 차단 (축산물)', () => {
+test('L11 검역 품목 고지 + 실제 차단 (축산물·냉장냉동)', () => {
   assert.ok(noticeSays('prohibited', /축산물|육류|유제품/))
-  assert.equal(checkEligibility({ productName: '스팸 클래식 200g 12개' }).shippable, false)
+  assert.equal(checkEligibility({ productName: '제주 흑돼지 삼겹살 1kg' }).shippable, false)
+  // 냉장·냉동은 항공으로 못 보냅니다 — 고지에도 있어야 합니다 (운영자 확정 26-09-06).
+  assert.ok(noticeSays('prohibited', /냉장|냉동/))
+  assert.equal(checkEligibility({ productName: '비비고 냉동 왕교자 490g' }).shippable, false)
+  // 상온 식품은 보낼 수 있다고 말했으면 실제로도 보낼 수 있어야 합니다.
+  assert.ok(noticeSays('prohibited', /상온/))
+  assert.equal(checkEligibility({ productName: '동원 리챔 스팸 340g' }).shippable, true)
 })
 
 test('L12 인화성 물질 고지 + 실제 차단 (향수)', () => {
