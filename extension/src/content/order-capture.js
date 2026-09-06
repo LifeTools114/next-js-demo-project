@@ -90,7 +90,7 @@
       'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#191f28'
     card.innerHTML =
       '<b>🇻🇳 방금 결제하신 주문,<br>하노이로 받아보세요</b>' +
-      '<div style="font-size:11.5px;color:#4e5968;margin-top:4px">쿠팡 주문이 자동 연결되고, 배송 신청서로 이어집니다.</div>' +
+      '<div style="font-size:11.5px;color:#4e5968;margin-top:4px">쇼핑몰 주문이 자동 연결되고, 배송 신청서로 이어집니다.</div>' +
       '<button id="kb-fwd-go" style="margin-top:10px;width:100%;min-height:38px;border:0;border-radius:9px;' +
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">하노이 배송 신청</button>' +
       '<button id="kb-fwd-x" style="margin-top:6px;width:100%;min-height:30px;border:0;border-radius:9px;' +
@@ -105,7 +105,7 @@
       // 이 카드를 닫아도 늘 있는 길 — 팝업의 [이 주문번호로 신청서 열기]
       const alt = document.createElement('div')
       alt.style.cssText = 'margin-top:6px;font-size:11px;color:#8b95a1;line-height:1.5'
-      alt.textContent = `이 화면을 닫으셨다면: 브라우저 오른쪽 위 확장 아이콘(🇻🇳) → 쿠팡 주문번호 ${coupangOrderNo} 를 적고 [이 주문번호로 신청서 열기]`
+      alt.textContent = `이 화면을 닫으셨다면: 브라우저 오른쪽 위 확장 아이콘(🇻🇳) → 쇼핑몰 주문번호 ${coupangOrderNo} 를 적고 [이 주문번호로 신청서 열기]`
       card.insertBefore(alt, card.querySelector('#kb-fwd-go'))
     }
     document.body.appendChild(card)
@@ -144,11 +144,11 @@
       'border:2px solid #3182f6;border-radius:14px;box-shadow:0 10px 32px rgba(0,0,0,.25);' +
       'padding:16px;font:13px/1.6 sans-serif;color:#191f28'
     card.innerHTML =
-      '<b style="font-size:14px">✅ 쿠팡 결제 완료</b>' +
+      '<b style="font-size:14px">✅ 쇼핑몰 결제 완료</b>' +
       '<div id="kb-fwd-msg" style="margin-top:8px;padding:10px;border-radius:10px;background:#e8f1ff;' +
       'font-weight:800;color:#1b64da;animation:kbBlink .9s ease-in-out infinite">' +
       '🇻🇳 배송 신청서로 연결됩니다…</div>' +
-      '<div style="margin-top:8px;font-size:11.5px;color:#4e5968">이 쿠팡 화면은 사라지지 않고 그대로 유지됩니다.</div>'
+      '<div style="margin-top:8px;font-size:11.5px;color:#4e5968">이 쇼핑몰 화면은 사라지지 않고 그대로 유지됩니다.</div>'
     document.body.appendChild(card)
     return card
   }
@@ -226,7 +226,7 @@
 
     const res = await send('captureCoupangOrder', { coupangOrderNo, amountKrw })
     if (res?.ok && res.data?.matched) {
-      toast(`✓ 매입 기록됨 — ${res.data.order.orderNo} (쿠팡 ${coupangOrderNo})`, true)
+      toast(`✓ 매입 기록됨 — ${res.data.order.orderNo} (쇼핑몰 ${coupangOrderNo})`, true)
     } else if (res?.ok) {
       toast('매입 자동 기록 보류 — 확장 팝업의 발주 목록에서 직접 기록하세요.', false)
     }
@@ -278,7 +278,7 @@
   // 파서 본체는 parse-page.js (globalThis.KBPageParse) — IIFE 밖의 순수
   // 함수라 노드 테스트(test/page-parse.test.js)가 배포 코드를 그대로 검증합니다.
   const NOT_A_NAME = globalThis.KBPageParse?.NOT_A_NAME
-    ?? /배송지|요청사항|결제|금액|쿠팡캐시|할인|수량|삭제|선택|쿠폰|무료배송|도착|장바구니|주문/
+    ?? /배송지|요청사항|결제|금액|캐시|할인|수량|삭제|선택|쿠폰|무료배송|도착|장바구니|주문/
 
   function extractCheckoutItems() {
     if (!globalThis.KBPageParse) return []
@@ -508,7 +508,7 @@
   }
 
   /**
-   * 시작 배너 — 운영자가 보내주신 K-Global 광고 이미지 그대로 만든 버튼입니다
+   * 시작 배너 — 사장님이 보내주신 광고 이미지의 **모양만** 가져왔습니다
    * (26-09-06). 누르기 전에는 **꺼진 상태**, 누르면 켜집니다.
    *   파란 그라데이션 · 위 작은 라벨 · 국기와 큰 글씨 · 주황 [신청 ▶] · 아래 한 줄
    */
@@ -518,14 +518,14 @@
       'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);' +
       'box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);font-family:sans-serif">' +
       '<div style="font-size:10.5px;font-weight:700;color:#cfe0ff;letter-spacing:.2px">' +
-      '<span style="color:#fff;font-weight:900">coupang</span> K-Global Extension</div>' +
+      '<span style="color:#fff;font-weight:900">하노이 직구 도우미</span></div>' +
       '<div style="margin-top:9px;font-size:19px;font-weight:900;color:#fff;line-height:1.32">' +
       '🇻🇳 베트남에서 🇰🇷<br>한국 직구하기</div>' +
       '<div style="margin-top:11px;display:inline-block;min-width:150px;padding:9px 20px;border-radius:22px;' +
       'background:linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%);color:#fff;font-size:15.5px;font-weight:900;' +
       'box-shadow:0 3px 10px rgba(255,106,0,.45)">신청 <span style="font-size:13px">▶</span></div>' +
       '<div style="margin-top:10px;font-size:10.5px;font-weight:700;color:#bfd3ff">' +
-      '쉽고 빠른 한국 배송 서비스 <span style="opacity:.6">|</span> K-Global</div></div>'
+      '쉽고 빠른 한국 → 하노이 배송</div></div>'
   }
 
   /** 카드 만들기 — 켜짐·꺼짐 두 화면이 같은 상자를 씁니다 */
@@ -1063,7 +1063,7 @@
       ? '<div style="margin-top:8px;color:#4e5968;font-size:12px">상품 페이지에서 [견적함에 담기]를 하면 ' +
         '금액 계산과 자동 신청이 가능합니다.</div>'
       : '<div style="margin-top:8px;border:1.5px solid #dbe4f0;border-radius:12px;overflow:hidden;background:#fff">' +
-        priceRow('forwarding', '📦 배송만', '쿠팡 결제는 직접 · 배송만', quotes.fwd) +
+        priceRow('forwarding', '📦 배송만', '쇼핑몰 결제는 직접 · 배송만', quotes.fwd) +
         '<div style="border-top:1px solid #f2f4f6"></div>' +
         priceRow('agent', '🛒 구매하고 배송까지', '저희가 대신 사드려요', quotes.agent) +
         '</div>'
@@ -1081,13 +1081,13 @@
           'background:#3182f6;color:#fff;font-weight:800;font-size:15px;cursor:pointer;' +
           'animation:kbPulse 1.5s ease-in-out infinite">🛒 대신 사달라고 신청하기</button>' +
           '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">' +
-          '쿠팡 결제 없이 보내기 · 개인 쿠폰은 못 씁니다</div>'
+          '쇼핑몰 결제 없이 보내기 · 개인 쿠폰은 못 씁니다</div>'
         : onCart
           ? '<div style="margin-top:8px;padding:10px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
             'font-size:12.5px;font-weight:800;text-align:center">다음: [주문하기]로 이동하세요</div>'
           : ok
             ? '<div style="margin-top:8px;padding:10px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
-              'font-size:12.5px;font-weight:800;text-align:center">이제 쿠팡 [결제하기]를 누르세요<br>' +
+              'font-size:12.5px;font-weight:800;text-align:center">이제 쇼핑몰 [결제하기]를 누르세요<br>' +
               '<span style="font-weight:700;font-size:10.5px">결제 후 배송 신청서가 자동으로 열립니다</span></div>'
             : ''
 
@@ -1140,14 +1140,14 @@
           ? `<div style="margin-top:6px;font-size:10.5px;color:#17916b">🛒 이 화면의 상품 ${cart.length}개 기준</div>`
           : '') +
         weightLine +
-        detailHead('📦 배송만 — 쿠팡 결제는 내가') +
-        steps('쿠팡 결제 후 <b>① 신청서가 저절로 열림</b> → ② 배송비 보내기(원화/동화) → ' +
+        detailHead('📦 배송만 — 쇼핑몰 결제는 내가') +
+        steps('쇼핑몰 결제 후 <b>① 신청서가 저절로 열림</b> → ② 배송비 보내기(원화/동화) → ' +
           `③ 한국창고 도착 <b>1~3영업일</b> → ④ 하노이 도착 <b>+${lt.min}~${lt.max}영업일</b>`) +
         steps('본인 결제라 <b>쿠폰·회원 할인을 모두 그대로</b> 쓸 수 있습니다.') +
         steps('무게 기준: 1kg까지 기본요금 · 이후 kg 단위(0.5 이하 버림·초과 올림)') +
         bdRows(quotes.fwd) +
         detailHead('🛒 구매하고 배송까지 — 결제도 저희가') +
-        steps('쿠팡 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 보내기 → ③ 저희가 대신 주문 → ' +
+        steps('쇼핑몰 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 보내기 → ③ 저희가 대신 주문 → ' +
           `④ 한국창고 <b>1~3영업일</b> → ⑤ 하노이 <b>+${lt.min}~${lt.max}영업일</b>`) +
         steps(`수수료: <b>기본 ${won(K.currentPolicy().agencyBaseKrw)}</b>(상품가 10만원·5종까지) — 대리 주문·검수·발주 실비. ` +
           '초과분은 10만원 초과금액의 5% + 종류 초과 종당 1,000원.') +
@@ -1162,7 +1162,7 @@
         '<div style="margin-top:7px;padding:7px 9px;border-radius:9px;background:#fff0f0;color:#c92a2a;' +
         'font-size:10.5px;font-weight:700;line-height:1.6">💳 환불은 영업일 3~7일 내 지급 · ' +
         '반품·변심 취소는 대신 사드린 수수료 제외 / 배송만 $1 차감 후 돌려드립니다 (당사 사유는 전액)<br>' +
-        '↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국)·쿠팡 반품비는 전액 구매자 부담 — ' +
+        '↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국)·쇼핑몰 반품비는 전액 구매자 부담 — ' +
         '2kg까지 $20 · 이후 kg당 $11 · 대신 사드린 건은 처리비 5,000원 추가 · 미리 알려주셔야 합니다. ' +
         '교환은 반송비 + 재배송비(위 국제배송비)를 상품가와 비교하세요<br>' +
         '⚠️ 액체(스킨·세럼 등)·배터리 내장 제품·현금·대량 화물은 반송 불가 — 교환·반품이 불가합니다</div>'
@@ -1217,7 +1217,7 @@
 
     const addrHelpBody =
       '<div style="margin-top:7px;padding:10px 9px;border-radius:12px;background:#f9fafb;border:1px solid #e5e8eb">' +
-      '<div style="font-size:12px;font-weight:900;color:#191f28">쿠팡 [배송지 변경] 창에 이대로 넣어주세요</div>' +
+      '<div style="font-size:12px;font-weight:900;color:#191f28">쇼핑몰 [배송지 변경] 창에 이대로 넣어주세요</div>' +
       copyRow(1, '받는 사람', code) +
       copyRow(2, '휴대폰', phone) +
       copyRow(3, '우편번호 찾기 → 붙여넣고 검색', addr1) +
@@ -1271,7 +1271,7 @@
           // 본문은 한 문장 — 운영자 확정 문구 (26-09-04). 길면 읽지 않습니다.
           '<div style="margin-top:6px;font-size:12.5px;color:#912018;line-height:1.6">' +
           '지금 배송지가 <b>저희 창고가 아닙니다.</b><br>' +
-          '아래 값을 <b>복사</b>해서 쿠팡 배송지에 넣어주세요.</div></div>'
+          '아래 값을 <b>복사</b>해서 쇼핑몰 배송지에 넣어주세요.</div></div>'
 
     /**
      * 주소가 틀렸을 때는 순서를 바꿉니다 — 고칠 방법이 금액보다 위에.

@@ -7,7 +7,7 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { COUPANG_PATTERNS, PATTERN_LABELS } from '../config/coupang-patterns.js'
 
 const panel = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
@@ -22,17 +22,6 @@ const at = (src, needle) => {
 const stripComments = (src) => src
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
-
-test('제휴 링크: 구매하고 배송까지에는 절대 붙지 않고, 붙는 곳에는 고지가 함께 있다', () => {
-  // 쿠팡 파트너스·크롬 웹스토어가 막는 것은 제휴 링크가 아니라
-  //   (1) 고지 없이 (2) 클릭 없이 (3) 몰래 URL 바꾸기 입니다.
-  // 상품 패널의 제휴 버튼은 운영자 지시(26-09-04)로 빠졌습니다 — [결제하기]가
-  // 배송만에서는 회색이고 고객은 쿠팡의 [바로구매]로 직접 결제합니다.
-  assert.ok(main.includes("if (track !== 'forwarding') return"),
-    '구매하고 배송까지 트랙은 제휴 호출 자체를 막아야 합니다')
-  assert.ok(!/data-act=["']affiliate["'][^>]*>/.test(stripComments(panel).replace(/querySelectorAll\([^)]*\)/g, '')),
-    '상품 패널에 제휴 버튼을 그리지 않습니다 (운영자 지시 26-09-04)')
-})
 
 test('바로가기 만들기 안내가 패널 맨 위에 있다', () => {
   // 이 확장은 쿠팡 페이지에서만 뜹니다. 바탕화면·홈 화면 아이콘이 없으면
@@ -63,7 +52,7 @@ test('배송지가 틀리면 강하게 알리고, 고칠 방법을 바로 준다
   assert.ok(cap.includes('저희 창고가 아닙니다'), '운영자 확정 문구 (26-09-04)')
   // 자동입력은 오류가 많아 전부 걷어냈습니다 (운영자 확정 26-09-06).
   // 이제 안내와 복사만 남습니다 — 아래 문구도 그에 맞춰야 합니다.
-  assert.ok(cap.includes('쿠팡 [배송지 변경] 창에 이대로 넣어주세요'), '무엇을 어디에 넣는지 말합니다')
+  assert.ok(cap.includes('쇼핑몰 [배송지 변경] 창에 이대로 넣어주세요'), '무엇을 어디에 넣는지 말합니다')
   assert.ok(cap.includes('data-copy='), '값은 눌러서 복사합니다')
 })
 
@@ -130,7 +119,7 @@ test('[결제하기]: 배송만이면 열지 않고 "결제부터" 멘트, 구�
   }
   const fwd = await run('forwarding', false)
   assert.ok(!fwd.sent.some((s) => s.type === 'openCheckout' || s.type === 'addToCart'), '배송만은 아무것도 열지 않습니다')
-  assert.ok(fwd.states.some((st) => /먼저 쿠팡에서 결제/.test(st.notice ?? '')), '"결제부터 하라" 는 멘트를 띄웁니다')
+  assert.ok(fwd.states.some((st) => /먼저 쇼핑몰에서 결제/.test(st.notice ?? '')), '"결제부터 하라" 는 멘트를 띄웁니다')
 
   const agent = await run('agent', false)
   const types = agent.sent.map((s) => s.type)
@@ -148,7 +137,7 @@ test('팝업 [주문 요청하기]: 담긴 상품의 방식으로 판단하고, 
   // 어떤 철자로든 팝업이 /checkout 주소를 직접 만들면 안 됩니다 — 트랙 걸러내기·서버 확인을 건너뜁니다.
   assert.ok(!/\/checkout\?/.test(stripComments(popup)), '팝업이 /checkout 주소를 직접 만들면 안 됩니다')
   assert.ok(!popup.includes('chrome.tabs.create'), '팝업은 탭을 직접 열지 않고 openCheckout 으로 보냅니다')
-  assert.ok(html.includes('쿠팡 결제가 먼저입니다'), '팝업 안내 문구')
+  assert.ok(html.includes('쇼핑몰 결제가 먼저입니다'), '팝업 안내 문구')
   assert.ok(html.includes('id="late-no"'), '결제 후 화면을 놓친 분은 주문번호를 적어야 엽니다')
 
   // 실제 핸들러를 실행합니다 — return 하나가 빠져도 배송만 견적함이 구매대행 신청서로 열립니다.
@@ -221,7 +210,7 @@ test('팝업 버튼 이름과 안내 접기는 담긴 상품을 따른다', asyn
     return { label: els['btn-order'].textContent, note: !els['order-note'].hidden }
   }
   const F = { track: 'forwarding' }, A = { track: 'agent' }
-  assert.deepEqual(render([F]), { label: '쿠팡에서 먼저 결제하세요 — 순서 보기', note: true })
+  assert.deepEqual(render([F]), { label: '쇼핑몰에서 먼저 결제하세요 — 순서 보기', note: true })
   assert.deepEqual(render([A]), { label: '주문 요청하기', note: false })
   assert.deepEqual(render([F, A]), { label: '주문 요청하기 — 순서 보기', note: true }, '배송만이 섞여 있으면 안내를 접지 않습니다')
   assert.deepEqual(render([]), { label: '주문 요청하기', note: false })
@@ -332,7 +321,7 @@ test('자동 클릭·자동 채우기는 코드에 남아 있지 않다', () => 
 
 test('입력 방법은 네 줄, 값마다 [복사]', () => {
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
-  assert.ok(cap.includes('쿠팡 [배송지 변경] 창에 이대로 넣어주세요'), '무엇을 어디에 넣는지')
+  assert.ok(cap.includes('쇼핑몰 [배송지 변경] 창에 이대로 넣어주세요'), '무엇을 어디에 넣는지')
   for (const label of ['받는 사람', '휴대폰', '우편번호 찾기 → 붙여넣고 검색', '상세주소']) {
     assert.ok(cap.includes(label), `안내 줄: ${label}`)
   }
@@ -349,9 +338,17 @@ test('시작 배너 — 누르기 전에는 꺼짐, 상품을 고르기 전이�
    */
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
   assert.ok(cap.includes('function bannerHtml'), '배너를 그리는 곳')
-  for (const line of ['coupang', 'K-Global Extension', '베트남에서', '한국 직구하기', '신청', '쉽고 빠른 한국 배송 서비스']) {
+  for (const line of ['하노이 직구 도우미', '베트남에서', '한국 직구하기', '신청', '쉽고 빠른 한국 → 하노이 배송']) {
     assert.ok(cap.includes(line), `배너 문구: ${line}`)
   }
+  /*
+   * 남의 브랜드는 쓰지 않습니다. 사장님이 보내주신 광고 이미지에는
+   * 「coupang K-Global Extension」이 적혀 있었지만, 그대로 쓰면 그 회사의
+   * 공식 확장으로 오인하게 만들어 크롬 웹스토어 심사에서 바로 걸립니다
+   * (사칭 금지). 모양만 가져오고 이름은 우리 것으로 바꿨습니다.
+   */
+  const banner = cap.slice(at(cap, 'function bannerHtml'), at(cap, 'function bannerHtml') + 1600)
+  assert.ok(!/coupang|K-Global/i.test(banner), '남의 브랜드 이름을 배너에 쓰면 안 됩니다')
   assert.ok(/linear-gradient\(180deg,#ff9a1f/.test(cap), '[신청] 은 주황색 알약 버튼')
   // 기본은 꺼짐 — 눌러야 켜집니다.
   assert.ok(cap.includes('let directOff = true'), '기본은 꺼짐')
@@ -359,4 +356,50 @@ test('시작 배너 — 누르기 전에는 꺼짐, 상품을 고르기 전이�
   assert.ok(cap.includes('먼저 사고 싶은 상품을 골라주세요'), '상품을 고르기 전이면 알려줍니다')
   // 켜져 있으면 배너는 물러납니다 (견적 패널·카드가 대신합니다).
   assert.ok(cap.includes('if (on) { wrapOld?.remove(); return }'), '켜져 있으면 배너는 사라집니다')
+})
+
+test('제휴(파트너스) 연동은 코드에 남아 있지 않다', () => {
+  /*
+   * 운영자 확정 26-09-06: "나의 쿠팡 파트너스 제휴코드는 모두 삭제한다."
+   * 제휴 링크·수수료 추정·대가성 고지까지 전부 뺐습니다. 다시 들어오면
+   * 크롬 웹스토어·공정위 고지 의무가 함께 따라오므로 여기서 막습니다.
+   */
+  for (const gone of ['config/affiliate.js', 'lib/coupang', 'pages/api/affiliate']) {
+    assert.ok(!existsSync(new URL(`../${gone}`, import.meta.url)), `${gone} 이 남아 있습니다`)
+  }
+  const files = ['extension/src/background/service-worker.js', 'extension/src/content/main.js',
+    'extension/src/content/panel.js', 'extension/src/popup/popup.js',
+    'lib/pricing/landed.js', 'lib/extension-entry.js', 'components/Layout.js']
+  for (const f of files) {
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
+    assert.ok(!/affiliate|파트너스/i.test(src), `${f} 에 제휴 코드가 남아 있습니다`)
+  }
+})
+
+test('확장은 쇼핑몰 화면을 조작하지 않는다 — 읽기만 합니다', () => {
+  /*
+   * 운영자 확정 26-09-06: "모든 정보는 고객이 입력한다. 팝업 화면은 나오지만
+   * 모든 컨트롤은 제한한다."
+   *
+   * 우리 카드는 우리가 만든 요소 안에서만 삽니다. 쇼핑몰 화면의 버튼을 누르거나
+   * 칸을 채우는 코드가 있으면 안 됩니다. 크롬 웹스토어 심사에서도, 쇼핑몰
+   * 이용약관에서도 그 선을 넘지 않는 것이 핵심입니다.
+   */
+  const files = ['order-capture.js', 'panel.js', 'main.js', 'extract.js', 'parse-page.js', 'patterns.js']
+  for (const f of files) {
+    const src = readFileSync(new URL(`../extension/src/content/${f}`, import.meta.url), 'utf8')
+    const code = stripComments(src)
+    for (const [pattern, why] of [
+      [/\.click\(\)/, '남의 화면 버튼을 누르면 안 됩니다'],
+      [/dispatchEvent\(/, '가짜 이벤트를 남의 화면에 보내면 안 됩니다'],
+      [/new (Mouse|Pointer|Keyboard)Event/, '가짜 입력을 만들면 안 됩니다'],
+      [/\.value\s*=(?!=)/, '남의 화면 입력칸을 채우면 안 됩니다'],
+      [/execCommand|document\.forms\[/, '남의 화면 폼을 건드리면 안 됩니다'],
+    ]) {
+      assert.ok(!pattern.test(code), `${f}: ${why}`)
+    }
+  }
+  // 우리가 만든 것에는 표시를 남깁니다 — 화면에서 우리 것과 남의 것을 구분하는 근거입니다.
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  assert.ok(cap.includes("dataset.kbUi = '1'"), '우리 요소에는 표시를 남깁니다')
 })

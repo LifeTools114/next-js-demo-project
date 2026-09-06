@@ -65,7 +65,6 @@ async function init() {
     대신 사드리는 수수료 <b>기본 ${(policy.agencyBaseKrw ?? 5000).toLocaleString('ko-KR')}원</b> (상품가 ${((policy.agencyBaseMaxGoodsKrw ?? 100000) / 10000)}만원·${policy.agencyBaseMaxItems ?? 5}종까지) · 관세·VAT 없음<br>
     환율 $1 = ${policy.usdToKrw.toLocaleString('ko-KR')}원 = ${Math.round(policy.usdToKrw * policy.krwToVnd).toLocaleString('en-US')}₫<br>
     합배송 무료 보관 ${policy.consolidation.freeStorageDays}일`
-  $('disclosure').textContent = policy.affiliateDisclosure
 
   const res = await send('getCart')
   cart = res?.cart ?? []
@@ -173,7 +172,7 @@ function render() {
   const hasForwarding = cart.some((i) => i.track !== 'agent')
   const onlyForwarding = cart.length > 0 && !hasAgent
   $('btn-order').textContent = onlyForwarding
-    ? '쿠팡에서 먼저 결제하세요 — 순서 보기'
+    ? '쇼핑몰에서 먼저 결제하세요 — 순서 보기'
     : hasForwarding ? '주문 요청하기 — 순서 보기' : '주문 요청하기'
   // 배송만 상품이 없을 때만 안내를 접습니다 (있으면 펼친 채로 두어 읽을 수 있게).
   if (!hasForwarding) $('order-note').hidden = true
@@ -229,7 +228,7 @@ async function renderOps() {
       const capture =
         o.state === 'PURCHASING'
           ? `<div class="ops-capture">
-              <input data-cap="no" data-i="${i}" placeholder="쿠팡 주문번호" inputmode="numeric">
+              <input data-cap="no" data-i="${i}" placeholder="쇼핑몰 주문번호" inputmode="numeric">
               <input data-cap="amt" data-i="${i}" placeholder="실결제액(원)" inputmode="numeric">
               <button class="btn ghost" data-act="record" data-i="${i}">매입 기록</button>
             </div>`
@@ -266,7 +265,7 @@ async function renderOps() {
       if (b.dataset.act === 'record') {
         const no = list.querySelector(`input[data-cap="no"][data-i="${b.dataset.i}"]`)?.value.trim()
         const amt = Number(list.querySelector(`input[data-cap="amt"][data-i="${b.dataset.i}"]`)?.value.replace(/,/g, ''))
-        if (!no || !Number.isFinite(amt) || amt <= 0) return alert('쿠팡 주문번호와 실결제액을 입력하세요.')
+        if (!no || !Number.isFinite(amt) || amt <= 0) return alert('쇼핑몰 주문번호와 실결제액을 입력하세요.')
         return action(o, 'recordPurchase', { coupangOrderNo: no, amountKrw: amt })
       }
     }),
@@ -332,7 +331,7 @@ $('order-late').addEventListener('click', async () => {
   // 결제 후에만 열립니다 — 쿠팡 주문번호가 그 증거입니다 (주문완료 화면과 같은 9자리 이상).
   const coupangOrderNo = $('late-no').value.replace(/\D/g, '')
   if (coupangOrderNo.length < 9) {
-    alert('쿠팡 주문번호를 적어주세요. (쿠팡 > 마이쿠팡 > 주문목록에서 볼 수 있습니다)')
+    alert('주문번호를 적어주세요. (쇼핑몰 앱 > 마이페이지 > 주문목록에서 볼 수 있습니다)')
     return
   }
   // 팝업이 보여준 배송만 상품을 그대로 싣습니다 — 안 실으면 백그라운드가 최근

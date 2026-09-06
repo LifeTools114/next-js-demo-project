@@ -111,32 +111,6 @@ async function updateBadge(cart) {
 }
 
 /**
- * 제휴 링크로 이동합니다. 반드시 사용자 클릭에서만 호출되어야 합니다.
- * 구매대행 트랙은 본인 구매라 제휴가 적용되지 않으므로 원본 URL 로 엽니다.
- */
-async function openAffiliate({ url, track }) {
-  if (track !== 'forwarding') {
-    await chrome.tabs.create({ url })
-    return { ok: true, affiliate: false, reason: '구매대행은 제휴 대상이 아닙니다.' }
-  }
-  try {
-    const res = await fetch(`${await backendUrl()}/api/affiliate/deeplink`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls: [url], track }),
-    })
-    const data = await res.json()
-    const link = data?.links?.[0]?.shortenUrl || data?.links?.[0]?.landingUrl
-    await chrome.tabs.create({ url: link || url })
-    return { ok: true, affiliate: Boolean(link) }
-  } catch {
-    // 제휴 링크 생성이 실패해도 사용자는 상품을 볼 수 있어야 합니다.
-    await chrome.tabs.create({ url })
-    return { ok: true, affiliate: false }
-  }
-}
-
-/**
  * ─────────────── 운영자 모드 ───────────────
  * 토큰은 백그라운드(storage)만 갖고, 콘텐츠 스크립트에는 절대 주지 않습니다.
  * 페이지 세계와 격리돼 있긴 하지만, 원칙적으로 페이지에 가까운 곳에
@@ -249,8 +223,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         await storage.set({ config: next })
         return { ok: true }
       }
-      case 'openAffiliate':
-        return openAffiliate(msg.payload ?? {})
       case 'setAdminToken': {
         const token = String(msg.payload?.token ?? '').trim()
         await storage.set({ adminToken: token })

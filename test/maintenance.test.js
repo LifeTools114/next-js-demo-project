@@ -123,7 +123,7 @@ test('적용 국가가 빈 배열이면 전체 적용이다', () => {
 
 // ─────────── 동작별 정책 ───────────
 
-test('쿠팡 의존 작업만 차단하고 나머지는 막지 않는다', () => {
+test('쇼핑몰 의존 작업만 차단하고 나머지는 막지 않는다', () => {
   const opts = { date: kst(3, 10), ...VN }
   for (const action of ['readProductPage', 'purchase']) {
     const r = checkAction(action, opts)
@@ -131,9 +131,9 @@ test('쿠팡 의존 작업만 차단하고 나머지는 막지 않는다', () =>
     assert.ok(r.retryAfterMinutes > 0)
     assert.ok(r.retryAt)
   }
-  const aff = checkAction('affiliateLink', opts)
-  assert.equal(aff.allowed, true)
-  assert.equal(aff.warn, true)
+  // 담기·주문·수금은 우리 화면에서 하는 일이라 점검과 무관하게 열려 있습니다.
+  const cart = checkAction('addToCart', opts)
+  assert.equal(cart.allowed, true)
 
   // 과잉 차단 방지 — 쿠팡과 무관한 작업은 통과해야 합니다.
   for (const action of ['addToCart', 'createOrder', 'confirmPayment', 'warehouse', 'settlement']) {
@@ -206,8 +206,8 @@ test('환경변수로도 점검 창을 끌 수 있다', () => {
 // ─────────── 안내 ───────────
 
 test('상태별로 적절한 안내 문구가 나온다', () => {
-  assert.match(maintenanceStatus(kst(2, 50), 'VN').notice, /뒤 쿠팡 점검 시간이 시작/)
-  assert.match(maintenanceStatus(kst(3, 10), 'VN').notice, /지금은 쿠팡 점검 시간/)
+  assert.match(maintenanceStatus(kst(2, 50), 'VN').notice, /뒤 쇼핑몰 점검 시간이 시작/)
+  assert.match(maintenanceStatus(kst(3, 10), 'VN').notice, /지금은 쇼핑몰 점검 시간/)
   assert.match(maintenanceStatus(kst(3, 35), 'VN').notice, /점검이 끝났습니다/)
   assert.equal(maintenanceStatus(kst(14, 0), 'VN').notice, null, '평시에는 안내가 없어야 합니다')
 })

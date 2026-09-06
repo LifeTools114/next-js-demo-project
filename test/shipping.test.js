@@ -210,13 +210,6 @@ test('견적: 명세 합계가 총액과 일치한다', () => {
   assert.equal(q.breakdown.reduce((s, r) => s + r.krw, 0), q.total)
 })
 
-test('견적: 제휴 수수료는 배송대행에만 잡힌다', () => {
-  const items = [{ productName: '토리든 세럼 50ml', productPrice: 100000, quantity: 1 }]
-  assert.equal(quote(items, { track: TRACK.FORWARDING }).affiliate.applicable, true)
-  assert.equal(quote(items, { track: TRACK.AGENT }).affiliate.applicable, false)
-  assert.equal(quote(items, { track: TRACK.AGENT }).affiliate.estimatedKrw, 0)
-})
-
 test('견적: 배송 불가 상품이 있으면 표시된다', () => {
   const q = quote([{ productName: '조말론 코롱 100ml', productPrice: 98000, quantity: 1 }], { track: TRACK.AGENT })
   assert.equal(q.eligibility.shippable, false)

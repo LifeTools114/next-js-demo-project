@@ -1,0 +1,102 @@
+import Layout from '../components/Layout'
+import { CONTACT } from '../config/contact'
+
+/**
+ * 개인정보 처리방침
+ *
+ * 크롬 웹스토어는 **공개된 개인정보 처리방침 URL** 을 요구합니다(등록 필수).
+ * 그래서 이 페이지는 확장과 웹사이트를 함께 다룹니다.
+ *
+ * 쓰는 규칙: 실제로 하는 일만 적습니다. 여기 적힌 것보다 더 모으거나,
+ * 다른 목적으로 쓰면 그 자체가 위반입니다. 코드를 바꿀 때 이 문서도 함께 고치세요.
+ */
+const UPDATED = '2026-09-06'
+
+const S = ({ title, children }) => (
+  <section className="panel" style={{ marginBottom: 14 }}>
+    <div className="panel__head">{title}</div>
+    <div className="panel__body" style={{ fontSize: 14, lineHeight: 1.75 }}>{children}</div>
+  </section>
+)
+
+export default function PrivacyPage() {
+  return (
+    <Layout title="개인정보 처리방침">
+      <div className="section">
+        <h1 className="section__title">개인정보 처리방침</h1>
+        <p className="note">최종 수정일 {UPDATED}</p>
+
+        <S title="1. 한눈에">
+          <ul style={{ paddingLeft: 18, margin: 0 }}>
+            <li>확장 프로그램은 <b>여러분의 정보를 서버로 보내지 않습니다.</b> 계산은 브라우저 안에서 합니다.</li>
+            <li>배송 신청을 하실 때만, 신청서에 직접 적으신 정보를 받습니다.</li>
+            <li>받은 정보는 <b>물건을 하노이까지 보내는 데에만</b> 씁니다. 광고에 쓰거나 팔지 않습니다.</li>
+          </ul>
+        </S>
+
+        <S title="2. 확장 프로그램이 다루는 정보">
+          <p>
+            확장은 보고 계신 상품 화면에서 <b>상품명·가격·수량</b>을 읽어 도착 예상 가격을 계산합니다.
+            이 값은 브라우저 안에서만 쓰이며, 여러분이 [신청서 열기]를 누르기 전에는 어디로도 보내지 않습니다.
+          </p>
+          <p>브라우저 안에만 저장하는 것 (확장을 지우면 함께 사라집니다):</p>
+          <ul style={{ paddingLeft: 18 }}>
+            <li>견적함에 담아두신 상품(상품명·가격·수량)</li>
+            <li>소포에 적을 성함 — 배송지 상세주소를 만들어 <b>보여주기 위해서만</b> 씁니다</li>
+            <li>켜짐/꺼짐 설정</li>
+          </ul>
+          <p>
+            <b>화면을 대신 조작하지 않습니다.</b> 버튼을 누르거나 입력칸을 채우지 않고,
+            로그인 정보·결제 정보·주문 내역을 읽지 않습니다.
+          </p>
+          <p className="note">
+            화면 구조가 바뀌어 계산이 멈추면, 어떤 문구가 몇 개 잡혔는지와 페이지 주소(도메인·경로)만
+            운영자에게 보내 고칩니다. 이름·주소·전화·상품·금액은 담기지 않습니다.
+          </p>
+        </S>
+
+        <S title="3. 신청서에서 받는 정보">
+          <p>배송을 신청하실 때 다음을 받습니다. 모두 여러분이 직접 적으신 것입니다.</p>
+          <ul style={{ paddingLeft: 18 }}>
+            <li>받는 분 성함, 베트남 연락처, 하노이 주소</li>
+            <li>이메일 (선택 — 진행 알림을 받으실 때만)</li>
+            <li>보내실 상품 정보와 주문번호</li>
+          </ul>
+          <p>목적: 소포를 찾아 하노이까지 보내고, 진행 상황을 알려드리기 위해서입니다.</p>
+        </S>
+
+        <S title="4. 제3자 제공과 국외 이전">
+          <p>
+            배송을 위해 꼭 필요한 범위에서만 전달합니다 — 한국 물류창고와 베트남 현지 배송사에
+            <b> 받는 분 성함·연락처·하노이 주소</b>가 전달됩니다. 물건이 한국에서 베트남으로 가므로
+            정보도 함께 국외로 이전됩니다. 그 밖의 목적으로는 제공하지 않습니다.
+          </p>
+        </S>
+
+        <S title="5. 보관 기간">
+          <p>
+            배송이 끝난 뒤에도 배송 사고·환불 문의에 답하기 위해 <b>1년</b> 동안 보관하고, 그 뒤 지웁니다.
+            먼저 지워달라고 하시면 남은 배송이 없는 한 바로 지워드립니다.
+          </p>
+        </S>
+
+        <S title="6. 여러분의 권리">
+          <p>
+            언제든 열람·정정·삭제를 요청하실 수 있습니다. 확장에 저장된 것은 확장을 삭제하시면 함께 사라지고,
+            서버에 있는 것은 아래로 말씀해 주시면 처리해 드립니다.
+          </p>
+        </S>
+
+        <S title="7. 문의">
+          <p>
+            {CONTACT.label}
+            {CONTACT.kakaoId ? <> · 카카오톡 ID <b>{CONTACT.kakaoId}</b></> : null}
+            {CONTACT.kakaoOpenChat ? (
+              <> · <a href={CONTACT.kakaoOpenChat} target="_blank" rel="noreferrer">오픈채팅</a></>
+            ) : null}
+          </p>
+        </S>
+      </div>
+    </Layout>
+  )
+}

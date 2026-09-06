@@ -149,7 +149,7 @@ export default function SendPage() {
 
       {/* ── 1. 쿠팡에 넣을 주소 ─────────────────────────────── */}
       <section className="panel">
-        <div className="panel__head">1. 쿠팡 배송지에 이대로 넣어주세요</div>
+        <div className="panel__head">1. 쇼핑몰 배송지에 이대로 넣어주세요</div>
         <div className="panel__body">
           <div className="field" style={{ marginBottom: 14 }}>
             <label className="field__label" htmlFor="myname">받는 분 성함 (한글 또는 영문)</label>
@@ -190,7 +190,7 @@ export default function SendPage() {
                 </span>
               </>
             )}
-            hint={detail ? '쿠팡 배송지의 «상세주소» 칸에 이대로 넣어주세요' : undefined} />
+            hint={detail ? '쇼핑몰 배송지의 «상세주소» 칸에 이대로 넣어주세요' : undefined} />
 
           <p className="note note--danger" style={{ marginTop: 4, fontSize: 13.5, lineHeight: 1.7 }}>
             ⚠️ <b>상세주소</b>가 가장 중요합니다. 「{WAREHOUSE.code}{' '}
@@ -203,11 +203,11 @@ export default function SendPage() {
 
       {/* ── 2. 쿠팡으로 ─────────────────────────────────────── */}
       <section className="panel">
-        <div className="panel__head">2. 쿠팡에서 결제하고 오세요</div>
+        <div className="panel__head">2. 쇼핑몰에서 결제하고 오세요</div>
         <div className="panel__body">
           <a className="btn" href="https://m.coupang.com/" target="_blank" rel="noreferrer"
             style={{ display: 'block', textAlign: 'center', minHeight: 56, fontSize: 17, lineHeight: '32px' }}>
-            쿠팡 열기 →
+            쇼핑몰 열기 →
           </a>
           <p className="note" style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.75 }}>
             결제하실 때 <b>배송지를 위 주소로 바꾸시면</b> 됩니다.
@@ -221,14 +221,14 @@ export default function SendPage() {
         <div className="panel__head">3. 무엇을 사셨나요</div>
         <div className="panel__body">
           <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-            상품 이름만 있으면 무게를 알아서 계산합니다. 쿠팡 화면의 이름을 그대로 넣어주세요.
+            상품 이름만 있으면 무게를 알아서 계산합니다. 쇼핑몰 화면의 이름을 그대로 넣어주세요.
           </p>
 
           {rows.map((r, i) => (
             <div key={i} style={{
               border: '1px solid #e5e8eb', borderRadius: 12, padding: 12, marginBottom: 10, background: '#fbfcfd',
             }}>
-              <input className="input" value={r.productName} placeholder="상품 이름 (쿠팡 화면 그대로)"
+              <input className="input" value={r.productName} placeholder="상품 이름 (쇼핑몰 화면 그대로)"
                 onChange={(e) => setRow(i, { productName: e.target.value })}
                 style={{ fontSize: 16, minHeight: 50, marginBottom: 8 }} />
               <div style={{ display: 'flex', gap: 8 }}>

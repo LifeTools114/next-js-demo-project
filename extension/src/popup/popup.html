@@ -23,7 +23,7 @@
     <div id="cart-empty" class="empty" hidden>
       <div class="empty-icon">🧾</div>
       담은 상품이 없습니다.<br>
-      <small>쿠팡 상품 페이지에서 견적함에 담아보세요.</small>
+      <small>쇼핑몰 상품 페이지에서 견적함에 담아보세요.</small>
     </div>
     <div id="cart-list"></div>
     <div id="cart-quote"></div>
@@ -31,14 +31,14 @@
       <button id="btn-order" class="btn">주문 요청하기</button>
       <div id="order-note" hidden style="margin-top:8px;padding:10px;border-radius:9px;background:#f2f6fb;font-size:12px;line-height:1.6;color:#333d4b">
         <button id="order-agent" hidden class="btn" style="margin-bottom:8px">구매하고 배송까지 상품만 신청서 열기</button>
-        <b>배송만은 쿠팡 결제가 먼저입니다.</b><br>
-        ① 쿠팡에서 직접 결제 (배송지는 저희 창고로)<br>
+        <b>배송만은 쇼핑몰 결제가 먼저입니다.</b><br>
+        ① 쇼핑몰에서 직접 결제 (배송지는 저희 창고로)<br>
         ② 결제가 끝나면 배송 신청서가 <b>새 탭에 저절로 열립니다</b> (안 열리면 화면 오른쪽 아래 [하노이 배송 신청] 을, 그것도 없으면 아래에 주문번호를 적고 여세요)<br>
         <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #d7dbe0">
-          이미 쿠팡에서 결제를 마치셨나요? 주문번호를 적고 여세요.<br>
-          <input id="late-no" inputmode="numeric" placeholder="쿠팡 주문번호 (숫자만)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:7px 8px;border:1px solid #d7dbe0;border-radius:7px;font-size:12.5px">
+          이미 쇼핑몰에서 결제를 마치셨나요? 주문번호를 적고 여세요.<br>
+          <input id="late-no" inputmode="numeric" placeholder="쇼핑몰 주문번호 (숫자만)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:7px 8px;border:1px solid #d7dbe0;border-radius:7px;font-size:12.5px">
           <button id="order-late" style="margin-top:6px;width:100%;min-height:32px;border:1px solid #3182f6;border-radius:7px;background:#fff;color:#3182f6;font-weight:700;font-size:12px;cursor:pointer">이 주문번호로 신청서 열기</button>
-          <div style="margin-top:3px;font-size:10.5px;color:#8b95a1">주문번호는 쿠팡 &gt; 마이쿠팡 &gt; 주문목록에서 볼 수 있습니다</div>
+          <div style="margin-top:3px;font-size:10.5px;color:#8b95a1">주문번호는 쇼핑몰 앱 &gt; 마이페이지 &gt; 주문목록에서 볼 수 있습니다</div>
         </div>
       </div>
       <button id="btn-clear" class="btn ghost">견적함 비우기</button>
@@ -53,7 +53,7 @@
     <button id="ops-token-save" class="btn ghost">토큰 저장</button>
     <p id="ops-empty" class="empty" hidden>
       토큰을 저장하면 발주 대기 주문이 여기 나타납니다.<br>
-      <small>쿠팡에서 결제하면 주문번호·금액이 자동 수집됩니다.</small>
+      <small>쇼핑몰에서 결제하면 주문번호·금액이 자동 수집됩니다.</small>
     </p>
     <div id="ops-list"></div>
   </section>
@@ -66,7 +66,7 @@
     <label class="field">
       <span>기본 이용 방식</span>
       <select id="track">
-        <option value="forwarding">📦 배송만 — 쿠팡 결제는 직접, 배송만 맡기기</option>
+        <option value="forwarding">📦 배송만 — 쇼핑몰 결제는 직접, 배송만 맡기기</option>
         <option value="agent">🛒 구매하고 배송까지 — 저희가 대신 사드려요</option>
       </select>
     </label>

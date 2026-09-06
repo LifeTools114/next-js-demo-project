@@ -123,7 +123,7 @@ export const NON_COSMETIC_KEYWORDS = [
   '리필용기', '공병', '샘플증정', '미용실', '체험단',
 ]
 
-/** 쿠팡 뷰티 카테고리 ID (파트너스 bestcategories API용) */
+/** 뷰티 카테고리 ID (내부 분류용) */
 export const COUPANG_BEAUTY_CATEGORY_ID = 1001
 
 /** 카탈로그 수집 시 사용할 검색어 (서브카테고리 searchTerms 를 펼친 것) */

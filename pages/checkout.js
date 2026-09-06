@@ -251,7 +251,7 @@ export default function Checkout() {
           <div className="empty__icon">🧾</div>
           주문할 상품이 없습니다.
           <br />
-          <small>배송만은 쿠팡 결제가 끝난 주문완료 화면에서 저절로 열리고,
+          <small>배송만은 쇼핑몰 결제가 끝난 주문완료 화면에서 저절로 열리고,
             구매하고 배송까지는 확장프로그램 견적함의 &quot;주문 요청하기&quot;로 열립니다.</small>
           {error && <p className="note note--danger" style={{ marginTop: 16 }}>{error}</p>}
           <div style={{ marginTop: 20 }}>
@@ -273,8 +273,8 @@ export default function Checkout() {
         <h1 className="section__title">{track === 'forwarding' ? '배송 신청서' : '주문서'}</h1>
         <p className="section__sub">
           {track === 'agent'
-            ? '당사가 고객님을 대신해 쿠팡에서 구매한 뒤 하노이로 배송합니다.'
-            : '고객님이 쿠팡에서 직접 결제하신 상품을 하노이로 배송해 드립니다.'}
+            ? '당사가 고객님을 대신해 쇼핑몰에서 구매한 뒤 하노이로 배송합니다.'
+            : '고객님이 쇼핑몰에서 직접 결제하신 상품을 하노이로 배송해 드립니다.'}
         </p>
       </div>
 
@@ -326,7 +326,7 @@ export default function Checkout() {
               {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
             </b>
             <br />
-            쿠팡→한국창고{' '}
+            쇼핑몰→한국창고{' '}
             <b>
               {quote.sourcing.schedule.toWarehouseDays.min}~
               {quote.sourcing.schedule.toWarehouseDays.max}영업일
@@ -372,7 +372,7 @@ export default function Checkout() {
       {coupangOrderNo && (
         <div className="section" style={{ paddingTop: 0 }}>
           <p className="note">
-            ✅ 쿠팡 주문 <b>{coupangOrderNo}</b> 이(가) 연결됩니다.
+            ✅ 쇼핑몰 주문 <b>{coupangOrderNo}</b> 이(가) 연결됩니다.
             결제하신 상품은 한국 창고 도착 후 하노이로 이어서 배송됩니다.
           </p>
         </div>
@@ -554,7 +554,7 @@ export default function Checkout() {
               품절·가격 인상 등 당사 사유 취소는 <b style={{ color: '#17916b' }}>전액 환불</b>.
               <br />
               ↩️ 하노이 도착 후 교환·반품 시{' '}
-              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)와 쿠팡 반품비는 전액 구매자 부담</b>입니다.
+              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)와 쇼핑몰 반품비는 전액 구매자 부담</b>입니다.
             </p>
             {quote && freightKrw > 0 && (
               <div className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.8, marginTop: 8 }}>
@@ -668,7 +668,7 @@ export default function Checkout() {
                   </button>
                 ) : (
                   <p className="note" style={{ fontSize: 12, margin: 0 }}>
-                    같은 쿠팡 주문번호는 두 번 접수할 수 없습니다.
+                    같은 쇼핑몰 주문번호는 두 번 접수할 수 없습니다.
                     {duplicate.cancellable
                       ? ' 기존 주문을 취소하면 다시 접수됩니다.'
                       : ' 이미 진행 중이면 운영자에게 문의해 주세요.'}

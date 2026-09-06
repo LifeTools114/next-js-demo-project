@@ -41,10 +41,10 @@ export const MAINTENANCE = {
   /** 창 종료 후 복구 확인 구간 (분) */
   graceMinutes: 10,
 
-  label: '쿠팡 점검 시간',
+  label: '쇼핑몰 점검 시간',
   shortLabel: '점검 중',
   reason:
-    '쿠팡 시스템 점검 시간대와 겹쳐 가격·재고 정보가 정확하지 않을 수 있습니다. 잘못된 견적을 드리지 않기 위해 잠시 멈춥니다.',
+    '쇼핑몰 시스템 점검 시간대와 겹쳐 가격·재고 정보가 정확하지 않을 수 있습니다. 잘못된 견적을 드리지 않기 위해 잠시 멈춥니다.',
 }
 
 /**
@@ -56,12 +56,11 @@ export const MAINTENANCE = {
  * 과잉 차단은 그 자체로 비용입니다. 쿠팡에 실제로 의존하지 않는 동작은 막지 않습니다.
  */
 export const MAINTENANCE_POLICY = {
-  readProductPage: 'block', // 확장이 쿠팡 페이지를 읽어 견적 계산 — 점검 페이지를 읽으면 값이 틀림
-  purchase: 'block', // 쿠팡에서 실제 매입 — 결제 실패 위험
-  affiliateLink: 'warn', // 쿠팡으로 이동 — 점검 페이지가 뜰 수 있음
+  readProductPage: 'block', // 확장이 쇼핑몰 페이지를 읽어 견적 계산 — 점검 페이지를 읽으면 값이 틀림
+  purchase: 'block', // 쇼핑몰에서 실제 매입 — 결제 실패 위험
   addToCart: 'allow', // 이미 읽어둔 값
   createOrder: 'allow', // 당사 시스템 내부
-  confirmPayment: 'allow', // 쿠팡과 무관
+  confirmPayment: 'allow', // 쇼핑몰과 무관
   warehouse: 'allow',
   settlement: 'allow',
 }
@@ -102,11 +101,10 @@ export const MAINTENANCE_EXCEPTIONS = {
 
 /** 고객 안내 문구 */
 export const MAINTENANCE_NOTICE = {
-  soon: (minutes) => `${minutes}분 뒤 쿠팡 점검 시간이 시작됩니다. 그 전에 주문을 마쳐주세요.`,
-  active: '지금은 쿠팡 점검 시간입니다. 가격 정보가 정확하지 않을 수 있어 견적을 잠시 멈췄습니다.',
-  recovering: '점검이 끝났습니다. 쿠팡이 아직 복구 중일 수 있으니 값이 이상하면 잠시 뒤 새로고침해 주세요.',
-  purchaseBlocked: '점검 시간에는 쿠팡 매입을 진행하지 않습니다. 점검 종료 후 자동으로 이어집니다.',
-  affiliateWarn: '점검 시간이라 쿠팡에서 점검 안내 페이지가 표시될 수 있습니다.',
+  soon: (minutes) => `${minutes}분 뒤 쇼핑몰 점검 시간이 시작됩니다. 그 전에 주문을 마쳐주세요.`,
+  active: '지금은 쇼핑몰 점검 시간입니다. 가격 정보가 정확하지 않을 수 있어 견적을 잠시 멈췄습니다.',
+  recovering: '점검이 끝났습니다. 쇼핑몰이 아직 복구 중일 수 있으니 값이 이상하면 잠시 뒤 새로고침해 주세요.',
+  purchaseBlocked: '점검 시간에는 쇼핑몰 매입을 진행하지 않습니다. 점검 종료 후 자동으로 이어집니다.',
   overrideUsed: '점검 시간이지만 운영자 확인 하에 강제로 진행했습니다.',
   /** 안내에 항상 붙이는 꼬리말 — 기준 시간대를 명확히 합니다 */
   timezoneHint: (kstWindow, localWindow) =>

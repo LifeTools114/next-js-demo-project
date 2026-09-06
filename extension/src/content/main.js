@@ -34,7 +34,7 @@
     })
 
   // ── 1. 설정 적용 ──
-  let warehouse = null // 한국 창고 주소 — 배송대행은 쿠팡 결제 전에 알아야 합니다
+  let warehouse = null // 한국 창고 주소 — 배송대행은 쇼핑몰 결제 전에 알아야 합니다
   const cfg = await send('getConfig')
   if (cfg?.ok && cfg.config) {
     warehouse = cfg.config.warehouse ?? null
@@ -84,7 +84,7 @@
      */
     onPay: async () => {
       if (track === 'forwarding') {
-        KBPanel.setState({ notice: '먼저 쿠팡에서 결제해 주세요. 결제가 끝나면 배송 신청서가 새 탭에 저절로 열립니다.' })
+        KBPanel.setState({ notice: '먼저 쇼핑몰에서 결제해 주세요. 결제가 끝나면 배송 신청서가 새 탭에 저절로 열립니다.' })
         return
       }
       if (!(product && addedProductId === product.productId)) await handlers.onAdd()
@@ -110,15 +110,6 @@
       if (r?.url) KBPanel.setState({ siteUrl: r.url })
     },
     onOpenSite: () => send('openSite', { path: '/' }),
-    onAffiliate: async () => {
-      /**
-       * 제휴 링크 열기 — 배송대행 전용 + 사용자 클릭 전용.
-       * 구매대행은 본인 구매(self-referral)라 여기서도, 백그라운드와 서버에서도
-       * 3중으로 막습니다 (운영자 확정 26-08-30: "구매대행은 절대 태우면 안 됨").
-       */
-      if (track !== 'forwarding') return
-      await send('openAffiliate', { url: location.href, track })
-    },
   }
   KBPanel.mount(handlers)
 

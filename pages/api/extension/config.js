@@ -12,7 +12,6 @@ import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../../../config/shippi
 import { TAXES } from '../../../config/taxes'
 import { FEES, ORDER_MIN } from '../../../config/fees'
 import { FX } from '../../../config/fx'
-import { AFFILIATE } from '../../../config/affiliate'
 import { DESTINATION } from '../../../config/eligibility'
 import { MAINTENANCE } from '../../../config/maintenance'
 import { coupangPatternPayload, COUPANG_PATTERNS } from '../../../config/coupang-patterns'
@@ -113,12 +112,6 @@ export default function handler(req, res) {
     consolidation: {
       freeStorageDays: CONSOLIDATION.freeStorageDays,
       handlingFeeUsd: CONSOLIDATION.handlingFeeUsd,
-    },
-    affiliate: {
-      // 배송대행에서만 제휴가 적용된다는 사실을 확장도 알아야 합니다.
-      applyTo: AFFILIATE.applyTo,
-      disclosure: AFFILIATE.compliance.disclosure,
-      disclosureShort: AFFILIATE.compliance.disclosureShort,
     },
     selectors: SELECTORS,
 

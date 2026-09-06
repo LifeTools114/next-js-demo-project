@@ -19,7 +19,7 @@ const LOCATION_BY_STATE = {
   REQUESTED: '신청 완료 — 보내주시면 시작해요',
   AWAITING_PAYMENT: '신청 완료 — 보내주시면 시작해요',
   PAID: '한국 — 상품 준비 중',
-  PURCHASING: '한국 — 쿠팡 구매 진행 중',
+  PURCHASING: '한국 — 쇼핑몰 구매 진행 중',
   PURCHASED: '한국 — 창고(서울 강서)로 이동 중',
   IN_WAREHOUSE: '한국 창고(서울 강서) 도착 — 검수·포장 중',
   SETTLEMENT_DUE: '한국 창고(서울 강서) 보관 중 — 정산 대기',
@@ -279,12 +279,12 @@ export default function OrderPage() {
       {order.forwardingGuide && (
         <section className="panel">
           <div className="panel__head">
-            <span>쿠팡 주문 안내</span>
+            <span>쇼핑몰 주문 안내</span>
             {order.forwardingGuide.linked && <span className="tag tag--ok">연결됨</span>}
           </div>
           <div className="panel__body">
             <p className="note">
-              쿠팡 결제 시 배송지를 아래와 같이 입력해 주세요.
+              쇼핑몰 결제 시 배송지를 아래와 같이 입력해 주세요.
               <br />
               {/* 이름 부분을 칠해 "여기가 당신 이름" 임을 눈에 띄게 (운영자 26-09-06) */}
               <b>세부주소에 <span style={NAME_MARK}>{order.forwardingGuide.addressDetail}</span> 이(가) 있어야 창고가 접수합니다.</b>
@@ -308,10 +308,10 @@ export default function OrderPage() {
 
             <form onSubmit={submitLink} style={{ marginTop: 14 }}>
               <p className="note" style={{ marginBottom: 8 }}>
-                쿠팡 주문을 마치셨다면 주문번호를 등록해 주세요 — 입고·배송 추적이 빨라집니다.
+                쇼핑몰 주문을 마치셨다면 주문번호를 등록해 주세요 — 입고·배송 추적이 빨라집니다.
               </p>
               <div className="field">
-                <label className="field__label" htmlFor="coupangOrderNo">쿠팡 주문번호</label>
+                <label className="field__label" htmlFor="coupangOrderNo">쇼핑몰 주문번호</label>
                 <input id="coupangOrderNo" className="input" inputMode="numeric" placeholder="예: 29000123456789"
                   value={linkForm.coupangOrderNo}
                   onChange={(e) => setLinkForm({ ...linkForm, coupangOrderNo: e.target.value })} />
@@ -325,16 +325,16 @@ export default function OrderPage() {
               {linkError && <p className="note note--danger">{linkError}</p>}
               <button className="btn" type="submit"
                 disabled={linking || (!linkForm.coupangOrderNo.trim() && !linkForm.trackingNo.trim())}>
-                {linking ? '등록 중…' : '쿠팡 주문 연결'}
+                {linking ? '등록 중…' : '쇼핑몰 주문 연결'}
               </button>
             </form>
 
             {order.inbound?.coupangOrderNo && (
               <p className="note" style={{ marginTop: 10 }}>
-                연결된 쿠팡 주문: <b>{order.inbound.coupangOrderNo}</b>
+                연결된 쇼핑몰 주문: <b>{order.inbound.coupangOrderNo}</b>
                 {order.inbound.trackingNos.length > 0
                   ? <> · 운송장 {order.inbound.trackingNos.join(', ')}</>
-                  : <><br /><small>📦 쿠팡에서 발송 알림을 받으면 위 폼에 운송장 번호도 등록해 주세요 — 창고 입고 확인이 빨라집니다.</small></>}
+                  : <><br /><small>📦 쇼핑몰에서 발송 알림을 받으면 위 폼에 운송장 번호도 등록해 주세요 — 창고 입고 확인이 빨라집니다.</small></>}
               </p>
             )}
           </div>
@@ -363,7 +363,7 @@ export default function OrderPage() {
         <div className="panel__body">
           {cancelled ? (
             <p className="note note--danger">
-              이 주문은 취소되었습니다. 같은 상품이 필요하시면 쿠팡 화면에서 다시 접수해
+              이 주문은 취소되었습니다. 같은 상품이 필요하시면 쇼핑몰 화면에서 다시 접수해
               주세요 — 취소된 주문은 중복으로 잡히지 않습니다.
             </p>
           ) : (
@@ -492,7 +492,7 @@ export default function OrderPage() {
       {order.state === 'PAID' && (
         <div className="section" style={{ paddingBottom: 0 }}>
           <p className="note" style={{ fontSize: 12 }}>
-            취소가 필요하시면 <b>빠르게 연락 주세요</b> — 쿠팡 매입 시작 전에는 취소할 수 있습니다.
+            취소가 필요하시면 <b>빠르게 연락 주세요</b> — 쇼핑몰 매입 시작 전에는 취소할 수 있습니다.
             품절·가격 인상 등 당사 사유는 <b style={{ color: '#17916b' }}>전액 환불</b>, 단순 변심은{' '}
             {order.track === 'agent' ? '대행수수료 제외' : `처리 수수료 $${RETURN_POLICY.forwardingRefundFeeUsd} 차감`} 후
             환불되며, 지급은 영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일입니다.
@@ -521,7 +521,7 @@ export default function OrderPage() {
               (당사 사유 취소는 전액 환불)
               <br />
               ↩️ 하노이 도착 후 교환·반품 시{' '}
-              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)·쿠팡 반품비 전액 구매자 부담</b>
+              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)·쇼핑몰 반품비 전액 구매자 부담</b>
               {freightKrw > 0 && (
                 <>
                   <br />
@@ -546,7 +546,7 @@ export default function OrderPage() {
       <div className="section" style={{ display: 'grid', gap: 10 }}>
         {/* 쇼핑은 쿠팡에서 — 확장 패널이 다시 견적을 띄워줍니다 */}
         <a href="https://www.coupang.com" className="btn" target="_blank" rel="noreferrer">
-          쿠팡에서 계속 쇼핑하기 ↗
+          쇼핑몰에서 계속 쇼핑하기 ↗
         </a>
         <Link href="/orders" className="btn btn--ghost">내 주문 목록</Link>
       </div>

@@ -181,7 +181,7 @@ const KBPanel = (() => {
       ? `${w.address1 ?? ''}${w.zip ? ` (${w.zip})` : ''}`.trim()
       : '창고 확정 후 안내됩니다'
     const code = w.code ?? 'YS-ECOM'
-    return `<div class="note">🏠 쿠팡 배송지 입력법
+    return `<div class="note">🏠 쇼핑몰 배송지 입력법
       <br>· 이름: <b>${esc(code)}</b>
       <br>· 주소: <span style="user-select:all">${esc(addr)}</span>
       <br>· 상세주소: <b>${esc(code)} 본인이름</b>
@@ -239,14 +239,14 @@ const KBPanel = (() => {
         <div class="countdown">${esc(m.minutesUntilEnd)}분 뒤 재개</div>
         <div class="when">${esc(m.timezoneHint)}</div>
       </div>
-      <div class="note">점검 중에는 쿠팡 가격이 정확하지 않을 수 있어 견적을 멈춥니다.
+      <div class="note">점검 중에는 쇼핑몰 가격이 정확하지 않을 수 있어 견적을 멈춥니다.
       잘못된 금액을 보여드리는 것보다 잠시 기다리시는 편이 낫기 때문입니다.</div>
       </div>`
     }
 
     if (state.view === 'error') {
       return `<div class="body"><div class="err">⚠️ ${esc(state.message)}</div>
-        <div class="note">쿠팡 페이지 구조가 바뀌면 정보를 읽지 못할 수 있습니다.
+        <div class="note">쇼핑몰 페이지 구조가 바뀌면 정보를 읽지 못할 수 있습니다.
         잘못된 금액을 보여주는 대신 계산을 중단했습니다.</div></div>`
     }
 
@@ -353,7 +353,7 @@ const KBPanel = (() => {
     const qty = Number.isFinite(state.quantity) ? state.quantity : 1
     const qtyLine = state.quantityUncertain
       ? `<div class="note" style="color:#c92a2a">개수를 확실히 읽지 못해 <b>1개 기준</b>으로 계산했습니다.
-           쿠팡 화면의 개수를 1로 두고 담은 뒤, 신청서에서 개수를 정해 주세요.</div>`
+           쇼핑몰 화면의 개수를 1로 두고 담은 뒤, 신청서에서 개수를 정해 주세요.</div>`
       : qty > 1
         ? `<div class="qtyline"><b>${qty}개</b> 기준 금액입니다${
             // 수량 칸 대신 화면 금액으로 알아낸 개수는 그 셈을 같이 보여줍니다 — 고객이 맞는지 바로 봅니다.
@@ -370,7 +370,7 @@ const KBPanel = (() => {
      */
     const priceLine = state.priceBasis === 'screen' && state.unitPrice
       ? `<div class="qtyline">화면 가격 <b>${esc(state.fmt.krw(state.unitPrice))}</b> 기준입니다${
-          state.catalogPrice ? ` (쿠팡 목록값 ${esc(state.fmt.krw(state.catalogPrice))})` : ''}</div>`
+          state.catalogPrice ? ` (쇼핑몰 목록값 ${esc(state.fmt.krw(state.catalogPrice))})` : ''}</div>`
       : ''
 
     return `<div class="body">
@@ -378,7 +378,7 @@ const KBPanel = (() => {
       <p class="name">${esc(state.productName)}</p>
       ${qtyLine}${priceLine}
       <div class="pricebox">
-        ${priceRow('forwarding', '📦 배송만', '배송비 · 쿠팡 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
+        ${priceRow('forwarding', '📦 배송만', '배송비 · 쇼핑몰 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
         ${priceRow('agent', '🛒 구매하고 배송까지', '총액 · 저희가 대신', qs.agent ?? (state.track === 'agent' ? q : null))}
       </div>
       <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}<b style="color:#d9480f">영업일</b></div>
@@ -392,7 +392,7 @@ const KBPanel = (() => {
              : '<div class="note">본인 결제라 쿠폰·회원 할인을 모두 그대로 쓸 수 있습니다.</div>'}
            <div class="note">무게 기준: ${esc(state.ruleText ?? '')} · 입고 후 실측으로 정산합니다.</div>
            ${headroomNote(q)}${warehouseNote()}
-           <div class="note">📦 쿠팡→한국창고 <b>${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}영업일</b> +
+           <div class="note">📦 쇼핑몰→한국창고 <b>${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}영업일</b> +
              한국창고→하노이 <b>${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}영업일</b>
              <br><b style="color:#d9480f">모두 영업일 기준(주말·공휴일 제외)</b> ·
              해외직구 상품은 창고 도착까지 <b style="color:#d9480f">+2~3영업일</b></div>
@@ -557,9 +557,6 @@ const KBPanel = (() => {
     )
     wrap.querySelectorAll('[data-act="checkout"]').forEach((b) =>
       b.addEventListener('click', () => handlers.onCheckout?.()),
-    )
-    wrap.querySelectorAll('[data-act="affiliate"]').forEach((b) =>
-      b.addEventListener('click', () => handlers.onAffiliate?.()),
     )
   }
 

@@ -12,7 +12,7 @@ const NAV = [
 export default function Layout({ children, title, badge }) {
   const router = useRouter()
 
-  const pageTitle = title ? `${title} · 쿠팡 하노이` : '쿠팡 하노이 직구 — 도착 가격 즉시 계산'
+  const pageTitle = title ? `${title} · 하노이 직구` : '하노이 직구 — 도착 가격 즉시 계산'
 
   return (
     <>
@@ -22,7 +22,7 @@ export default function Layout({ children, title, badge }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
         />
-        <meta name="description" content="쿠팡에서 바로 하노이 도착 가격을 확인하세요. 무게 자동 산정, kg당 배송비, 관세·VAT까지 즉시 계산." />
+        <meta name="description" content="쇼핑몰에서 바로 하노이 도착 가격을 확인하세요. 무게 자동 산정, kg당 배송비, 관세·VAT까지 즉시 계산." />
         <meta name="theme-color" content="#ef4a76" />
       </Head>
 
@@ -32,7 +32,7 @@ export default function Layout({ children, title, badge }) {
         <header className="header">
           <div className="header__bar">
             <Link href="/" className="header__logo">
-              쿠팡 <span>하노이</span>
+              하노이 <span>직구</span>
             </Link>
             <div className="header__spacer" />
             {badge && <span className="source-badge source-badge--live"><span className="source-badge__dot" />{badge}</span>}
@@ -53,7 +53,6 @@ export default function Layout({ children, title, badge }) {
 
         <main>{children}</main>
 
-        {/* 쿠팡 파트너스 대가성 고지 — 사이트 전체 하단 상시 표시 (공정위·파트너스 요건) */}
         <footer style={{
           padding: '14px 14px 10px',
           borderTop: '1px solid var(--line)',
@@ -72,8 +71,8 @@ export default function Layout({ children, title, badge }) {
             ) : <span style={{ fontWeight: 700 }}>{CONTACT.label}</span>}
             {CONTACT.kakaoId ? <span> · 카카오톡 ID <b>{CONTACT.kakaoId}</b></span> : null}
           </div>
-          본 서비스는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받을 수 있습니다.
-          고객님이 지불하시는 구매 금액은 동일합니다.
+          {/* 개인정보 처리방침 — 크롬 웹스토어 등록에 필요한 공개 주소이기도 합니다 */}
+          <a href="/privacy" style={{ color: 'var(--ink-500)', textDecoration: 'underline' }}>개인정보 처리방침</a>
         </footer>
       </div>
     </>

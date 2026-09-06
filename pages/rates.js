@@ -81,14 +81,14 @@ export default function RatesPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td>쿠팡 상품값</td>
+                  <td>쇼핑몰 상품값</td>
                   <td>본인이 직접 결제<br /><small>쿠폰·와우 할인 자유</small></td>
                   <td>상품가 그대로 청구<br /><small>개인 쿠폰 사용 불가</small></td>
                 </tr>
                 <tr>
                   <td>한국 내 배송비</td>
-                  <td>본인이 쿠팡에 직접<br /><small>견적에 넣지 않습니다</small></td>
-                  <td>쿠팡 화면 그대로<br />
+                  <td>본인이 쇼핑몰에 직접<br /><small>견적에 넣지 않습니다</small></td>
+                  <td>쇼핑몰 화면 그대로<br />
                     <small>판매자마다 한 번 — 그 판매자 무료배송 조건을 넘으면 0원</small></td>
                 </tr>
                 <tr>
@@ -136,7 +136,7 @@ export default function RatesPage() {
           <p className="note" style={{ marginTop: 10 }}>
             대신 사드리는 예시는 기본 수수료({krw(FEES.agencyBaseKrw)}) 기준이며, 전자·가전 등
             할증 품목은 아래 추가금액이 더해집니다. 도착은 {SHIPPING.leadTimeDays.min + 1}~
-            {SHIPPING.leadTimeDays.max + 3}영업일(쿠팡→창고 1~3 + 창고→하노이{' '}
+            {SHIPPING.leadTimeDays.max + 3}영업일(쇼핑몰→창고 1~3 + 창고→하노이{' '}
             {SHIPPING.leadTimeDays.min}~{SHIPPING.leadTimeDays.max})입니다.
           </p>
         </div>
@@ -187,8 +187,8 @@ export default function RatesPage() {
                   <td>영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</td>
                 </tr>
                 <tr>
-                  <td>쿠팡 반품배송비</td>
-                  <td>별도 (쿠팡 정책 요율)</td>
+                  <td>쇼핑몰 반품배송비</td>
+                  <td>별도 (쇼핑몰 정책 요율)</td>
                 </tr>
               </tbody>
             </table>
@@ -303,11 +303,11 @@ export default function RatesPage() {
             </div>
           )}
           <p className="note" style={{ marginTop: 12 }}>
-            이 시간에는 쿠팡 가격 정보가 정확하지 않을 수 있어 견적과 매입을 잠시 멈춥니다.
-            주문 접수·입금 확인·발송처럼 쿠팡과 무관한 작업은 그대로 진행됩니다.
+            이 시간에는 쇼핑몰 가격 정보가 정확하지 않을 수 있어 견적과 매입을 잠시 멈춥니다.
+            주문 접수·입금 확인·발송처럼 쇼핑몰과 무관한 작업은 그대로 진행됩니다.
             <br />
             <small>
-              쿠팡이 공개 점검 시각을 명시하지 않아 운영 관찰에 따라 조정되는 설정값입니다.
+              쇼핑몰이 공개 점검 시각을 명시하지 않아 운영 관찰에 따라 조정되는 설정값입니다.
               변경 시 이 페이지에 반영됩니다.
             </small>
           </p>
@@ -383,7 +383,7 @@ export default function RatesPage() {
             </div>
           ))}
           <p className="note" style={{ marginTop: 12 }}>
-            확장프로그램이 쿠팡 상품 페이지에서 <strong>주문 전에</strong> 자동으로 알려드립니다.
+            확장프로그램이 쇼핑몰 상품 페이지에서 <strong>주문 전에</strong> 자동으로 알려드립니다.
             결제 후 창고에서 반송되면 왕복 배송비가 발생하기 때문입니다.
           </p>
         </div>
