@@ -198,6 +198,9 @@ const OPS_STATE_LABEL = { PAID: '발주 대기', PURCHASING: '매입 중 — 결
 async function renderOps() {
   const st = await send('getAdminState')
   $('ops-token-state').textContent = st.hasToken ? '· 저장됨' : ''
+  // 지우는 길을 버튼으로 — 「빈 칸으로 저장」은 알기 어려웠습니다 (운영자 26-09-06).
+  $('ops-token-clear').hidden = !st.hasToken
+  $('ops-token-note').hidden = !st.hasToken
   const list = $('ops-list')
   if (!st.hasToken) {
     $('ops-empty').hidden = false
@@ -274,6 +277,12 @@ async function renderOps() {
 
 $('ops-token-save').addEventListener('click', async () => {
   await send('setAdminToken', { token: $('ops-token').value })
+  $('ops-token').value = ''
+  renderOps()
+})
+
+$('ops-token-clear').addEventListener('click', async () => {
+  await send('setAdminToken', { token: '' })
   $('ops-token').value = ''
   renderOps()
 })
