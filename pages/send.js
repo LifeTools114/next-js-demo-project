@@ -161,7 +161,12 @@ export default function SendPage() {
     try {
       const res = await fetch(`/api/product-peek?url=${encodeURIComponent(url)}`)
       const d = await res.json()
-      if (!d.ok) { setPeek((p) => ({ ...p, [i]: 'fail' })); return }
+      if (!d.ok) {
+        // 번호·정식 주소만 확인된 경우(쇼핑몰이 서버의 화면 읽기를 막음) — 주소는 정식으로 바꿔 두고 가격만 받습니다
+        if (d.productId && d.url) setRows((prev) => prev.map((r, k) => (k !== i ? r : { ...r, productUrl: d.url })))
+        setPeek((p) => ({ ...p, [i]: d.productId ? 'resolved' : 'fail' }))
+        return
+      }
       setRows((prev) => prev.map((r, k) => (k !== i ? r : {
         ...r,
         productName: r.productName?.trim() ? r.productName : (d.productName ?? ''),
@@ -246,9 +251,14 @@ export default function SendPage() {
               </p>
             )}
             {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중…</p>}
+            {peek[i] === 'resolved' && (
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#e6f6f0', color: '#0f6e4f' }}>
+                ✓ 링크 확인됨 (상품 번호 {link?.productId}). 쇼핑몰이 서버의 자동 읽기를 막아 <b>가격</b>은 직접 적어 주세요 — 이름은 안 적어도 됩니다.
+              </p>
+            )}
             {peek[i] === 'fail' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                쇼핑몰에서 정보를 읽지 못했습니다 — 아래에 이름과 가격을 직접 적어 주세요.
+                쇼핑몰 상품 링크로 확인되지 않았습니다 — 아래에 이름과 가격을 직접 적어 주세요.
               </p>
             )}
 
@@ -287,7 +297,7 @@ export default function SendPage() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice}
                     placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
-                    autoFocus={shared && i === 0 && peek[i] === 'fail'}
+                    autoFocus={i === 0 && (peek[i] === 'resolved' || peek[i] === 'fail')}
                     style={{ flex: 2, fontSize: 16, minHeight: 50 }} />
                   <input className="input" type="number" inputMode="numeric" min="1" max="99" value={r.quantity}
                     placeholder="개수" onChange={(e) => setRow(i, { quantity: e.target.value })}
@@ -368,8 +378,8 @@ export default function SendPage() {
         <div style={{ display: 'flex', gap: 8 }}>{[toggleBtn('forwarding'), toggleBtn('agent')]}</div>
         {shared && (
           <p className="note" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
-            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. 이름·가격을 읽어오는 중이니
-            채워지면 <b>개수</b>만 정해 주세요. 읽지 못하면 가격만 적어도 계산됩니다.
+            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. <b>가격</b>만 적으면 바로 계산됩니다.
+            이름은 안 적어도 되고, 적으면 무게가 더 정확해집니다.
           </p>
         )}
       </div>
@@ -450,8 +460,8 @@ export default function SendPage() {
             <div className="panel__head">3. 무엇을 사셨나요</div>
             <div className="panel__body">
               <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-                쇼핑몰 앱에서 상품 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 아래 링크 칸에 붙여넣으면
-                이름·가격이 자동으로 채워집니다. 링크가 없으면 이름과 가격만 적어도 됩니다.
+                쇼핑몰 앱에서 상품 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 아래 링크 칸에 붙여넣고
+                <b>가격</b>만 적어 주세요. 링크가 없으면 이름과 가격만 적어도 됩니다.
               </p>
               {productRows}
             </div>
@@ -471,7 +481,7 @@ export default function SendPage() {
                 <b> 상품값 + 수수료 + 배송비</b>를 한 번에 합니다.
                 <br />
                 <small>링크: 쇼핑몰 앱에서 상품 화면 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 여기 붙여넣기.
-                이름·가격은 자동으로 채워지고, <b>개수</b>만 정하시면 됩니다.</small>
+                그다음 <b>가격</b>과 <b>개수</b>만 적으시면 됩니다.</small>
               </p>
               {productRows}
             </div>
