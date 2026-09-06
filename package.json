@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "쿠팡 하노이 직구 도우미 — 크롬 확장 + 견적·주문 백엔드",
+  "description": "쿠팡 베트남 직구 도우미 — 크롬 확장 + 견적·주문 백엔드",
   "scripts": {
     "dev": "next dev",
     "build": "npm run build:ext && next build",

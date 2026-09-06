@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import Layout from '../components/Layout'
+import ServiceAreaNotice from '../components/ServiceAreaNotice'
 import WeightBreakdown from '../components/WeightBreakdown'
 import { estimateItemWeight, estimateShipmentWeight } from '../lib/weight/estimate'
 import { calculateShipping, getRateTable, usdToKrw, roundingRuleText, toBillableKg } from '../lib/pricing/shipping'
@@ -62,6 +63,10 @@ export default function RatesPage() {
           배송비는 <strong>1kg당 ${SHIPPING.ratePerKgUsd}</strong> × 청구무게입니다. 청구무게는 실무게와
           부피무게 중 큰 값을 올려서 계산합니다 ({roundingRule}).
         </p>
+      </div>
+
+      <div className="section" style={{ paddingTop: 12, paddingBottom: 0 }}>
+        <ServiceAreaNotice />
       </div>
 
       {/* ── 전체 요금표 — 모든 경우의 수 한눈에 (운영자 지시 26-08-31) ── */}

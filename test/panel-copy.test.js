@@ -339,7 +339,7 @@ test('시작 배너 — 누르기 전에는 꺼짐, 상품을 고르기 전이�
    */
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
   assert.ok(cap.includes('function bannerHtml'), '배너를 그리는 곳')
-  for (const line of ['하노이 직구 도우미', '베트남에서', '한국 직구하기', '신청', '쉽고 빠른 한국 → 하노이 배송']) {
+  for (const line of ['베트남 직구 도우미', '베트남에서', '한국 직구하기', '신청', '쉽고 빠른 한국 → 하노이 배송']) {
     assert.ok(cap.includes(line), `배너 문구: ${line}`)
   }
   /*

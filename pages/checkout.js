@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../components/Layout'
+import ServiceAreaNotice from '../components/ServiceAreaNotice'
 import CostBreakdown from '../components/CostBreakdown'
 import { SHIPPING, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { PAYMENT, REFUND_DAYS, RETURN_POLICY } from '../config/payment'
@@ -308,48 +309,6 @@ export default function Checkout() {
         </div>
       )}
 
-      {quote?.sourcing?.schedule && (
-        <div className="section" style={{ paddingTop: 0 }}>
-          <Fold
-            title="📦 언제 받아보시나요"
-            bg="#fff8e6" border="#ffe3a3"
-            summary={<>
-              하노이 도착까지 <b style={{ color: '#d9480f', fontSize: 15 }}>
-                {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
-              </b> (주말·공휴일 제외)
-              {quote.sourcing.hasOverseas
-                ? <b style={{ color: '#c92a2a' }}> · 해외직구 상품이 있어 2~3일 더 걸립니다</b> : null}
-            </>}>
-          <p className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.75 }}>
-            📦 하노이 도착 예상{' '}
-            <b style={{ color: '#d9480f', fontSize: 14 }}>
-              {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
-            </b>
-            <br />
-            쇼핑몰→한국창고{' '}
-            <b>
-              {quote.sourcing.schedule.toWarehouseDays.min}~
-              {quote.sourcing.schedule.toWarehouseDays.max}영업일
-            </b>{' '}
-            + 한국창고→하노이{' '}
-            <b>
-              {quote.sourcing.schedule.toHanoiDays.min}~{quote.sourcing.schedule.toHanoiDays.max}영업일
-            </b>
-            <br />
-            <b style={{ color: '#d9480f' }}>모두 영업일 기준(주말·공휴일 제외)</b>
-            {quote.sourcing.hasOverseas && (
-              <>
-                <br />
-                <b style={{ color: '#c92a2a' }}>
-                  🌏 해외직구 상품 포함 — 한국창고 도착까지 +2~3영업일 더 걸립니다
-                </b>
-              </>
-            )}
-          </p>
-          </Fold>
-        </div>
-      )}
-
       {overLimit && (
         <div className="section" style={{ paddingTop: 0 }}>
           <p className="note note--danger">
@@ -378,18 +337,6 @@ export default function Checkout() {
         </div>
       )}
 
-      <section className="panel">
-        <div className="panel__head">1. 보내드릴 상품 ({items.length}종)</div>
-        <div className="panel__body">
-          {items.map((it, i) => (
-            <div className="row" key={i}>
-              <span className="row__label">{it.productName} × {it.quantity}</span>
-              <span className="row__value">{krw(it.productPrice * it.quantity)}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <form onSubmit={submit}>
         <section className="panel">
           {/*
@@ -397,9 +344,11 @@ export default function Checkout() {
             여기에 한국 주소를 적는 분이 실제로 계십니다 (운영자 지시 26-09-04).
           */}
           <div className="panel__head panel__head--accent">
-            2. 받으실 분<span className="hint-strong">🇻🇳 하노이 주소 입력</span>
+            1. 받으실 분<span className="hint-strong">🇻🇳 하노이 주소 입력</span>
           </div>
           <div className="panel__body">
+            {/* 배송 지역 — 목록에 있는 도시만. 운영자 26-09-06: "중부·남부는 현재 안 되니까 눈에 띄게" */}
+            <ServiceAreaNotice />
             {/*
               다시 오신 분은 같은 정보를 또 치지 않습니다 — 저장된 값이 다 차 있으면
               요약만 보여주고, 고치실 때만 [바꾸기]로 입력칸을 펼칩니다.
@@ -450,6 +399,18 @@ export default function Checkout() {
                 </p>
               </div>
             )}
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel__head">2. 보내드릴 상품 ({items.length}종)</div>
+          <div className="panel__body">
+            {items.map((it, i) => (
+              <div className="row" key={i}>
+                <span className="row__label">{it.productName} × {it.quantity}</span>
+                <span className="row__value">{krw(it.productPrice * it.quantity)}</span>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -588,6 +549,49 @@ export default function Checkout() {
           </div>
         )
       })()}
+
+        {/* 📦 도착 예상 — 운영자 지시 26-09-06: 「4. 확인하기」 바로 위 */}
+        {quote?.sourcing?.schedule && (
+          <div className="section" style={{ paddingTop: 0 }}>
+            <Fold
+              title="📦 언제 받아보시나요"
+              bg="#fff8e6" border="#ffe3a3"
+              summary={<>
+                하노이 도착까지 <b style={{ color: '#d9480f', fontSize: 15 }}>
+                  {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
+                </b> (주말·공휴일 제외)
+                {quote.sourcing.hasOverseas
+                  ? <b style={{ color: '#c92a2a' }}> · 해외직구 상품이 있어 2~3일 더 걸립니다</b> : null}
+              </>}>
+            <p className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.75 }}>
+              📦 하노이 도착 예상{' '}
+              <b style={{ color: '#d9480f', fontSize: 14 }}>
+                {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
+              </b>
+              <br />
+              쇼핑몰→한국창고{' '}
+              <b>
+                {quote.sourcing.schedule.toWarehouseDays.min}~
+                {quote.sourcing.schedule.toWarehouseDays.max}영업일
+              </b>{' '}
+              + 한국창고→하노이{' '}
+              <b>
+                {quote.sourcing.schedule.toHanoiDays.min}~{quote.sourcing.schedule.toHanoiDays.max}영업일
+              </b>
+              <br />
+              <b style={{ color: '#d9480f' }}>모두 영업일 기준(주말·공휴일 제외)</b>
+              {quote.sourcing.hasOverseas && (
+                <>
+                  <br />
+                  <b style={{ color: '#c92a2a' }}>
+                    🌏 해외직구 상품 포함 — 한국창고 도착까지 +2~3영업일 더 걸립니다
+                  </b>
+                </>
+              )}
+            </p>
+            </Fold>
+          </div>
+        )}
 
         <section className="panel">
           <div className="panel__head">4. 확인하기</div>

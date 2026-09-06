@@ -246,6 +246,8 @@
 
     KBPanel.setState({
       view: 'quote',
+      // 배송 가능 지역 — 금액 아래 굵게 (운영자 26-09-06: 중부·남부는 현재 안 됨)
+      areaNotice: typeof K.serviceAreaText === 'function' ? K.serviceAreaText() : null,
       // 담김 표시는 담은 그 상품에 한해서만 유지합니다.
       added: addedProductId === extracted.productId,
       cartCount,

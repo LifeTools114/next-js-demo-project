@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Layout from '../components/Layout'
+import ServiceAreaNotice from '../components/ServiceAreaNotice'
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
 import { FEES } from '../config/fees'
 import { TAXES } from '../config/taxes'
@@ -16,6 +17,10 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
           쇼핑몰에서 직접 사시면 저희가 하노이까지 보내드립니다.
           한국 카드가 없으셔도 <strong>대신 사드릴 수</strong> 있습니다.
         </p>
+      </div>
+
+      <div className="section" style={{ paddingTop: 12, paddingBottom: 0 }}>
+        <ServiceAreaNotice />
       </div>
 
       {/*

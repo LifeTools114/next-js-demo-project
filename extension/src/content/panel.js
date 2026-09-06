@@ -21,23 +21,24 @@ const KBPanel = (() => {
 .fab { min-width: 188px; min-height: 60px; border-radius: 15px; border: 0; margin-left: auto;
   display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px;
   font: 800 16px/1.25 inherit; text-align: left; cursor: pointer;
-  background: #3182f6; color: #fff; box-shadow: 0 6px 20px rgba(49,130,246,.42); }
+  background: linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%); color: #fff; box-shadow: 0 6px 20px rgba(255,106,0,.45); }
 .fab .fab-ico { font-size: 25px; line-height: 1 }
 .fab .fab-sub { display: block; font-size: 11.5px; font-weight: 700; opacity: .9; margin-top: 2px }
 .fab[data-state="blocked"] { background: #c53030; }
 .fab[data-state="error"] { background: #4e5968; }
-.card { background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(27,18,32,.2);
+.card { background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(10,46,156,.22);
   overflow: hidden; border: 1px solid #e5e8eb; max-height: 76vh; display: flex; flex-direction: column; }
-.head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; background: #f2f4f6; border-bottom: 1px solid #e5e8eb; }
-.head b { font-size: 13.5px; color: #191f28; flex: 1; }
-.head button { background: none; border: 0; font-size: 18px; cursor: pointer; color: #4e5968; line-height: 1; padding: 4px; }
+/* 머리·버튼은 시작 배너와 같은 색 — 파란 바탕에 흰 굵은 글자, 행동 버튼은 주황 알약 (운영자 26-09-06) */
+.head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; background: linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%); color: #fff; }
+.head b { font-size: 14px; font-weight: 900; color: #fff; flex: 1; }
+.head button { background: none; border: 0; font-size: 18px; cursor: pointer; color: #fff; line-height: 1; padding: 4px; }
 .body { padding: 12px 14px; overflow-y: auto; }
 .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
 .row + .row { border-top: 1px dashed #e5e8eb; }
 .row .l { color: #333d4b; flex: 1; min-width: 0; }
-.row-info { border: 0; background: #eef4fb; color: #3182f6; border-radius: 50%; width: 16px; height: 16px;
+.row-info { border: 0; background: #eef4fb; color: #1b4fd8; border-radius: 50%; width: 16px; height: 16px;
   font-size: 10.5px; line-height: 1; cursor: pointer; padding: 0; margin-left: 4px; vertical-align: 1px; }
-.row-info:hover { background: #3182f6; color: #fff; }
+.row-info:hover { background: #1b4fd8; color: #fff; }
 .row .v { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .total { border-top: 2px solid #191f28; margin-top: 8px; padding-top: 10px; font-size: 14px; }
 .total .v { font-size: 17px; }
@@ -57,7 +58,7 @@ const KBPanel = (() => {
 .note.added { background: #e6f6f0; color: #17916b; font-weight: 700; text-align: center; margin-top: 0; }
 .hero { text-align: center; padding: 12px 0 4px; }
 .hero .cap { font-size: 12.5px; font-weight: 700; color: #333d4b; }
-.hero .krw { font-size: 28px; font-weight: 800; color: #3182f6; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.hero .krw { font-size: 28px; font-weight: 800; color: #1b4fd8; letter-spacing: -0.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .hero .vnd2 { font-size: 17px; font-weight: 800; color: #f04452; margin-top: 1px; font-variant-numeric: tabular-nums; }
 .hero .meta { font-size: 12px; color: #4e5968; margin-top: 6px; }
 .hero .meta.sub { font-size: 11px; color: #8b95a1; margin-top: 2px; }
@@ -67,11 +68,11 @@ const KBPanel = (() => {
 /* [결제하기] [담아두기] 나란히 */
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* 배송만일 때의 [결제하기] — 회색이지만 누를 수 있습니다 (누르면 "결제부터" 안내) */
-.btn.off { background: #e5e8eb; color: #8b95a1; cursor: not-allowed; }
-         font-size: 12px; color: #333d4b; line-height: 1.6; }
-.btn { min-height: 42px; border: 0; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
-  background: #3182f6; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.btn.ghost { background: #fff; color: #333d4b; border: 1px solid #e5e8eb; }
+.btn.off { background: #e5e8eb; color: #8b95a1; cursor: not-allowed; box-shadow: none; }
+.btn { min-height: 44px; border: 0; border-radius: 999px; font-weight: 900; font-size: 14px; cursor: pointer;
+  background: linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%); color: #fff; box-shadow: 0 3px 10px rgba(255,106,0,.45);
+  display: flex; align-items: center; justify-content: center; gap: 6px; }
+.btn.ghost { background: #fff; color: #0a2e9c; border: 1.5px solid #dbe6ff; box-shadow: none; font-weight: 800; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .disc { font-size: 10.5px; color: #4e5968; line-height: 1.45; text-align: center; margin-top: -2px; }
 /* 첫 화면의 두 줄 가격표 — 결제창 카드와 같은 생김새. 행을 누르면 선택. */
@@ -80,7 +81,7 @@ const KBPanel = (() => {
   padding: 10px 12px; border: 0; background: #fff; cursor: pointer; text-align: left; font: inherit; }
 .prow + .prow { border-top: 1px solid #f2f4f6; }
 /* 선택된 행 — 파란 배경 + 흰 글씨 + ✓ 로 확실하게 */
-.prow[aria-pressed="true"] { background: #3182f6; }
+.prow[aria-pressed="true"] { background: #1b4fd8; }
 .prow[aria-pressed="true"] .pl b { color: #fff; }
 .prow[aria-pressed="true"] .pl b::before { content: '✓ '; }
 .prow[aria-pressed="true"] .pl small { color: #cfe0fc; }
@@ -88,7 +89,7 @@ const KBPanel = (() => {
 .prow[aria-pressed="true"] .pv { color: #ffd9d9; }
 .prow .pl b { font-size: 13.5px; font-weight: 800; color: #191f28; display: block; }
 .prow .pl small { font-size: 10.5px; color: #8b95a1; }
-.prow .pk { font-size: 18px; font-weight: 800; color: #3182f6; display: block; text-align: right;
+.prow .pk { font-size: 18px; font-weight: 800; color: #1b4fd8; display: block; text-align: right;
   white-space: nowrap; font-variant-numeric: tabular-nums; }
 .prow .pv { font-size: 11px; font-weight: 700; color: #f04452; white-space: nowrap; display: block; text-align: right; }
 .wline { font-size: 11px; color: #8b95a1; margin-top: 6px; }
@@ -96,30 +97,34 @@ const KBPanel = (() => {
 .shortcut { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box;
             padding: 10px 14px; border: 0; border-bottom: 1px solid #d0e2ff; cursor: pointer;
             background: linear-gradient(90deg, #eaf2ff, #f4f8ff); text-align: left; }
-.shortcut b { font-size: 13px; color: #0b57d0; flex: 1; line-height: 1.4; }
+.shortcut b { font-size: 13px; color: #0a2e9c; flex: 1; line-height: 1.4; }
 .shortcut small { display: block; font-weight: 500; color: #4e5968; font-size: 11.5px; margin-top: 1px; }
-.shortcut .chev { color: #0b57d0; font-size: 12px; }
+.shortcut .chev { color: #0a2e9c; font-size: 12px; }
 .sc-how { padding: 11px 14px; background: #f8fbff; border-bottom: 1px solid #e5e8eb;
           font-size: 12.5px; color: #333d4b; line-height: 1.65; }
 .sc-how ol { margin: 6px 0 0; padding-left: 18px; }
 .sc-how li { margin-bottom: 3px; }
 .sc-how .addr { display: block; margin-top: 7px; padding: 7px 9px; background: #fff;
                 border: 1px solid #d7dbe0; border-radius: 7px; font-size: 12.5px;
-                word-break: break-all; color: #0b57d0; font-weight: 700; }
+                word-break: break-all; color: #0a2e9c; font-weight: 700; }
 .sc-act { display: flex; gap: 6px; margin-top: 9px; }
 .sc-act button { flex: 1; padding: 9px 6px; border-radius: 8px; font-size: 12.5px;
                  font-weight: 700; cursor: pointer; border: 1px solid #d7dbe0; background: #fff; color: #4e5968; }
-.sc-act button.go { background: #0b57d0; border-color: #0b57d0; color: #fff; }
+.sc-act button.go { background: linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%); border-color: transparent; color: #fff; font-weight: 800; }
 
+/* 배송 가능 지역 — 목록에 없는 도시는 안 됩니다 (운영자 26-09-06). 주황 테두리로 눈에 띄게 */
+.area { background: #fff3e8; border: 1.5px solid #ff9a1f; color: #7a3500; border-radius: 9px;
+        padding: 8px 10px; font-size: 12px; line-height: 1.5; margin: 6px 0 4px; }
+.area b { color: #d94a00; }
 /* 몇 개짜리 견적인지 — 금액 바로 위에 눈에 띄게 */
-.qtyline { font-size: 12.5px; color: #0b57d0; background: #eef4ff; border-radius: 7px;
+.qtyline { font-size: 12.5px; color: #0a2e9c; background: #eef4ff; border-radius: 7px;
            padding: 6px 9px; margin: 6px 0 2px; font-weight: 600; }
 .track { display: flex; gap: 8px; margin-bottom: 4px; }
 .track button { flex: 1; min-height: 52px; border: 2px solid #e5e8eb; background: #fff; border-radius: 11px;
   font-size: 15px; font-weight: 800; color: #333d4b; cursor: pointer; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 2px; }
 .track button small { font-size: 10.5px; font-weight: 600; color: #8b95a1; }
-.track button[aria-pressed="true"] { background: #3182f6; border-color: #3182f6; color: #fff; }
+.track button[aria-pressed="true"] { background: #1b4fd8; border-color: #1b4fd8; color: #fff; }
 .track button[aria-pressed="true"] small { color: #cfe0fc; }
 .err { font-size: 12.5px; color: #b7791f; background: #fff8ef; border-radius: 8px; padding: 10px; line-height: 1.5; }
 .maint { background: #f2f0f7; border: 1px solid #ddd8e6; border-radius: 10px; padding: 14px; text-align: center; }
@@ -127,7 +132,7 @@ const KBPanel = (() => {
 .maint h4 { margin: 0 0 6px; font-size: 14px; color: #3b3350; }
 .maint p { margin: 0 0 10px; font-size: 12.5px; color: #5b5470; line-height: 1.55; }
 .maint .when { font-size: 12px; font-weight: 700; color: #333d4b; background: #fff; border-radius: 8px; padding: 8px 10px; }
-.maint .countdown { font-size: 20px; font-weight: 800; color: #3182f6; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+.maint .countdown { font-size: 20px; font-weight: 800; color: #1b4fd8; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
 .banner { background: #fff8ef; border: 1px solid #ffe8cc; border-radius: 9px; padding: 9px 11px;
   font-size: 11.5px; color: #8a5a10; line-height: 1.5; margin-bottom: 10px; }
 `
@@ -373,10 +378,17 @@ const KBPanel = (() => {
           state.catalogPrice ? ` (쇼핑몰 목록값 ${esc(state.fmt.krw(state.catalogPrice))})` : ''}</div>`
       : ''
 
+    // 배송 가능 지역 — 목록에 있는 도시만. 값은 번들(K.serviceAreaText)에서 옵니다.
+    const a = state.areaNotice
+    const areaLine = a?.cities
+      ? `<div class="area">🚚 <b>배송 가능: ${esc(a.cities)}</b> (${esc(a.regionLabel)})<br>
+          <b>${esc(a.notServed)}는 현재 배송하지 않습니다.</b></div>`
+      : ''
+
     return `<div class="body">
       ${banner}${opHint}
       <p class="name">${esc(state.productName)}</p>
-      ${qtyLine}${priceLine}
+      ${qtyLine}${priceLine}${areaLine}
       <div class="pricebox">
         ${priceRow('forwarding', '📦 배송만', '배송비 · 쇼핑몰 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
         ${priceRow('agent', '🛒 구매하고 배송까지', '총액 · 저희가 대신', qs.agent ?? (state.track === 'agent' ? q : null))}
@@ -513,8 +525,8 @@ const KBPanel = (() => {
 
     wrap.innerHTML = `<div class="card">
       <div class="head"><b>🇻🇳 하노이 도착 견적</b>
-        <button data-act="mode-off" style="font-size:11px;font-weight:800;color:#8b95a1;
-          border:1px solid #e5e8eb;border-radius:6px;padding:3px 8px">끄기</button>
+        <button data-act="mode-off" style="font-size:11px;font-weight:800;color:#fff;
+          border:1px solid rgba(255,255,255,.55);border-radius:999px;padding:3px 9px">끄기</button>
         <button data-act="close" aria-label="닫기">✕</button></div>
       ${renderShortcut()}
       ${renderBody()}${renderButtons()}

@@ -41,12 +41,12 @@ function CopyRow({ label, value, display, hint, disabled, danger }) {
       style={{
         display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
         padding: '14px 14px', marginBottom: 8, borderRadius: 12, cursor: disabled ? 'default' : 'pointer',
-        border: `2px ${danger ? 'solid #ef4a76' : 'solid #e5e8eb'}`,
+        border: `2px ${danger ? 'solid #ff6a00' : 'solid #e5e8eb'}`,
         background: disabled ? '#f6f7f9' : done ? '#e6f6f0' : state === 'fail' ? '#fff8e6' : '#fff',
         font: 'inherit',
       }}>
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: danger ? '#ef4a76' : '#8b95a1' }}>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: danger ? '#ff6a00' : '#8b95a1' }}>
           {label}
         </span>
         <span style={{
@@ -184,7 +184,7 @@ export default function SendPage() {
             ) : (
               <>
                 {WAREHOUSE.code} <span style={sampleStyle}>{SAMPLE_NAME}</span>
-                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: '#ef4a76', marginTop: 6 }}>
+                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: '#ff6a00', marginTop: 6 }}>
                   ↑ <span style={sampleStyle}>{SAMPLE_NAME}</span> 자리에 <b>본인 이름</b>을 넣어주세요 — 위 칸에 적으면 여기가 채워집니다
                 </span>
               </>

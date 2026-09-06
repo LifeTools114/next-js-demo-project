@@ -23,7 +23,7 @@ export default function Layout({ children, title, badge }) {
           content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
         />
         <meta name="description" content="쇼핑몰에서 바로 하노이 도착 가격을 확인하세요. 무게 자동 산정, kg당 배송비, 관세·VAT까지 즉시 계산." />
-        <meta name="theme-color" content="#ef4a76" />
+        <meta name="theme-color" content="#0a2e9c" />
       </Head>
 
       <div className="app">
@@ -54,22 +54,27 @@ export default function Layout({ children, title, badge }) {
         <main>{children}</main>
 
         <footer style={{
-          padding: '14px 14px 10px',
+          padding: '18px 14px 12px',
           borderTop: '1px solid var(--line)',
           fontSize: 11,
           lineHeight: 1.6,
           color: 'var(--ink-500)',
           textAlign: 'center',
         }}>
-          <div style={{ marginBottom: 6 }}>
+          {/* 문의 — 신청서에서 잘 보이게 크게 (운영자 26-09-06: "조금 더 크게") */}
+          <div style={{ marginBottom: 10, fontSize: 15, fontWeight: 800, color: 'var(--ink-900)', lineHeight: 1.7 }}>
             문의 :{' '}
             {CONTACT.kakaoOpenChat ? (
-              <a href={CONTACT.kakaoOpenChat} target="_blank" rel="noreferrer"
-                style={{ color: 'var(--brand)', fontWeight: 700 }}>
-                {CONTACT.label} 오픈채팅
+              <a href={CONTACT.kakaoOpenChat} target="_blank" rel="noreferrer" style={{
+                display: 'inline-block', padding: '5px 13px', borderRadius: 999,
+                background: 'var(--cta-grad)', color: '#fff', fontWeight: 900, boxShadow: 'var(--cta-shadow)',
+              }}>
+                💬 {CONTACT.label} 오픈채팅
               </a>
-            ) : <span style={{ fontWeight: 700 }}>{CONTACT.label}</span>}
-            {CONTACT.kakaoId ? <span> · 카카오톡 ID <b>{CONTACT.kakaoId}</b></span> : null}
+            ) : <span style={{ fontWeight: 800 }}>{CONTACT.label}</span>}
+            {CONTACT.kakaoId ? (
+              <span> · 카카오톡 ID <b style={{ color: 'var(--brand-600)', fontSize: 16 }}>{CONTACT.kakaoId}</b></span>
+            ) : null}
           </div>
           {/* 개인정보 처리방침 — 크롬 웹스토어 등록에 필요한 공개 주소이기도 합니다 */}
           <a href="/privacy" style={{ color: 'var(--ink-500)', textDecoration: 'underline' }}>개인정보 처리방침</a>

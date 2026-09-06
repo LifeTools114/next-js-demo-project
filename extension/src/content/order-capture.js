@@ -467,7 +467,7 @@
       'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);' +
       'box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);font-family:sans-serif">' +
       '<div style="font-size:10.5px;font-weight:700;color:#cfe0ff;letter-spacing:.2px">' +
-      '<span style="color:#fff;font-weight:900">하노이 직구 도우미</span></div>' +
+      '<span style="color:#fff;font-weight:900">베트남 직구 도우미</span></div>' +
       '<div style="margin-top:9px;font-size:19px;font-weight:900;color:#fff;line-height:1.32">' +
       '🇻🇳 베트남에서 🇰🇷<br>한국 직구하기</div>' +
       '<div style="margin-top:11px;display:inline-block;min-width:150px;padding:9px 20px;border-radius:22px;' +
@@ -1014,9 +1014,9 @@
           'font-size:11.5px;font-weight:700">한 번에 상품값 합계 ' +
           `${won(quotes.agent.agentLimit.maxGoodsKrw)}까지 접수합니다 — 나눠서 신청해 주세요.</div>`
         : helperTrack === 'agent'
-        ? '<style>@keyframes kbPulse{0%,100%{box-shadow:0 0 0 0 rgba(49,130,246,.55)}50%{box-shadow:0 0 0 7px rgba(49,130,246,0)}}</style>' +
-          '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:46px;border:0;border-radius:10px;' +
-          'background:#3182f6;color:#fff;font-weight:800;font-size:15px;cursor:pointer;' +
+        ? '<style>@keyframes kbPulse{0%,100%{box-shadow:0 3px 10px rgba(255,106,0,.45)}50%{box-shadow:0 0 0 7px rgba(255,106,0,0)}}</style>' +
+          '<button id="kb-agent-go" style="margin-top:8px;width:100%;min-height:46px;border:0;border-radius:999px;' +
+          'background:linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%);color:#fff;font-weight:900;font-size:15.5px;cursor:pointer;' +
           'animation:kbPulse 1.5s ease-in-out infinite">🛒 대신 사달라고 신청하기</button>' +
           '<div style="margin-top:4px;font-size:10.5px;color:#8b95a1;text-align:center">' +
           '쇼핑몰 결제 없이 보내기 · 개인 쿠폰은 못 씁니다</div>'
@@ -1141,16 +1141,16 @@
     /** 복사되는 한 줄 — 라벨 / 값 / [복사] */
     const copyRow = (no, label, value, hot) =>
       '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:8px 9px;' +
-      `border:${hot ? '2px solid #f59f00' : '1px solid #e5e8eb'};border-radius:9px;` +
+      `border:${hot ? '2px solid #ff6a00' : '1px solid #dfe6f3'};border-radius:9px;` +
       `background:${hot ? '#fff8e6' : '#fff'}">` +
-      `<span style="flex-shrink:0;width:17px;height:17px;border-radius:50%;background:${hot ? '#f59f00' : '#c9d3e0'};` +
+      `<span style="flex-shrink:0;width:17px;height:17px;border-radius:50%;background:${hot ? '#ff6a00' : '#1b4fd8'};` +
       `color:#fff;font-size:10.5px;font-weight:800;text-align:center;line-height:17px">${no}</span>` +
       '<span style="flex:1;min-width:0">' +
       `<span style="display:block;font-size:10px;color:#8b95a1">${esc(label)}</span>` +
       `<b style="display:block;font-size:13px;color:${hot ? '#d9480f' : '#191f28'};` +
       `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(value)}</b></span>` +
       `<button data-copy="${esc(value)}" style="flex-shrink:0;min-height:30px;padding:0 10px;border:0;` +
-      `border-radius:7px;background:${hot ? '#f59f00' : '#eef4fb'};color:${hot ? '#fff' : '#3182f6'};` +
+      `border-radius:999px;background:${hot ? 'linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%)' : '#1b4fd8'};color:#fff;` +
       'font-size:11.5px;font-weight:800;cursor:pointer">복사</button></div>'
 
     const addrHelpBody =
@@ -1226,16 +1226,18 @@
      * 맨 위 스위치 — 이 도우미를 통째로 끄고 켜는 자리입니다 (운영자 26-09-06).
      * 끄면 자동도 경고도 없습니다. 하노이가 아니라 한국으로 받으실 때 씁니다.
      */
+    // 머리는 시작 배너와 같은 파란 그라데이션 (운영자 26-09-06: "이 이미지 형태와 칼라로")
     const html =
-      '<div style="display:flex;align-items:center;gap:6px">' +
-      '<b style="flex:1;min-width:0">🇻🇳 하노이 직구 주문</b>' +
-      `<span style="font-size:10px;color:#b0b8c1">v${ver}</span>` +
-      '<button id="kb-mode-off" style="flex-shrink:0;border:1px solid #e5e8eb;border-radius:6px;background:#fff;' +
-      'color:#8b95a1;font-size:11px;font-weight:800;padding:4px 9px;cursor:pointer">끄기</button></div>' +
+      '<div style="display:flex;align-items:center;gap:6px;margin:-12px -12px 10px;padding:11px 12px;' +
+      'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);color:#fff">' +
+      '<b style="flex:1;min-width:0;font-weight:900;font-size:13.5px">🇻🇳 하노이 직구 주문</b>' +
+      `<span style="font-size:10px;color:#cfe0ff">v${ver}</span>` +
+      '<button id="kb-mode-off" style="flex-shrink:0;border:1px solid rgba(255,255,255,.55);border-radius:999px;' +
+      'background:transparent;color:#fff;font-size:11px;font-weight:800;padding:4px 10px;cursor:pointer">끄기</button></div>' +
       statusBlock +
       cartLine +
-      '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:8px;' +
-      'background:#f9fafb;color:#8b95a1;cursor:pointer">닫기</button>'
+      '<button id="kb-helper-x" style="margin-top:8px;width:100%;min-height:28px;border:0;border-radius:999px;' +
+      'background:#f3f6fc;color:#6b7590;font-weight:700;cursor:pointer">닫기</button>'
 
     // 카드 테두리 — 주소가 틀리면 곁눈으로도 보이게 빨갛게 바꿉니다.
     card.style.border = wrongAddr ? '2.5px solid #d92d20' : '1px solid #dbe4f0'

@@ -1,3 +1,15 @@
+import { SETTLEMENT_RULES } from './payment.js'
+import { vnd, toVnd } from '../lib/format.js'
+
+/**
+ * 실측 후 차액 정산 기준 — 값은 config/payment.js 한 곳에서 읽고, 화면에는
+ * 원화와 동화를 함께 적습니다 (운영자 26-09-06: "한국돈도 표기").
+ */
+const TOL = Object.values(SETTLEMENT_RULES.toleranceByConfidence ?? {})
+const TOL_MIN = Math.min(...TOL), TOL_MAX = Math.max(...TOL)
+export const SETTLEMENT_TOLERANCE_TEXT =
+  `${TOL_MIN.toLocaleString('ko-KR')}~${TOL_MAX.toLocaleString('ko-KR')}원 ≈ ${vnd(toVnd(TOL_MIN))}~${vnd(toVnd(TOL_MAX))}`
+
 /**
  * 공지사항·이용조건 — 구매대행/배송대행에서 생길 수 있는 분쟁을 미리 막습니다.
  *
@@ -83,7 +95,7 @@ export const NOTICES = [
     body: [
       '한국 창고 실측 무게로 다시 계산해 최종 견적서를 보내드립니다.',
       '차액이 기준 금액 이상이면 추가 청구 또는 환불하고, 그 미만이면 임시 견적서 금액 그대로 확정합니다.',
-      '기준 금액은 3,000~10,000원이며(무게 추정이 정확한 상품일수록 넉넉히 흡수합니다), 주문마다 정확한 금액을 견적서에 원화·동화로 적어 드립니다.',
+      `기준 금액은 ${SETTLEMENT_TOLERANCE_TEXT}이며(무게 추정이 정확한 상품일수록 넉넉히 흡수합니다), 주문마다 정확한 금액을 견적서에 원화·동화로 적어 드립니다.`,
       '추가 청구액을 내지 않으면 출고가 보류되며, 보관 기간이 지나면 반송·폐기 규정을 따릅니다.',
     ],
   },
@@ -260,7 +272,7 @@ export const REQUIRED_CONSENTS = [
   },
   {
     id: 'fees',
-    label: '부피무게 청구와 실측 후 차액 정산(3,000~10,000원 기준)에 동의합니다',
+    label: `부피무게 청구와 실측 후 차액 정산(${SETTLEMENT_TOLERANCE_TEXT} 기준)에 동의합니다`,
     noticeIds: ['volumetric', 'reweigh', 'fx'],
   },
   {
