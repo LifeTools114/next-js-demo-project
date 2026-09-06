@@ -15,6 +15,10 @@ const rowInfoText = (row) => {
   if (k === 'surcharge-device' || l.includes('기기 취급')) {
     return '물류사 항공특송의 전자·가전 특수 취급비 — 기기당 $40, 대수만큼 부과됩니다. 파손 위험 화물 검수·별도 포장 비용이며, 한국 기기는 베트남에서 A/S 가 어렵습니다.'
   }
+  if (k === 'domestic') {
+    return '쿠팡 판매자가 한국 창고까지 보내는 국내 배송비입니다. 저희가 대신 결제하므로 그대로 전달합니다 — ' +
+      '판매자마다 한 번만 붙고, 그 판매자 무료배송 조건을 넘으면 아예 붙지 않습니다.'
+  }
   if (k === 'surcharge-fragile' || l.includes('파손주의')) return '유리·도자기 등 파손 위험 품목의 완충 보강 포장비 — 개당 $2.'
   if (k === 'surcharge-bulky' || l.includes('대형 화물')) return '청구무게 10kg 이상 대형 화물 취급비 — 건당 $5.'
   return null

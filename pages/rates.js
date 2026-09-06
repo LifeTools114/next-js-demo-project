@@ -86,6 +86,12 @@ export default function RatesPage() {
                   <td>상품가 그대로 청구<br /><small>개인 쿠폰 사용 불가</small></td>
                 </tr>
                 <tr>
+                  <td>한국 내 배송비</td>
+                  <td>본인이 쿠팡에 직접<br /><small>견적에 넣지 않습니다</small></td>
+                  <td>쿠팡 화면 그대로<br />
+                    <small>판매자마다 한 번 — 그 판매자 무료배송 조건을 넘으면 0원</small></td>
+                </tr>
+                <tr>
                   <td>대행 수수료</td>
                   <td>없음</td>
                   <td>기본 {krw(FEES.agencyBaseKrw)}<br />

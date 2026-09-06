@@ -381,6 +381,43 @@ const KBExtract = (() => {
     return best?.n ?? null
   }
 
+  /**
+   * 국내 배송비 (쿠팡 판매자 → 한국 창고) · 무료 조건 · 판매자
+   *
+   * 구매대행은 저희가 쿠팡에 결제하므로 이 배송비도 저희 돈입니다.
+   * 화면 문구 그대로 읽습니다 —
+   *   "배송비 3,000원"
+   *   "같은 판매자 상품 30,000원 이상 구매 시 무료배송"
+   *   "판매자: 마이티"
+   * 못 읽으면 0 을 돌려주고, 0 은 **청구하지 않음**을 뜻합니다
+   * (규정: lib/pricing/domestic.js — 모르면 안 받습니다).
+   */
+  function readDomesticShipping() {
+    let text = ''
+    try { text = String(document.body?.innerText ?? '') } catch { return {} }
+    // 구매 버튼 아래(추천 상품·다른 판매자 광고)의 문구는 이 상품의 것이 아닙니다.
+    const cut = text.search(/장바구니\s*담기|바로구매/)
+    text = (cut > 0 ? text.slice(0, cut) : text).slice(0, 6000)
+
+    let domesticShipKrw = 0
+    for (const m of text.matchAll(/배송비\s*([\d,]{3,})\s*원/g)) {
+      // 도서산간 추가배송비·반품배송비는 기본 배송비가 아닙니다.
+      const before = text.slice(Math.max(0, m.index - 14), m.index)
+      if (/추가|도서|산간|제주|반품|교환|반송/.test(before)) continue
+      domesticShipKrw = toNumber(m[1]) ?? 0
+      break
+    }
+    // "30,000원 이상 구매 시 무료배송"
+    const free = text.match(/([\d,]{4,})\s*원\s*이상[^\n]{0,24}무료/)
+    const freeShipOverKrw = free ? (toNumber(free[1]) ?? 0) : 0
+    // 판매자 — 배송비를 판매자마다 한 번만 물리기 위한 묶음 이름입니다.
+    // "판매자: 마이티 판매자 상품 보러가기" — 같은 줄에 붙은 버튼 글자는 잘라냅니다.
+    const seller = (text.match(/판매자\s*[:：]\s*([^\n]{1,40})/)?.[1] ?? '')
+      .replace(/\s*판매자\s*(상품|평가|정보).*$/, '')
+      .trim()
+    return { domesticShipKrw, freeShipOverKrw, seller }
+  }
+
   /** 화면 금액 — 셀렉터 먼저, 빗나가면 넓은 그물 */
   function readScreenPrice() {
     return toNumber(text(first(selectors.price))) ?? screenPriceWide()
@@ -602,6 +639,11 @@ const KBExtract = (() => {
       brand: base.brand,
       categoryPath: extractBreadcrumb(),
       url: canonicalUrl(),
+      /**
+       * 국내 배송비·무료 조건·판매자 — 구매대행 청구액에 들어갑니다.
+       * (배송만은 고객이 쿠팡에 직접 내므로 견적에서 빠집니다)
+       */
+      ...readDomesticShipping(),
       isRocket: Boolean(first(selectors.rocket)),
       badges: extractBadges(),
       shippingText: extractShippingText(),

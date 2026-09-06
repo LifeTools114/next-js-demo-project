@@ -1160,7 +1160,21 @@
      */
     let raw = onCart ? extractCartItemsDom() : []
     if (raw.length === 0) raw = extractCheckoutItems()
-    const pageItems = raw.map((it, i) => ({ ...it, productId: `chk-${i}`, track: 'forwarding' }))
+    /**
+     * 결제 화면의 배송비 — 이미 무료 조건까지 반영된 **최종** 금액이라
+     * 그대로 씁니다. 구매대행으로 바꿔 보는 금액이 이만큼 비어 있었습니다.
+     * 첫 줄에만 실어 한 번만 청구되게 합니다 (판매자별 한 번 규정과 같은 결과).
+     */
+    const shipKrw = (() => {
+      const m = squash(allText).match(/배송비([\d,]{3,})원/)
+      if (!m) return 0
+      const n = Number(m[1].replace(/,/g, ''))
+      return Number.isFinite(n) && n > 0 && n <= 50_000 ? n : 0
+    })()
+    const pageItems = raw.map((it, i) => ({
+      ...it, productId: `chk-${i}`, track: 'forwarding',
+      domesticShipKrw: i === 0 ? shipKrw : 0,
+    }))
     /**
      * 금액 파싱 자가진단 — 결제 화면이고 결제 금액도 찍혀 있는데 상품을
      * 하나도 못 읽었다면, 쿠팡이 상품·금액 표기를 바꾼 것입니다.

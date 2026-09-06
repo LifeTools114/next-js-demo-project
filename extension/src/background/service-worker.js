@@ -151,6 +151,10 @@ function sanitizeItems(items) {
     productName: String(i?.productName ?? '').slice(0, 160),
     quantity: Math.max(1, Math.min(Number(i?.quantity) || 1, 99)),
     productPrice: Math.max(0, Math.min(Number(i?.productPrice) || 0, 100_000_000)),
+    // 국내 배송비·무료 조건·판매자 — 버리면 신청서 금액이 패널보다 배송비만큼 싸집니다.
+    domesticShipKrw: Math.max(0, Math.min(Number(i?.domesticShipKrw) || 0, 50_000)),
+    freeShipOverKrw: Math.max(0, Math.min(Number(i?.freeShipOverKrw) || 0, 10_000_000)),
+    seller: String(i?.seller ?? '').slice(0, 80),
     track: i?.track === 'agent' ? 'agent' : 'forwarding',
   })).filter((i) => i.productName)
 }

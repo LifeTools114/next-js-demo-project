@@ -202,6 +202,11 @@
       // 해외직구 판별 신호 — 한국 창고 도착 일정이 크게 달라집니다.
       badges: extracted.badges,
       shippingText: extracted.shippingText,
+      // 국내 배송비 — 구매대행은 저희가 쿠팡에 내므로 견적에 들어갑니다.
+      // 판매자마다 한 번, 무료 조건을 넘으면 0원 (lib/pricing/domestic.js).
+      domesticShipKrw: extracted.domesticShipKrw ?? 0,
+      freeShipOverKrw: extracted.freeShipOverKrw ?? 0,
+      seller: extracted.seller ?? '',
       quantity: safeQty,
       // 운영자 발주 시 "상품 탭 열기"가 정확히 이 페이지(옵션 포함)를 열도록.
       // itemId/vendorItemId 가 빠지면 기본 옵션이 열려 대리 주문을 그르칩니다.
