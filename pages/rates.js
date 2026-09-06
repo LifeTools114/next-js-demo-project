@@ -141,7 +141,7 @@ export default function RatesPage() {
           <p className="note" style={{ marginTop: 10 }}>
             대신 사드리는 예시는 기본 수수료({krw(FEES.agencyBaseKrw)}) 기준이며, 전자·가전 등
             할증 품목은 아래 추가금액이 더해집니다. 도착은 {SHIPPING.leadTimeDays.min + 1}~
-            {SHIPPING.leadTimeDays.max + 3}영업일(쇼핑몰→창고 1~3 + 창고→하노이{' '}
+            {SHIPPING.leadTimeDays.max + 3}영업일(쇼핑몰→창고 1~3 + 창고→베트남{' '}
             {SHIPPING.leadTimeDays.min}~{SHIPPING.leadTimeDays.max})입니다.
           </p>
         </div>
@@ -163,7 +163,7 @@ export default function RatesPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td>반송비 (하노이→한국) · {RETURN_SHIPPING.baseKg}kg까지</td>
+                  <td>반송비 (베트남→한국) · {RETURN_SHIPPING.baseKg}kg까지</td>
                   <td>${RETURN_SHIPPING.baseUsd} ({krw(usdToKrw(RETURN_SHIPPING.baseUsd))})</td>
                 </tr>
                 <tr>
@@ -179,7 +179,7 @@ export default function RatesPage() {
                   <td>{krw(RETURN_SHIPPING.agentHandlingKrw)}</td>
                 </tr>
                 <tr>
-                  <td>교환 시 재배송(한국→하노이)</td>
+                  <td>교환 시 재배송(한국→베트남)</td>
                   <td>국제배송비 다시 청구<br /><small>대신 사드린 건은 수수료 포함</small></td>
                 </tr>
                 <tr>
@@ -329,7 +329,7 @@ export default function RatesPage() {
             </div>
           ))}
           <div className="row">
-            <span className="row__label">하노이 도착 소요</span>
+            <span className="row__label">베트남 도착 소요</span>
             <span className="row__value">{SHIPPING.leadTimeDays.min}~{SHIPPING.leadTimeDays.max}영업일</span>
           </div>
           <p className="note" style={{ marginTop: 12 }}>{SHIPPING.serviceAreaNotice}</p>

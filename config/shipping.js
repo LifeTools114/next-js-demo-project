@@ -66,7 +66,20 @@ export const SHIPPING = {
    * 주문서·요금 페이지·확장 팝업에 자동으로 나타납니다.
    */
   zones: {
+    /**
+     * 운영자 확정 26-09-06: "배송 가능한 지역은 내가 과금표에 적은 지역만."
+     * 과금표 = config/assumptions.js `zone-surcharges` (S1 견적 26.08.28).
+     * 고객 할증(USD)은 원가 × 1.2 (운영자 규칙 26.08.29) — 원가 자체는
+     * config/costs.server.js 에만 있고 이 파일은 확장 번들에 실리므로 적지 않습니다.
+     * 여기 없는 도시(중부·남부 전부)는 배송하지 않습니다 — 화면 공지가 이 목록을 읽습니다.
+     */
     hanoi: { label: '하노이 시내', surchargeUsd: 0 },
+    vinhphuc: { label: '빈푹', surchargeUsd: 6 },
+    bacninh: { label: '박닌', surchargeUsd: 8.4 },
+    bacgiang: { label: '박장', surchargeUsd: 8.4 },
+    hungyen: { label: '흥옌', surchargeUsd: 8.4 },
+    haiduong: { label: '하이즈엉', surchargeUsd: 20.4 },
+    haiphong: { label: '하이퐁', surchargeUsd: 20.4 },
   },
   defaultZone: 'hanoi',
 
@@ -77,7 +90,7 @@ export const SHIPPING = {
    * 지역을 추가하면 안내도 따라 바뀝니다. 여기 문장만 고치면 모든 화면이 바뀝니다.
    */
   serviceAreaNotice:
-    '현재 하노이 시내만 배송합니다. 다른 지역은 물류사 연결에 따라 순차적으로 확대됩니다.',
+    '배송 가능 지역은 위 목록(하노이 시내·빈푹·박닌·박장·흥옌·하이즈엉·하이퐁)뿐입니다. 하노이 밖은 지역 할증이 붙습니다.',
   serviceArea: {
     regionLabel: '베트남 북부',
     notServed: '중부(다낭·후에 등)·남부(호치민 등)',

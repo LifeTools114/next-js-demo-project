@@ -89,10 +89,10 @@
       'position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;border:1px solid #dbe4f0;' +
       'border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px;width:260px;font:13px/1.5 sans-serif;color:#191f28'
     card.innerHTML =
-      '<b>🇻🇳 방금 결제하신 주문,<br>하노이로 받아보세요</b>' +
+      '<b>🇻🇳 방금 결제하신 주문,<br>베트남에서 받아보세요</b>' +
       '<div style="font-size:11.5px;color:#4e5968;margin-top:4px">쇼핑몰 주문이 자동 연결되고, 배송 신청서로 이어집니다.</div>' +
       '<button id="kb-fwd-go" style="margin-top:10px;width:100%;min-height:38px;border:0;border-radius:9px;' +
-      'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">하노이 배송 신청</button>' +
+      'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">베트남 배송 신청</button>' +
       '<button id="kb-fwd-x" style="margin-top:6px;width:100%;min-height:30px;border:0;border-radius:9px;' +
       'background:transparent;color:#8b95a1;cursor:pointer">닫기</button>'
     if (reason) {
@@ -474,7 +474,7 @@
       'background:linear-gradient(180deg,#ff9a1f 0%,#ff6a00 100%);color:#fff;font-size:15.5px;font-weight:900;' +
       'box-shadow:0 3px 10px rgba(255,106,0,.45)">신청 <span style="font-size:13px">▶</span></div>' +
       '<div style="margin-top:10px;font-size:10.5px;font-weight:700;color:#bfd3ff">' +
-      '쉽고 빠른 한국 → 하노이 배송</div></div>'
+      '쉽고 빠른 한국 → 베트남 배송</div></div>'
   }
 
   /** 카드 만들기 — 켜짐·꺼짐 두 화면이 같은 상자를 씁니다 */
@@ -750,8 +750,8 @@
     // 뜻이 통하지도 않았습니다 (운영자 26-09-06).
     chip.innerHTML = '<span style="font-size:25px;line-height:1">🇻🇳</span>' +
       '<span style="text-align:left">배송·구매대행 신청' +
-      '<span style="display:block;font-size:11.5px;font-weight:700;opacity:.9;margin-top:2px">하노이 도착 가격 보기</span></span>'
-    chip.title = '하노이 배송 도우미 다시 열기'
+      '<span style="display:block;font-size:11.5px;font-weight:700;opacity:.9;margin-top:2px">베트남 도착 가격 보기</span></span>'
+    chip.title = '베트남 직구 도우미 다시 열기'
     chip.style.cssText =
       'position:fixed;right:16px;bottom:16px;z-index:2147483647;min-width:188px;min-height:60px;' +
       'display:flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;' +
@@ -943,10 +943,10 @@
       payGuard.warn = ''
     } else if (!ok) {
       payGuard.warn =
-        '⚠️ 하노이 배송 경고\n\n' +
+        '⚠️ 베트남 배송 경고\n\n' +
         `배송지가 한국 창고(${code})로 설정되어 있지 않습니다.\n` +
-        '이대로 결제하면 상품이 하노이가 아니라 현재 배송지로 갑니다.\n\n' +
-        '· 하노이로 보내려면 → [취소] 누른 뒤 카드의 안내대로 배송지를 바꿔주세요\n' +
+        '이대로 결제하면 상품이 베트남이 아니라 현재 배송지로 갑니다.\n\n' +
+        '· 베트남으로 보내려면 → [취소] 누른 뒤 카드의 안내대로 배송지를 바꿔주세요\n' +
         '· 집으로 받는 일반 주문이면 → [확인]'
     } else {
       payGuard.warn =
@@ -1080,13 +1080,13 @@
         weightLine +
         detailHead('📦 배송만 — 쇼핑몰 결제는 내가') +
         steps('쇼핑몰 결제 후 <b>① 신청서가 저절로 열림</b> → ② 배송비 보내기(원화/동화) → ' +
-          `③ 한국창고 도착 <b>1~3영업일</b> → ④ 하노이 도착 <b>+${lt.min}~${lt.max}영업일</b>`) +
+          `③ 한국창고 도착 <b>1~3영업일</b> → ④ 베트남 도착 <b>+${lt.min}~${lt.max}영업일</b>`) +
         steps('본인 결제라 <b>쿠폰·회원 할인을 모두 그대로</b> 쓸 수 있습니다.') +
         steps('무게 기준: 1kg까지 기본요금 · 이후 kg 단위(0.5 이하 버림·초과 올림)') +
         bdRows(quotes.fwd) +
         detailHead('🛒 구매하고 배송까지 — 결제도 저희가') +
         steps('쇼핑몰 결제가 필요 없습니다 — <b>① 신청서 저장</b> → ② 원화/동화 보내기 → ③ 저희가 대신 주문 → ' +
-          `④ 한국창고 <b>1~3영업일</b> → ⑤ 하노이 <b>+${lt.min}~${lt.max}영업일</b>`) +
+          `④ 한국창고 <b>1~3영업일</b> → ⑤ 베트남 <b>+${lt.min}~${lt.max}영업일</b>`) +
         steps(`수수료: <b>기본 ${won(K.currentPolicy().agencyBaseKrw)}</b>(상품가 10만원·5종까지) — 대리 주문·검수·발주 실비. ` +
           '초과분은 10만원 초과금액의 5% + 종류 초과 종당 1,000원.') +
         steps('와우회원가는 되도록 반영합니다. <b>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>, ' +
@@ -1100,7 +1100,7 @@
         '<div style="margin-top:7px;padding:7px 9px;border-radius:9px;background:#fff0f0;color:#c92a2a;' +
         'font-size:10.5px;font-weight:700;line-height:1.6">💳 환불은 영업일 3~7일 내 지급 · ' +
         '반품·변심 취소는 대신 사드린 수수료 제외 / 배송만 $1 차감 후 돌려드립니다 (당사 사유는 전액)<br>' +
-        '↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국)·쇼핑몰 반품비는 전액 구매자 부담 — ' +
+        '↩️ 베트남 도착 후 교환·반품 반송비(베트남→한국)·쇼핑몰 반품비는 전액 구매자 부담 — ' +
         '2kg까지 $20 · 이후 kg당 $11 · 대신 사드린 건은 처리비 5,000원 추가 · 미리 알려주셔야 합니다. ' +
         '교환은 반송비 + 재배송비(위 국제배송비)를 상품가와 비교하세요<br>' +
         '⚠️ 액체(스킨·세럼 등)·배터리 내장 제품·현금·대량 화물은 반송 불가 — 교환·반품이 불가합니다</div>'
@@ -1230,7 +1230,7 @@
     const html =
       '<div style="display:flex;align-items:center;gap:6px;margin:-12px -12px 10px;padding:11px 12px;' +
       'background:linear-gradient(155deg,#1b4fd8 0%,#0a2e9c 55%,#0b2f7a 100%);color:#fff">' +
-      '<b style="flex:1;min-width:0;font-weight:900;font-size:13.5px">🇻🇳 하노이 직구 주문</b>' +
+      '<b style="flex:1;min-width:0;font-weight:900;font-size:13.5px">🇻🇳 베트남 직구 주문</b>' +
       `<span style="font-size:10px;color:#cfe0ff">v${ver}</span>` +
       '<button id="kb-mode-off" style="flex-shrink:0;border:1px solid rgba(255,255,255,.55);border-radius:999px;' +
       'background:transparent;color:#fff;font-size:11px;font-weight:800;padding:4px 10px;cursor:pointer">끄기</button></div>' +
@@ -1389,7 +1389,7 @@
        * 알려줍니다 (운영자 지시 26-09-06).
        */
       if (!PRODUCT_PATH.test(location.pathname)) {
-        toast('먼저 사고 싶은 상품을 골라주세요 — 상품 화면에서 하노이 도착 가격이 바로 보입니다.', true)
+        toast('먼저 사고 싶은 상품을 골라주세요 — 상품 화면에서 베트남 도착 가격이 바로 보입니다.', true)
       }
     })
     wrap.querySelector('#kb-launch-x').addEventListener('click', (e) => {

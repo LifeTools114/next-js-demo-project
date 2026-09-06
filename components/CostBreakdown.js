@@ -92,14 +92,14 @@ export default function CostBreakdown({ quote }) {
 
         {quote.sourcing?.schedule && (
           <p className="note" style={{ marginTop: 10 }}>
-            📦 하노이 도착 예상{' '}
+            📦 베트남 도착 예상{' '}
             <strong>
               {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
             </strong>
             <br />
             <small>
               쇼핑몰→한국창고 {quote.sourcing.schedule.toWarehouseDays.min}~
-              {quote.sourcing.schedule.toWarehouseDays.max}일 + 한국창고→하노이{' '}
+              {quote.sourcing.schedule.toWarehouseDays.max}일 + 한국창고→베트남{' '}
               {quote.sourcing.schedule.toHanoiDays.min}~{quote.sourcing.schedule.toHanoiDays.max}일
             </small>
           </p>

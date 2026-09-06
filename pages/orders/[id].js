@@ -24,7 +24,7 @@ const LOCATION_BY_STATE = {
   IN_WAREHOUSE: '한국 창고(서울 강서) 도착 — 검수·포장 중',
   SETTLEMENT_DUE: '한국 창고(서울 강서) 보관 중 — 정산 대기',
   SETTLED: '한국 창고(서울 강서) — 발송 준비 완료',
-  SHIPPED: '하노이로 국제 운송 중',
+  SHIPPED: '베트남으로 국제 운송 중',
   DELIVERED: '배달 완료 🎉',
   CANCELLED: '주문 취소됨',
 }
@@ -268,7 +268,7 @@ export default function OrderPage() {
             )}
             {order.state === 'SHIPPED' && !order.delivery?.scheduledText && (
               <p className="note" style={{ marginTop: 10 }}>
-                하노이 도착 후 배달 일정이 확정되면 여기에 표시됩니다.
+                베트남 도착 후 배달 일정이 확정되면 여기에 표시됩니다.
               </p>
             )}
           </div>
@@ -520,8 +520,8 @@ export default function OrderPage() {
               {order.track === 'agent' ? '대행수수료 제외 후' : `처리 수수료 $${RETURN_POLICY.forwardingRefundFeeUsd} 차감 후`} 환불
               (당사 사유 취소는 전액 환불)
               <br />
-              ↩️ 하노이 도착 후 교환·반품 시{' '}
-              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)·쇼핑몰 반품비 전액 구매자 부담</b>
+              ↩️ 베트남 도착 후 교환·반품 시{' '}
+              <b style={{ color: '#c92a2a' }}>반송비(베트남→한국)·쇼핑몰 반품비 전액 구매자 부담</b>
               {freightKrw > 0 && (
                 <>
                   <br />

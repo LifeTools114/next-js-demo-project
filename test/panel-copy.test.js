@@ -56,11 +56,11 @@ test('배송지가 틀리면 강하게 알리고, 고칠 방법을 바로 준다
   assert.ok(cap.includes('data-copy='), '값은 눌러서 복사합니다')
 })
 
-test('결제 화면 2번 칸이 "하노이 주소" 임을 눈에 띄게 알린다', () => {
+test('신청서 첫 칸이 "베트남 주소" 임을 눈에 띄게 알린다', () => {
   // 여기에 한국 주소를 적는 분이 실제로 계십니다 (운영자 지시 26-09-04).
   const checkout = readFileSync(new URL('../pages/checkout.js', import.meta.url), 'utf8')
   const css = readFileSync(new URL('../styles/globals.css', import.meta.url), 'utf8')
-  assert.ok(checkout.includes('하노이 주소 입력'), '제목에 "하노이 주소 입력" 이 보여야 합니다')
+  assert.ok(checkout.includes('베트남 주소 입력'), '제목에 "베트남 주소 입력" 이 보여야 합니다')
   assert.ok(checkout.includes('panel__head--accent'), '다른 칸과 구분되는 강조 제목이어야 합니다')
   assert.ok(checkout.includes('한국 주소 아님'), '입력칸 라벨에서도 못 박아야 합니다')
   assert.ok(css.includes('.panel__head--accent'), '강조 제목 스타일이 있어야 합니다')
@@ -253,7 +253,7 @@ test('주문완료 화면에서 저절로 열지 못하면 그 이유를 카드�
   assert.ok(cap.includes('잠시 후 다시 눌러 주세요'), '고객 브라우저에는 쉬운 말')
 })
 
-test('신청서의 하노이 주소 입력칸은 언제나 보인다', () => {
+test('신청서의 베트남 주소 입력칸은 언제나 보인다', () => {
   /*
    * 저장된 값이 있으면 입력칸을 접고 요약만 보여줬더니 "하노이 주소 입력하는
    * 곳이 없고 바로 신청이 된다"는 일이 생겼습니다 (운영자 26-09-06).
@@ -261,7 +261,7 @@ test('신청서의 하노이 주소 입력칸은 언제나 보인다', () => {
    */
   const checkout = readFileSync(new URL('../pages/checkout.js', import.meta.url), 'utf8')
   assert.ok(!checkout.includes('editRecipient'), '입력칸을 접는 상태가 남아 있으면 안 됩니다')
-  assert.ok(checkout.includes('하노이 주소 * (한국 주소 아님)'), '주소 입력칸이 있어야 합니다')
+  assert.ok(checkout.includes('베트남 주소 * (한국 주소 아님)'), '주소 입력칸이 있어야 합니다')
   assert.ok(checkout.includes('setRecipientRestored'), '불러온 값임을 알려야 합니다')
   assert.ok(checkout.includes('이 주소가 맞는지 확인해 주세요'), '확인하라고 말해야 합니다')
 })
@@ -339,7 +339,7 @@ test('시작 배너 — 누르기 전에는 꺼짐, 상품을 고르기 전이�
    */
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
   assert.ok(cap.includes('function bannerHtml'), '배너를 그리는 곳')
-  for (const line of ['베트남 직구 도우미', '베트남에서', '한국 직구하기', '신청', '쉽고 빠른 한국 → 하노이 배송']) {
+  for (const line of ['베트남 직구 도우미', '베트남에서', '한국 직구하기', '신청', '쉽고 빠른 한국 → 베트남 배송']) {
     assert.ok(cap.includes(line), `배너 문구: ${line}`)
   }
   /*

@@ -263,7 +263,7 @@ export default function SendPage() {
               marginTop: 12, padding: '14px 16px', borderRadius: 12,
               border: '2px solid #3182f6', background: '#f2f6fb',
             }}>
-              <div style={{ fontSize: 13.5, color: '#4e5968' }}>하노이까지 배송비 (예상)</div>
+              <div style={{ fontSize: 13.5, color: '#4e5968' }}>베트남까지 배송비 (예상)</div>
               <div style={{ fontSize: 28, fontWeight: 800, color: '#3182f6', marginTop: 2 }}>
                 {krw(quote.total)}
               </div>

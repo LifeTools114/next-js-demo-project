@@ -385,7 +385,7 @@ ETD·ETA, Invoice No, Package. **금액(단가·USD·VND)은 일부러 읽지 �
 거기만 고치면 견적서·청구 안내가 함께 바뀝니다.
 
 **법인명(K&K Global Trading)도 표기하지 않습니다** — 견적서 머리글은
-브랜드명 `YS-ECOM 하노이 직구` 와 담당자만 나옵니다.
+브랜드명 `YS-ECOM 베트남 직구` 와 담당자만 나옵니다.
 
 발행 주체(상호·담당자)는 `config/quote.js` 의 `issuer` 에서 바꿉니다.
 env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
@@ -395,7 +395,7 @@ env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
 
 | 항목 | 값 | 설정 위치 |
 | --- | --- | --- |
-| 브랜드 | YS-ECOM 하노이 직구 | `config/quote.js` issuer.brand |
+| 브랜드 | YS-ECOM 베트남 직구 | `config/quote.js` issuer.brand |
 | 상호 | 전세계무역 (JEONSEGYE TRADING) | issuer.name |
 | 주소 | 412, 4F, Bldg 1, 10 Cheongnahannae-ro 100beon-gil, Seo-gu, Incheon, Republic of Korea | issuer.address |
 | 담당 | KIM YOUNG SEO | issuer.pic |

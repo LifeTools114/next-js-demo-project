@@ -12,7 +12,7 @@ const NAV = [
 export default function Layout({ children, title, badge }) {
   const router = useRouter()
 
-  const pageTitle = title ? `${title} · 하노이 직구` : '하노이 직구 — 도착 가격 즉시 계산'
+  const pageTitle = title ? `${title} · 베트남 직구` : '베트남 직구 — 도착 가격 즉시 계산'
 
   return (
     <>
@@ -22,7 +22,7 @@ export default function Layout({ children, title, badge }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
         />
-        <meta name="description" content="쇼핑몰에서 바로 하노이 도착 가격을 확인하세요. 무게 자동 산정, kg당 배송비, 관세·VAT까지 즉시 계산." />
+        <meta name="description" content="쇼핑몰에서 바로 베트남 도착 가격을 확인하세요. 무게 자동 산정, kg당 배송비, 관세·VAT까지 즉시 계산." />
         <meta name="theme-color" content="#0a2e9c" />
       </Head>
 
@@ -32,7 +32,7 @@ export default function Layout({ children, title, badge }) {
         <header className="header">
           <div className="header__bar">
             <Link href="/" className="header__logo">
-              하노이 <span>직구</span>
+              베트남 <span>직구</span>
             </Link>
             <div className="header__spacer" />
             {badge && <span className="source-badge source-badge--live"><span className="source-badge__dot" />{badge}</span>}

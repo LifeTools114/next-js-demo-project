@@ -35,8 +35,11 @@ export const COSTS = {
   /** 상품 할증 원가 (USD) — 업체 확인 전까지 0 */
   surcharge: { fragile: 0, bulky: 0 },
 
-  /** 지역 할증 원가 (USD) — 하노이 단일이라 현재 0 */
-  zoneUsd: { hanoi: 0 },
+  /**
+   * 지역 할증 원가 (USD) — S1 EXPRESS 견적서 26.08.28 베트남 현지운송비.
+   * 고객가는 config/shipping.js zones (원가 × COST_MARKUP). 키는 zones 와 같아야 합니다.
+   */
+  zoneUsd: { hanoi: 0, vinhphuc: 5, bacninh: 7, bacgiang: 7, hungyen: 7, haiduong: 17, haiphong: 17 },
 
   /** 결제대행(PG) 실비율 — 고객 청구율과 다를 수 있습니다 */
   paymentRate: 0.029,

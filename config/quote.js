@@ -25,7 +25,7 @@ export const QUOTE = {
    */
   issuer: {
     /** 고객이 먼저 보는 브랜드명 */
-    brand: process.env.COMPANY_BRAND || 'YS-ECOM 하노이 직구',
+    brand: process.env.COMPANY_BRAND || 'YS-ECOM 베트남 직구',
     /** 사업자 상호 — 견적서 머리글에 함께 표기 */
     /**
      * 사업자등록증상 상호는 '전세계무역'(개인사업자, 대표 김영서)입니다.

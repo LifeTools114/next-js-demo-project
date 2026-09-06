@@ -274,8 +274,8 @@ export default function Checkout() {
         <h1 className="section__title">{track === 'forwarding' ? '배송 신청서' : '주문서'}</h1>
         <p className="section__sub">
           {track === 'agent'
-            ? '당사가 고객님을 대신해 쇼핑몰에서 구매한 뒤 하노이로 배송합니다.'
-            : '고객님이 쇼핑몰에서 직접 결제하신 상품을 하노이로 배송해 드립니다.'}
+            ? '당사가 고객님을 대신해 쇼핑몰에서 구매한 뒤 베트남으로 배송합니다.'
+            : '고객님이 쇼핑몰에서 직접 결제하신 상품을 베트남으로 배송해 드립니다.'}
         </p>
       </div>
 
@@ -332,7 +332,7 @@ export default function Checkout() {
         <div className="section" style={{ paddingTop: 0 }}>
           <p className="note">
             ✅ 쇼핑몰 주문 <b>{coupangOrderNo}</b> 이(가) 연결됩니다.
-            결제하신 상품은 한국 창고 도착 후 하노이로 이어서 배송됩니다.
+            결제하신 상품은 한국 창고 도착 후 베트남으로 이어서 배송됩니다.
           </p>
         </div>
       )}
@@ -340,11 +340,11 @@ export default function Checkout() {
       <form onSubmit={submit}>
         <section className="panel">
           {/*
-            하노이 주소를 적는 자리라는 것이 한눈에 보여야 합니다 —
+            베트남 주소를 적는 자리라는 것이 한눈에 보여야 합니다 —
             여기에 한국 주소를 적는 분이 실제로 계십니다 (운영자 지시 26-09-04).
           */}
           <div className="panel__head panel__head--accent">
-            1. 받으실 분<span className="hint-strong">🇻🇳 하노이 주소 입력</span>
+            1. 받으실 분<span className="hint-strong">🇻🇳 베트남 주소 입력</span>
           </div>
           <div className="panel__body">
             {/* 배송 지역 — 목록에 있는 도시만. 운영자 26-09-06: "중부·남부는 현재 안 되니까 눈에 띄게" */}
@@ -369,7 +369,7 @@ export default function Checkout() {
             {[
               ['name', '받는 분 이름 *', 'Nguyễn Thị Mai / 홍길동', 'text'],
               ['phone', '베트남 전화번호 *', '09xx xxx xxx', 'tel'],
-              ['address', '🇻🇳 하노이 주소 * (한국 주소 아님)', 'Số nhà, đường, phường, quận', 'text'],
+              ['address', '🇻🇳 베트남 주소 * (한국 주소 아님)', 'Số nhà, đường, phường, quận', 'text'],
               ['email', '이메일 (선택 — 진행 알림 수신)', 'you@example.com', 'email'],
             ].map(([key, label, ph, type]) => (
               <div className="field" key={key}>
@@ -514,17 +514,17 @@ export default function Checkout() {
               <b>배송만 맡기신 건은 처리비 {'$' + RETURN_POLICY.forwardingRefundFeeUsd}를 뺀</b> 나머지를 돌려드립니다.
               품절·가격 인상 등 당사 사유 취소는 <b style={{ color: '#17916b' }}>전액 환불</b>.
               <br />
-              ↩️ 하노이 도착 후 교환·반품 시{' '}
-              <b style={{ color: '#c92a2a' }}>반송비(하노이→한국)와 쇼핑몰 반품비는 전액 구매자 부담</b>입니다.
+              ↩️ 베트남 도착 후 교환·반품 시{' '}
+              <b style={{ color: '#c92a2a' }}>반송비(베트남→한국)와 쇼핑몰 반품비는 전액 구매자 부담</b>입니다.
             </p>
             {quote && freightKrw > 0 && (
               <div className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.8, marginTop: 8 }}>
                 <b>↔️ 이 주문 기준 교환·반품 비용 미리보기</b>{' '}
                 <small>({billableKg}kg 기준{RETURN_SHIPPING.assumed ? ' · 반송비는 요율 확정 전 예상' : ''})</small>
                 <br />
-                보낼 때(하노이→한국) 약 <b style={{ color: '#c92a2a' }}>{krw(backKrw)}</b>
+                보낼 때(베트남→한국) 약 <b style={{ color: '#c92a2a' }}>{krw(backKrw)}</b>
                 {handlingKrw > 0 ? ' (처리 기본료 포함)' : ''}
-                {' '}· 다시 받을 때(한국→하노이) <b style={{ color: '#c92a2a' }}>{krw(resendKrw)}</b>
+                {' '}· 다시 받을 때(한국→베트남) <b style={{ color: '#c92a2a' }}>{krw(resendKrw)}</b>
                 {agencyKrw > 0 ? ' (배송비+수수료)' : ' (배송비)'}
                 <br />
                 🔁 교환 왕복 합계 약{' '}
@@ -557,14 +557,14 @@ export default function Checkout() {
               title="📦 언제 받아보시나요"
               bg="#fff8e6" border="#ffe3a3"
               summary={<>
-                하노이 도착까지 <b style={{ color: '#d9480f', fontSize: 15 }}>
+                베트남 도착까지 <b style={{ color: '#d9480f', fontSize: 15 }}>
                   {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
                 </b> (주말·공휴일 제외)
                 {quote.sourcing.hasOverseas
                   ? <b style={{ color: '#c92a2a' }}> · 해외직구 상품이 있어 2~3일 더 걸립니다</b> : null}
               </>}>
             <p className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.75 }}>
-              📦 하노이 도착 예상{' '}
+              📦 베트남 도착 예상{' '}
               <b style={{ color: '#d9480f', fontSize: 14 }}>
                 {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
               </b>
@@ -574,7 +574,7 @@ export default function Checkout() {
                 {quote.sourcing.schedule.toWarehouseDays.min}~
                 {quote.sourcing.schedule.toWarehouseDays.max}영업일
               </b>{' '}
-              + 한국창고→하노이{' '}
+              + 한국창고→베트남{' '}
               <b>
                 {quote.sourcing.schedule.toHanoiDays.min}~{quote.sourcing.schedule.toHanoiDays.max}영업일
               </b>

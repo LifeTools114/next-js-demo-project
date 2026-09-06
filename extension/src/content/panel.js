@@ -405,11 +405,11 @@ const KBPanel = (() => {
            <div class="note">무게 기준: ${esc(state.ruleText ?? '')} · 입고 후 실측으로 정산합니다.</div>
            ${headroomNote(q)}${warehouseNote()}
            <div class="note">📦 쇼핑몰→한국창고 <b>${esc(sched.toWarehouseDays.min)}~${esc(sched.toWarehouseDays.max)}영업일</b> +
-             한국창고→하노이 <b>${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}영업일</b>
+             한국창고→베트남 <b>${esc(sched.toHanoiDays.min)}~${esc(sched.toHanoiDays.max)}영업일</b>
              <br><b style="color:#d9480f">모두 영업일 기준(주말·공휴일 제외)</b> ·
              해외직구 상품은 창고 도착까지 <b style="color:#d9480f">+2~3영업일</b></div>
            <div class="note">💳 환불은 <b>영업일 3~7일</b> 내 지급 · 반품·변심 취소는 대신 사드린 수수료 제외 /
-           배송만 $1 차감 후 돌려드립니다 · ↩️ 하노이 도착 후 교환·반품 반송비(하노이→한국,
+           배송만 $1 차감 후 돌려드립니다 · ↩️ 베트남 도착 후 교환·반품 반송비(베트남→한국,
            2kg까지 $20·이후 kg당 $11 · 대신 사드린 건은 처리비 5,000원 추가)는
            <b style="color:#c92a2a">전액 구매자 부담</b> —
            교환은 반송비+재배송비를 상품가와 비교하세요.
@@ -513,9 +513,9 @@ const KBPanel = (() => {
         : state.view === 'maintenance' ? '🌙'
         : state.view === 'manual-quote' ? '📋'
         : '🇻🇳'
-      wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="하노이 배송 견적">` +
+      wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="베트남 배송 견적">` +
         `<span class="fab-ico">${icon}</span><span>배송·구매대행 신청` +
-        '<span class="fab-sub">하노이 도착 가격 보기</span></span></button>'
+        '<span class="fab-sub">베트남 도착 가격 보기</span></span></button>'
       wrap.querySelector('.fab').addEventListener('click', () => {
         open = true
         render()
@@ -524,7 +524,7 @@ const KBPanel = (() => {
     }
 
     wrap.innerHTML = `<div class="card">
-      <div class="head"><b>🇻🇳 하노이 도착 견적</b>
+      <div class="head"><b>🇻🇳 베트남 도착 견적</b>
         <button data-act="mode-off" style="font-size:11px;font-weight:800;color:#fff;
           border:1px solid rgba(255,255,255,.55);border-radius:999px;padding:3px 9px">끄기</button>
         <button data-act="close" aria-label="닫기">✕</button></div>

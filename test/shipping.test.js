@@ -88,12 +88,24 @@ test('배송비: 구간 없이 무게에 정비례한다', () => {
   assert.equal(b, a * 2)
 })
 
-test('서비스 지역: 현재 하노이 시내 단일이며 할증이 없다', () => {
-  // 물류사가 하노이만 연결되어 있는 파일럿 구성입니다.
-  assert.deepEqual(Object.keys(SHIPPING.zones), ['hanoi'])
+test('서비스 지역: 운영자 과금표의 북부 7개 도시뿐이며, 하노이만 할증이 없다', async () => {
+  // 운영자 확정 26-09-06: "배송 가능한 지역은 내가 과금표에 적은 지역만."
+  // 과금표 = config/assumptions.js zone-surcharges (하노이 $0 · 빈푹 $5 · 박닌/박장/흥옌 $7 · 하이즈엉/하이퐁 $17)
+  assert.deepEqual(Object.keys(SHIPPING.zones),
+    ['hanoi', 'vinhphuc', 'bacninh', 'bacgiang', 'hungyen', 'haiduong', 'haiphong'])
   assert.equal(SHIPPING.zones.hanoi.surchargeUsd, 0)
   assert.equal(SHIPPING.defaultZone, 'hanoi')
   assert.ok(SHIPPING.serviceAreaNotice.includes('하노이'))
+  for (const [k, z] of Object.entries(SHIPPING.zones)) {
+    if (k !== 'hanoi') assert.ok(z.surchargeUsd > 0, `${k}: 하노이 밖은 현지운송비 할증이 붙어야 합니다`)
+  }
+  // 고객가 = 원가 × 1.2 (운영자 규칙 26.08.29). 원가는 서버 전용 파일에만 있습니다.
+  const { COSTS, COST_MARKUP } = await import('../config/costs.server.js')
+  assert.deepEqual(Object.keys(COSTS.zoneUsd).sort(), Object.keys(SHIPPING.zones).sort(), '원가표와 지역 목록이 같아야 합니다')
+  for (const [k, z] of Object.entries(SHIPPING.zones)) {
+    const want = Math.round(COSTS.zoneUsd[k] * COST_MARKUP * 10) / 10
+    assert.equal(z.surchargeUsd, want, `${k}: 고객 할증은 원가 × ${COST_MARKUP} 이어야 합니다`)
+  }
 })
 
 test('배송비: 지역 할증 메커니즘은 유지된다 (지역 확대 대비)', () => {

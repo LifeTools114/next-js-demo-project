@@ -26,7 +26,7 @@ export const ASSUMPTIONS = [
   {
     id: 'zone-surcharges',
     label: '베트남 현지운송비 — 하노이 $0 확정 (빈푹 $5 · 박닌/박장/흥옌 $7 · 하이즈엉/하이퐁 $17)',
-    where: 'config/shipping.js · zones (현재 하노이만 활성)',
+    where: 'config/shipping.js · zones (7개 지역 활성 26-09-06 — 고객가 = 원가 × 1.2) / config/costs.server.js · zoneUsd',
     status: 'confirmed',
     source: 'S1 EXPRESS 견적서 26.08.28 — 확장 시 zones 에 위 원가로 추가하면 됨',
   },
