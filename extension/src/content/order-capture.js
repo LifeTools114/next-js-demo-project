@@ -1382,7 +1382,10 @@
    * 먼저 상품을 고르시라고 알려줍니다 (운영자 확정 26-09-06).
    */
   const PRODUCT_PATH = /\/(vp|vm)\/products\//
-  const LAUNCH_CLOSED_KEY = 'kb-launch-closed'
+  // ✕ 를 누르면 지금 보는 화면에서만 숨깁니다 — 다음 화면(새로고침·이동)에는 다시 뜹니다.
+  // 전에는 탭 단위로 기억해서(sessionStorage), 한 번 닫은 탭에서는 확장을 새로 받아도 배너가
+  // 영영 안 떴습니다 (운영자 26-09-06: "쿠팡 들어가면 우측 하단에 신청 화면이 안 나타난다").
+  let launchHiddenHere = false
 
   async function renderLauncher() {
     if (!IS_TOP || !document.body) return
@@ -1395,7 +1398,7 @@
     // 그 밖의 화면(홈·검색·카테고리)에서는 켜져 있어도 「● 켜짐」 모습으로 남습니다 —
     // 확장이 제대로 작동 중이라는 표시입니다 (운영자 26-09-06).
     if (on && PRODUCT_PATH.test(location.pathname)) { wrapOld?.remove(); return }
-    try { if (sessionStorage.getItem(LAUNCH_CLOSED_KEY)) return } catch { /* 무시 */ }
+    if (launchHiddenHere) return
     if (wrapOld && wrapOld.dataset.kbOn === String(on)) return
     wrapOld?.remove()
 
@@ -1431,7 +1434,7 @@
     })
     wrap.querySelector('#kb-launch-x').addEventListener('click', (e) => {
       e.stopPropagation()
-      try { sessionStorage.setItem(LAUNCH_CLOSED_KEY, '1') } catch { /* 무시 */ }
+      launchHiddenHere = true
       wrap.remove()
     })
     document.body.appendChild(wrap)
@@ -1458,8 +1461,12 @@
     const timer = setInterval(() => {
       tries += 1
       run()
-      // 결제·장바구니가 아니면 몇 번만 시도합니다 (시작 버튼은 한 번 뜨면 끝).
-      if (tries >= 8 && !MONEY_HOSTS.includes(location.host)) clearInterval(timer)
+      // 결제·장바구니가 아니면 처음 12초만 촘촘히 보고, 그 뒤로는 5초마다 배너만 확인합니다 —
+      // 쇼핑몰이 화면을 통째로 다시 그려 배너를 지우는 경우에 대비해서입니다.
+      if (tries >= 8 && !MONEY_HOSTS.includes(location.host)) {
+        clearInterval(timer)
+        setInterval(() => { renderLauncher() }, 5000)
+      }
     }, 1500)
     run()
   }
