@@ -256,6 +256,18 @@
     let out = ''
     for (const el of document.body?.children ?? []) {
       if (el.dataset?.kbUi) continue
+      /**
+       * 안 보이는 덩어리는 건너뜁니다.
+       *
+       * innerText 는 **화면에 그려지지 않는** 요소에서 textContent 로 떨어집니다
+       * (표준 동작). 그래서 display:none 으로 숨어 있는 창(배송지 선택·배송
+       * 요청사항)의 글까지 읽혀, 창을 열지도 않았는데 "주소가 창고로 맞다",
+       * "요청사항이 맞다" 고 오판했습니다 (가짜 화면에서 확인 26-09-06).
+       * 이 오판은 틀린 배송지로 결제하게 두는 쪽이라 특히 위험합니다.
+       */
+      let shown = true
+      try { shown = el.getClientRects().length > 0 } catch { /* 판단 불가 — 읽습니다 */ }
+      if (!shown) continue
       out += (el.innerText ?? '') + '\n'
     }
     return out
@@ -569,6 +581,190 @@
     if (!tok) return false
     return allRoots().some((d) =>
       [...d.querySelectorAll('input')].some((i) => i.offsetParent && squash(i.value).includes(tok)))
+  }
+
+  /**
+   * ─────────── 배송 요청사항 ───────────
+   *
+   * 창고(공동현관)는 **출입번호가 없습니다.** 기사님이 번호를 물어보는 설정으로
+   * 두면 배송이 그 자리에서 막힙니다. 그래서 두 가지가 반드시 맞아야 합니다
+   * (운영자 확정 26-09-06).
+   *   ① 문 앞
+   *   ② 비밀번호없이 출입 가능해요
+   *
+   * 쿠팡이 스크립트 클릭을 무시하는 화면이 있으므로, 눌러보고 안 되면
+   * 그 자리를 짚어 직접 누르게 합니다 — 배송지 자동 등록과 같은 방식입니다.
+   */
+  const NOTE_STEPS = [
+    ['noteOpen', '[배송 요청사항] 열기'],
+    ['noteDoor', '① 문 앞 고르기'],
+    ['noteNoCode', '② 비밀번호없이 출입 가능해요 고르기'],
+    ['noteSave', '[동의하고 저장하기] 누르기'],
+  ]
+  let helperNoteStep = ''
+  let helperNoteBusy = false
+  let helperNoteDone = false
+  let helperNoteManual = ''
+
+  /**
+   * 라디오·체크는 <input> 을 눌러도 안 먹는 화면이 많습니다.
+   * 문구가 있는 가장 안쪽 요소부터 위로 올라가며 누를 만한 조상을 함께 눌러
+   * 위임된 진짜 핸들러까지 이벤트가 닿게 합니다.
+   */
+  function clickChoice(key, root) {
+    const el = root ? findExactIn(root, key) : findExact(key)
+    if (!el) return null
+    fireClick(el)
+    const row = el.closest?.('label, li, [role="radio"], [role="option"], div')
+    if (row && row !== el) fireClick(row)
+    const radio = row?.querySelector?.('input[type="radio"], input[type="checkbox"]')
+    if (radio && !radio.checked) fireClick(radio)
+    return el
+  }
+
+  /**
+   * 배송 요청사항 창이 떠 있는가 — **[동의하고 저장하기]** 로 판단합니다.
+   *
+   * "비밀번호없이 출입 가능해요" 로 판단하면 안 됩니다. 저장하고 나면 그 글이
+   * **화면 요약에도** 나타나서, 창이 닫혔는데도 열린 줄 알고 영영 ✓ 를 못 답니다
+   * (가짜 화면에서 확인 26-09-06). 저장 버튼은 창 안에만 있습니다.
+   */
+  const noteModalOpen = () => Boolean(findExact('noteSave'))
+
+  /**
+   * 이 요청사항이 이미 맞게 잡혀 있는가 — **화면 요약 글**로 판단합니다.
+   * 창이 떠 있는 동안(= 아직 저장 전)에는 확인된 것으로 보지 않습니다.
+   */
+  function noteLooksSet(text) {
+    if (noteModalOpen()) return false
+    const t = squash(text ?? '')
+    return t.includes('문앞') && (t.includes('비밀번호없이') || t.includes('출입번호없') || t.includes('비밀번호없음'))
+  }
+
+  /** 카드를 다시 그립니다 — card 변수는 renderCheckoutHelper 안에만 있으므로 id 로 찾습니다 */
+  function redrawCard() {
+    const el = document.getElementById('kb-checkout-helper')
+    if (el) el.dataset.kbHtml = ''
+    renderCheckoutHelper()
+  }
+
+  /** 특정 덩어리(창) **안에서만** 문구로 요소 찾기 */
+  function findExactIn(root, key) {
+    if (!root) return null
+    const max = lenOf(key)
+    const hits = [...root.querySelectorAll(CAND_SEL)].filter((x) => {
+      if (!x.offsetParent || x.closest('[data-kb-ui]')) return false
+      const t = candText(x)
+      return t.length > 0 && t.length <= max && hitsKey(key, t)
+    })
+    return hits.find((h) => !hits.some((o) => o !== h && h.contains(o))) ?? hits[0] ?? null
+  }
+
+  /**
+   * 배송 요청사항 창 — «비밀번호없이 출입» 문구는 **창 안에만** 있으므로
+   * 그것을 기준점으로 삼아 위로 올라가며 «문 앞» 도 함께 든 덩어리를 찾습니다.
+   * (페이지 요약에도 "문 앞" 이 적혀 있어서, 그것만 보고 창이 열린 줄 알면
+   *  창을 열지도 않고 다음 단계로 넘어갑니다 — 가짜 화면에서 확인 26-09-06)
+   */
+  function noteModalRoot() {
+    const anchor = findExact('noteSave') ?? findExact('noteNoCode')
+    if (!anchor) return null
+    let node = anchor
+    for (let up = 0; node && up < 8; up++) {
+      const t = squash(node.innerText ?? '')
+      if (t.includes('문앞') && t.includes('비밀번호없이') && t.length < 3000) return node
+      node = node.parentElement
+    }
+    return anchor.parentElement ?? anchor
+  }
+
+  /**
+   * 배송 요청사항 창을 여는 버튼.
+   *
+   * 「배송 요청사항」은 **제목 글자**라 눌러도 아무 일이 없습니다. 그 제목이 든
+   * 줄에서 [변경] 버튼을 찾아야 창이 열립니다 (가짜 화면에서 확인 26-09-06).
+   */
+  function noteOpenTarget() {
+    const head = findExact('noteOpen')
+    if (!head) return null
+    let node = head
+    for (let up = 0; node && up < 6; up++) {
+      const btn = findExactIn(node, 'noteChange')
+      if (btn) return btn
+      node = node.parentElement
+      if (node && squash(node.innerText ?? '').length > 400) break
+    }
+    return head // 줄 전체가 눌리는 화면도 있습니다
+  }
+
+  async function runDeliveryNote() {
+    if (helperNoteBusy) return
+    helperNoteBusy = true
+    helperNoteManual = ''
+    const step = (id) => { helperNoteStep = id; redrawCard() }
+    const stop = (msg, ok) => {
+      helperNoteBusy = false
+      clearSpotlight()
+      toast(msg, ok)
+      redrawCard()
+    }
+    const WAIT = globalThis.__kbNoteWaitMs ?? 40_000
+
+    // ① 창 열기 — 창이 열렸는지는 «비밀번호없이 출입» 문구로만 판단합니다.
+    step('noteOpen')
+    const started = Date.now()
+    let asked = false
+    while (Date.now() - started < WAIT && !noteModalOpen()) {
+      const opener = noteOpenTarget()
+      if (opener) fireClick(opener)
+      if (!asked && Date.now() - started > 2_000) {
+        asked = true
+        helperNoteManual = 'noteOpen'
+        spotlight(opener, '👆 여기를 눌러주세요')
+        redrawCard()
+      }
+      await sleep(500)
+    }
+    if (!noteModalOpen()) {
+      return stop('배송 요청사항 창을 열지 못했습니다 — [변경]을 직접 눌러주세요.', false)
+    }
+    clearSpotlight()
+    helperNoteManual = ''
+
+    // ② 문 앞 → ③ 비밀번호없이 출입 — 반드시 **창 안에서** 고릅니다.
+    for (const key of ['noteDoor', 'noteNoCode']) {
+      step(key)
+      let hit = null
+      for (let i = 0; i < 8 && !hit; i++) {
+        hit = clickChoice(key, noteModalRoot())
+        if (!hit) await sleep(400)
+      }
+      if (!hit) {
+        helperNoteManual = key
+        const what = key === 'noteDoor' ? '문 앞' : '비밀번호없이 출입 가능해요'
+        return stop(`창에서 «${what}» 를 직접 골라주세요.`, false)
+      }
+      spotlight(hit, '👆 여기를 골랐습니다')
+      await sleep(600)
+      clearSpotlight()
+    }
+
+    // ④ 저장 — 창이 닫히면 된 것으로 봅니다.
+    step('noteSave')
+    let saved = false
+    for (let i = 0; i < 8 && !saved; i++) {
+      clickExact('noteSave')
+      await sleep(500)
+      saved = !noteModalOpen()
+    }
+    if (!saved) {
+      helperNoteManual = 'noteSave'
+      spotlight(findExact('noteSave'), '👆 저장을 눌러주세요')
+      return stop('마지막 [동의하고 저장하기]만 직접 눌러주세요.', false)
+    }
+    helperNoteDone = true
+    helperNoteStep = ''
+    stop('✓ 배송 요청사항을 «문 앞 · 비밀번호없이 출입» 으로 맞췄습니다.', true)
   }
 
   /** 이 문구로 잡히는 요소 수 (보이는 것만) — 자가진단·진단 복사 공통 */
@@ -1222,7 +1418,9 @@
 
     const ok = okAddr && okCode
     helperAddrOk = ok && !onCart
-    if (ok) { helperAddrStep = ''; clearSpotlight() } // 주소가 맞아졌으면 단계 표시도 끝
+    // 주소가 맞아졌으면 단계 표시도 끝. 단, 배송 요청사항을 맞추는 중이면
+    // 그쪽이 짚어 둔 표시까지 지우면 안 됩니다 (0.5초마다 다시 그려집니다).
+    if (ok) { helperAddrStep = ''; if (!helperNoteBusy) clearSpotlight() }
     const lt = cfg?.config?.leadTimeDays ?? { min: 5, max: 9 }
 
     /**
@@ -1251,8 +1449,17 @@
       return new RegExp(`${c}[0-9A-Za-z가-힣]{2,}`).test(hay)
     })()
     armPayGuard()
-    if (onCart || (ok && okDetail)) {
+    const noteBad = !onCart && helperTrack === 'forwarding' && ok && !(helperNoteDone || noteLooksSet(allText))
+    if (onCart || (ok && okDetail && !noteBad)) {
       payGuard.warn = ''
+    } else if (ok && okDetail && noteBad) {
+      // 배송지는 맞았지만 요청사항이 안 맞습니다 — 기사님이 공동현관에서 막힙니다.
+      payGuard.warn =
+        '⚠️ 배송 요청사항을 확인해 주세요\n\n' +
+        '창고 공동현관에는 출입번호가 없습니다.\n' +
+        '「문 앞」 + 「비밀번호없이 출입 가능해요」 로 맞춰주세요.\n\n' +
+        '· [취소] 누른 뒤 카드의 [🚪 배송 요청사항 자동 선택]\n' +
+        '· 이미 맞추셨으면 [확인]'
     } else if (!ok) {
       payGuard.warn =
         '⚠️ 하노이 배송 경고\n\n' +
@@ -1863,6 +2070,35 @@
      *   · 금액은 흐리게 — 주소가 틀리면 금액은 의미가 없습니다
      *   · 고칠 방법 두 가지를 바로 아래 큰 버튼으로 놓습니다
      */
+    /**
+     * 배송 요청사항 — 창고 공동현관에는 출입번호가 없습니다. 기사님이 번호를
+     * 물어보는 설정이면 배송이 그 자리에서 막힙니다 (운영자 확정 26-09-06).
+     * 배송지가 창고로 맞아진 다음에 보여줍니다 — 순서가 그게 맞습니다.
+     */
+    const noteBlock = (() => {
+      if (onCart || helperTrack !== 'forwarding' || !ok) return ''
+      const done = helperNoteDone || noteLooksSet(allText)
+      if (done) {
+        return '<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:#e6f6f0;color:#17916b;' +
+          'font-size:12px;font-weight:800">✓ 배송 요청사항 확인됨 — 문 앞 · 비밀번호없이 출입</div>'
+      }
+      const rows = NOTE_STEPS.slice(1, 3)
+        .map(([id, label]) => `<div style="font-size:12px;font-weight:800;color:#7a4b00;line-height:1.7">${
+          helperNoteManual === id ? '👉 ' : ''}${esc(label.replace(' 고르기', ''))}</div>`).join('')
+      return '<div style="margin-top:7px;padding:10px 11px;border-radius:11px;background:#fff8e6;border:2px solid #f0b429">' +
+        '<div style="font-size:13px;font-weight:900;color:#7a4b00">🚪 배송 요청사항을 이렇게 맞춰주세요</div>' +
+        '<div style="margin-top:2px;font-size:11px;color:#7a4b00;line-height:1.5">' +
+        '창고 공동현관은 <b>출입번호가 없습니다.</b> 이대로 두면 기사님이 못 들어가 배송이 막힙니다.</div>' +
+        `<div style="margin-top:6px">${rows}</div>` +
+        (helperNoteBusy
+          ? '<div style="margin-top:6px;padding:9px;border-radius:9px;background:#fff;color:#7a4b00;' +
+            'font-size:12px;font-weight:800;text-align:center">⏳ 맞추는 중…</div>'
+          : '<button id="kb-note-fix" style="margin-top:6px;width:100%;min-height:42px;border:0;border-radius:9px;' +
+            'background:#f0b429;color:#3b2600;font-weight:900;font-size:14px;cursor:pointer">' +
+            '🚪 배송 요청사항 자동 선택</button>') +
+        '</div>'
+    })()
+
     const statusBlock = onCart
       ? ''
       : ok
@@ -1889,7 +2125,7 @@
     const dimmedPrice = wrongAddr
       ? `<div style="opacity:.45;filter:grayscale(.5)">${priceBlock}</div>`
       : priceBlock
-    const cartLine = (wrongAddr ? stepsBlock + miniForm + dimmedPrice : priceBlock + miniForm) + ctaBlock +
+    const cartLine = (wrongAddr ? stepsBlock + miniForm + dimmedPrice : priceBlock + miniForm + noteBlock) + ctaBlock +
       (cart.length > 0
         ? '<button id="kb-detail" style="margin-top:7px;width:100%;min-height:32px;border:1px solid #e5e8eb;' +
           'border-radius:8px;background:#fff;color:#4e5968;font-weight:700;font-size:12px;cursor:pointer">' +
@@ -1965,6 +2201,7 @@
     })
     // [⚡ 배송지 자동 등록] — 실제 흐름은 runAddrAutofill (위) 하나로 통일.
     card.querySelector('#kb-addr-fill')?.addEventListener('click', () => { runAddrAutofill() })
+    card.querySelector('#kb-note-fix')?.addEventListener('click', () => { runDeliveryNote() })
     card.querySelector('#kb-diag')?.addEventListener('click', async (e) => {
       const b = e.currentTarget
       const text = addrDiagnostics()

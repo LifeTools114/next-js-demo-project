@@ -8,6 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { COUPANG_PATTERNS, PATTERN_LABELS } from '../config/coupang-patterns.js'
 
 const panel = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
 const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
@@ -419,4 +420,51 @@ test('배송지 안내의 이름 자리는 "예시"임이 보이고, 내 이름�
   const order = readFileSync(new URL('../pages/orders/[id].js', import.meta.url), 'utf8')
   assert.ok(order.includes('const NAME_MARK'), '주문 화면의 세부주소도 이름을 칠해야 합니다')
   assert.equal(order.split('style={NAME_MARK}').length - 1, 2, '안내 문장과 세부주소 줄 두 곳')
+})
+
+test('배송 요청사항 — 창고는 「문 앞 + 비밀번호없이 출입」이어야 합니다', () => {
+  /*
+   * 운영자 확정 26-09-06: 창고 공동현관에는 **출입번호가 없습니다.**
+   * 기사님이 번호를 물어보는 설정으로 두면 배송이 그 자리에서 막힙니다.
+   *   1번 문 앞 · 2번 비밀번호없이 출입 가능해요
+   */
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  // (아래 두 값은 파일 맨 위에서 import 합니다)
+  for (const key of ['noteOpen', 'noteChange', 'noteDoor', 'noteNoCode', 'noteSave']) {
+    assert.ok(COUPANG_PATTERNS.text[key], `문구 설정에 ${key} (서버에서 고칠 수 있어야 합니다)`)
+    assert.ok(PATTERN_LABELS[key], `${key} 의 사람이 읽을 이름`)
+  }
+  // 카드에 두 가지가 글로 적혀 있어야 합니다 — 자동이 안 되면 직접 고를 수 있게.
+  assert.ok(cap.includes('① 문 앞') && cap.includes('② 비밀번호없이 출입 가능해요'), '두 가지를 그대로 보여줍니다')
+  assert.ok(cap.includes('출입번호가 없습니다'), '왜 필요한지 말해야 합니다')
+  assert.ok(cap.includes('kb-note-fix') && cap.includes('배송 요청사항 자동 선택'), '자동 선택 버튼')
+  // 결제 전에도 막아 세웁니다.
+  assert.ok(cap.includes('⚠️ 배송 요청사항을 확인해 주세요'), '요청사항이 안 맞으면 결제 전에 알립니다')
+})
+
+test('배송 요청사항 판정이 화면 요약 글에 속지 않는다', () => {
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  /*
+   * ① 창이 열렸는지는 [동의하고 저장하기]로 판단합니다. "비밀번호없이 출입"은
+   *    저장하고 나면 **화면 요약에도** 나타나서, 창이 닫혔는데 열린 줄 알고
+   *    영영 ✓ 를 못 답니다.
+   * ② 창을 여는 것은 제목 글자가 아니라 그 옆 [변경] 버튼입니다.
+   * ③ 보기(문 앞)는 창 **안에서만** 찾습니다 — 요약에도 "문 앞"이 있습니다.
+   */
+  assert.ok(cap.includes("const noteModalOpen = () => Boolean(findExact('noteSave'))"), '창 판별은 저장 버튼으로')
+  assert.ok(cap.includes('function noteOpenTarget'), '제목 옆 [변경] 을 찾아야 창이 열립니다')
+  assert.ok(cap.includes("findExactIn(node, 'noteChange')"), '[변경] 버튼을 줄 안에서 찾습니다')
+  assert.ok(cap.includes('clickChoice(key, noteModalRoot())'), '보기는 창 안에서만 고릅니다')
+  assert.ok(cap.includes('function findExactIn'), '덩어리 안에서만 찾는 방법이 있어야 합니다')
+})
+
+test('숨어 있는 창의 글을 화면 글로 읽지 않는다 (틀린 주소로 결제하게 두는 오판)', () => {
+  /*
+   * innerText 는 그려지지 않는 요소에서 textContent 로 떨어집니다. 그래서
+   * display:none 으로 숨어 있는 배송지 창·요청사항 창의 글까지 읽혀,
+   * 창을 열지도 않았는데 "주소가 창고로 맞다" 고 오판했습니다.
+   */
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const fn = cap.slice(at(cap, 'function pageTextSansOurUi'), at(cap, 'const NOT_A_NAME'))
+  assert.ok(fn.includes('getClientRects().length > 0'), '보이는 덩어리만 읽어야 합니다')
 })

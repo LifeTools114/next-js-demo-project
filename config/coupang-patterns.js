@@ -27,8 +27,8 @@
 
 export const COUPANG_PATTERNS = {
   /** 값이 바뀔 때마다 1씩 올립니다 — 확장·관리자 화면이 이 번호로 반영 여부를 확인합니다. */
-  version: 1,
-  updatedAt: '2026-09-03',
+  version: 2,
+  updatedAt: '2026-09-06',
 
   /**
    * 클릭 대상을 찾는 문구 (정규식 source). maxLen 은 "이 길이 이하의 요소만
@@ -49,6 +49,17 @@ export const COUPANG_PATTERNS = {
     zipSubmit: { source: '검색', maxLen: 10 },
     /** 배송지 입력폼의 [저장] — 자동입력이 끝난 뒤 짚어줍니다 (누르는 건 고객) */
     save: { source: '^저장(하기)?$', maxLen: 8 },
+    /** 배송 요청사항 열기 — 창고는 이 두 가지가 맞아야 소포를 받습니다 */
+    noteOpen: { source: '배송요청사항|요청사항변경', maxLen: 12 },
+    /** 배송 요청사항 옆 [변경] — 제목 글자가 아니라 이 버튼을 눌러야 창이 열립니다 */
+    noteChange: { source: '^변경(하기)?$', maxLen: 6 },
+    /** ① 문 앞 */
+    noteDoor: { source: '^문앞$', maxLen: 6 },
+    /** ② 비밀번호 없이 출입 — 창고 공동현관은 출입번호가 없습니다 */
+    noteNoCode: { source: '비밀번호없이출입가능해요|비밀번호없이출입|출입번호없음|비밀번호없음', maxLen: 20 },
+    /** 배송 요청사항 저장 */
+    noteSave: { source: '동의하고저장하기|동의하고저장|^저장하기$', maxLen: 14 },
+
   },
 
   /** 배송지 입력폼의 칸 — CSS 셀렉터 (쉼표로 여러 개) */
@@ -80,6 +91,7 @@ export const COUPANG_PATTERNS = {
 export const PATTERN_LABELS = {
   openAddr: '배송지 변경', addAddr: '배송지 추가', zipSearch: '우편번호 찾기',
   pick: '선택', payButton: '결제하기', zipSubmit: '주소 검색', save: '저장',
+  noteOpen: '배송 요청사항', noteChange: '요청사항 [변경]', noteDoor: '문 앞', noteNoCode: '비밀번호 없이 출입', noteSave: '동의하고 저장하기',
   items: '상품·금액 표기',
 }
 
