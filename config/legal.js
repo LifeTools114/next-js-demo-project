@@ -314,3 +314,14 @@ export function missingConsents(consents) {
   )
   return REQUIRED_CONSENTS.filter((c) => !given.has(c.id)).map((c) => c.label)
 }
+
+/**
+ * 선택 동의 — 필수 동의와 **분리**되어 있고 안 해도 접수됩니다 (운영자 26-09-06: 고객 풀).
+ * 동의·철회 시각과 경로는 고객 기록(lib/customer/store.js)에 남습니다.
+ */
+export const OPTIONAL_CONSENTS = [
+  {
+    id: 'marketing',
+    label: '새 상품·할인 소식을 카카오톡/Zalo·이메일로 받겠습니다 (선택 · 언제든 철회할 수 있습니다)',
+  },
+]

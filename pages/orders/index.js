@@ -71,6 +71,9 @@ export default function OrderLookup() {
           </div>
           <button className="btn" type="submit" disabled={!orderNo.trim()}>조회하기</button>
         </form>
+        <p className="note" style={{ marginTop: 12 }}>
+          여러 주문을 한 번에 보시려면 <Link href="/my"><b>내 주문 전체 보기</b></Link> — 회원가입 없이 개인 링크로 봅니다.
+        </p>
       </div>
 
       {mine.length > 0 && (

@@ -68,6 +68,10 @@ export default function AdminConsole() {
   const [maint, setMaint] = useState(null)
   // 쿠팡 화면 자가진단 — 확장이 "문구를 못 찾았다"고 보고한 내역
   const [health, setHealth] = useState(null)
+  // 고객 풀 — 전화번호별 묶음 (검색·개인 링크 발급·CSV)
+  const [customers, setCustomers] = useState([])
+  const [q, setQ] = useState('')
+  const [custMsg, setCustMsg] = useState(null)
   // 토큰 로드 전후로 요청이 두 번 나가며, 먼저 보낸 실패 응답이
   // 나중에 도착해 성공 결과를 덮어쓰는 경쟁 상태를 막습니다.
   const reqRef = useRef(0)
@@ -94,6 +98,10 @@ export default function AdminConsole() {
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (seq === reqRef.current && d) setReview(d) })
         .catch(() => {})
+      fetch('/api/admin/customers', { headers: { 'x-admin-token': token } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (seq === reqRef.current && d) setCustomers(d.customers ?? []) })
+        .catch(() => {})
       // 쿠팡 화면 점검도 마찬가지 — 있으면 보여주고, 없으면 조용히 넘어갑니다.
       fetch('/api/extension/health', { headers: { 'x-admin-token': token } })
         .then((r) => (r.ok ? r.json() : null))
@@ -116,6 +124,47 @@ export default function AdminConsole() {
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
   }, [])
+
+  /** 검색 — 이름·전화번호(숫자만 비교)·주문번호·쇼핑몰 주문번호·운송장 */
+  const digits = (v) => String(v ?? '').replace(/\D/g, '')
+  const matches = (o) => {
+    const t = q.trim().toLowerCase()
+    if (!t) return true
+    const d = digits(t)
+    if (d.length >= 4 && digits(o.customer?.phone).includes(d)) return true
+    return [o.orderNo, o.customer?.name, o.procurement?.coupangOrderNo, o.inbound?.coupangOrderNo, ...(o.inbound?.trackingNos ?? [])]
+      .some((v) => String(v ?? '').toLowerCase().includes(t))
+  }
+  const matchCustomer = (c) => {
+    const t = q.trim().toLowerCase()
+    if (!t) return true
+    const d = digits(t)
+    return (d.length >= 4 && digits(c.phone).includes(d)) || String(c.name ?? '').toLowerCase().includes(t) || (c.orderNos ?? []).some((n) => n.toLowerCase().includes(t))
+  }
+  const downloadCsv = async (path, fallback) => {
+    const res = await fetch(path, { headers: { 'x-admin-token': token } })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setCustMsg(d.error ?? '내려받지 못했습니다.'); return }
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] ?? fallback
+    a.click()
+  }
+  const customerAction = async (action, phone) => {
+    if ((action === 'revoke' && !window.confirm('이 고객의 개인 링크를 모두 무효로 만들까요? 고객은 새 링크를 받아야 합니다.')) ||
+        (action === 'resetPin' && !window.confirm('이 고객의 PIN 을 풀까요?'))) return
+    const res = await fetch('/api/admin/customers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ action, phone, base: window.location.origin }),
+    })
+    const d = await res.json()
+    if (!res.ok) { setCustMsg(d.error ?? '실패했습니다.'); return }
+    if (action === 'issueLink') {
+      try { await navigator.clipboard.writeText(d.url) } catch { /* 아래 표시에서 복사 */ }
+      setCustMsg(`개인 링크(복사됨) — 고객에게 카카오톡/Zalo 로 보내주세요. 이 링크는 지금 한 번만 보입니다: ${d.url}`)
+    } else setCustMsg('✓ 처리했습니다.')
+    load()
+  }
 
   const run = async (orderNo, action, payload = {}) => {
     setError(null)
@@ -350,11 +399,53 @@ export default function AdminConsole() {
         </section>
       )}
 
+      {/* ── 고객 풀 — 전화번호가 고객 번호. 회원가입 없이 개인 링크로 봅니다 (26-09-06) ── */}
+      <section className="panel">
+        <div className="panel__head">
+          <span>👥 고객 {customers.length}명 · 소식 동의 {customers.filter((c) => c.marketing?.agreed).length}명</span>
+          <span style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn--sm btn--ghost" type="button" onClick={() => downloadCsv('/api/admin/customers-export', 'customers.csv')}>전체 CSV</button>
+            <button className="btn btn--sm btn--ghost" type="button" onClick={() => downloadCsv('/api/admin/customers-export?marketing=1', 'customers-marketing.csv')}>동의 고객 CSV</button>
+          </span>
+        </div>
+        <div className="panel__body">
+          <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 이름 · 전화번호 · 주문번호 · 쇼핑몰 주문번호 · 운송장" />
+          {custMsg && <p className="note" style={{ marginTop: 8, userSelect: 'all', wordBreak: 'break-all' }}>{custMsg}</p>}
+          <div style={{ marginTop: 8 }}>
+            {customers.filter(matchCustomer).slice(0, 60).map((c) => (
+              <div className="row" key={c.phone} style={{ alignItems: 'flex-start' }}>
+                <span className="row__label">
+                  <b>{c.name || '(이름 없음)'}</b> · {c.phone}{c.messenger ? ` · ${c.messenger}` : ''}
+                  <br />
+                  <small style={{ color: 'var(--ink-500)' }}>
+                    주문 {c.orderCount}건 (입금 {c.paidCount}) · 최근 {c.lastOrderAt ? formatDateTime(c.lastOrderAt) : '—'} · 누적 {krw(c.totalKrw)}
+                    {' · '}{c.marketing?.agreed ? '📣 소식 동의' : '소식 미동의'} · 링크 {c.keys?.verified ?? 0}/{c.keys?.total ?? 0}{c.pin ? ' · 🔒 PIN' : ''}
+                  </small>
+                </span>
+                <span className="row__value" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: 220 }}>
+                  <button className="btn btn--sm btn--ghost" type="button" onClick={() => setQ(c.phone)}>주문</button>
+                  <button className="btn btn--sm btn--ghost" type="button" onClick={() => customerAction('issueLink', c.phone)}>개인 링크</button>
+                  <button className="btn btn--sm btn--ghost" type="button" onClick={() => customerAction('revoke', c.phone)}>링크 무효</button>
+                  {c.pin && <button className="btn btn--sm btn--ghost" type="button" onClick={() => customerAction('resetPin', c.phone)}>PIN 풀기</button>}
+                </span>
+              </div>
+            ))}
+            {customers.length === 0 && <p className="note" style={{ marginTop: 8 }}>아직 고객이 없습니다 — 첫 주문이 들어오면 전화번호별로 여기 쌓입니다.</p>}
+          </div>
+          <p className="note" style={{ marginTop: 8, fontSize: 11.5 }}>
+            고객 정보는 이 서버의 <code>.data/</code> 안에만 있습니다. 주기적으로 그 폴더를 백업하세요. 개인 링크는 발급 순간에만 보이고 서버에는 해시만 남습니다.
+          </p>
+        </div>
+      </section>
+
       {orders.length === 0 && !error && !loading && (
         <div className="empty"><div className="empty__icon">📋</div>주문이 없습니다.</div>
       )}
+      {q.trim() && orders.filter(matches).length === 0 && orders.length > 0 && (
+        <div className="empty"><div className="empty__icon">🔍</div>검색 결과가 없습니다.</div>
+      )}
 
-      {orders.map((o) => {
+      {orders.filter(matches).map((o) => {
         const actions = ACTIONS_BY_STATE[o.state] ?? []
         const f = forms[o.orderNo] ?? {}
         const s = o.ledgerSummary

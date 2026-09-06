@@ -12,6 +12,7 @@ import { SHIPPING } from '../../../config/shipping'
 import { ORDER_MIN } from '../../../config/fees'
 import { normalizeOrderItems } from '../../../lib/order/normalize-items'
 import { DEFAULT_METHOD } from '../../../lib/payment/methods'
+import { findByKey } from '../../../lib/customer/store'
 
 const MAX_ITEMS = 100
 
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'GET 또는 POST 요청만 지원합니다.' })
   }
 
-  const { items, zone, customer, paymentMethod, track, coupangOrderNo, force } = req.body ?? {}
+  const { items, zone, customer, paymentMethod, track, coupangOrderNo, force, marketing, myKey } = req.body ?? {}
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: '주문할 상품이 없습니다.' })
@@ -109,16 +110,30 @@ export default async function handler(req, res) {
         address: String(customer.address ?? '').slice(0, 300),
         // 선택 — 알림 채널(이메일)이 열리면 바로 쓸 수 있게 미리 받습니다.
         email: String(customer.email ?? '').slice(0, 120),
+        messenger: String(customer.messenger ?? '').slice(0, 80),
       },
       paymentMethod: paymentMethod || DEFAULT_METHOD,
       // 필수 고지 동의 — 없으면 createOrder 가 거절합니다.
       consents: req.body?.consents,
       // 쿠팡 결제 우선 흐름 — 고객이 이미 결제한 쿠팡 주문을 생성 시점에 연결
       coupangOrderNo: typeof coupangOrderNo === 'string' ? coupangOrderNo : undefined,
+      // 선택 동의 — 새 소식·할인 안내 (필수 동의와 별개, 언제든 철회)
+      marketing: marketing === true,
+      // 이 브라우저가 들고 있는 개인 링크 열쇠 — 있으면 그 열쇠에 주문을 묶습니다.
+      myKey: typeof myKey === 'string' ? myKey.slice(0, 200) : null,
     })
     // 생성 직후에도 고객에게는 고객용 뷰만 돌려줍니다.
     const { customerView } = await import('../../../lib/order/store')
-    return res.status(201).json({ order: customerView(order) })
+    /**
+     * 개인 링크 — 새로 발급됐으면 열쇠를 딱 한 번 돌려줍니다(서버에는 해시만).
+     * 이미 들고 온 열쇠가 이 고객 것이면 그대로, 기존 고객인데 열쇠가 없으면
+     * 복구 안내(recover) — 입금 끝난 주문번호로 /my 에서 다시 받습니다.
+     */
+    const heldOk = typeof myKey === 'string' && findByKey(myKey)?.customer.id === order.customerId
+    const my = order._issuedKey
+      ? { key: order._issuedKey, fresh: true }
+      : heldOk ? { key: myKey } : { recover: true }
+    return res.status(201).json({ order: customerView(order), my })
   } catch (error) {
     if (error instanceof UnauthorizedError) return res.status(401).json({ error: error.message })
     return res.status(400).json({ error: error.message || '주문 생성에 실패했습니다.' })

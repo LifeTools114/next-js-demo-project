@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
+import MyLinkPanel from '../../components/MyLinkPanel'
 import { PROGRESS_ORDER, ORDER_STATES } from '../../lib/order/states'
 import { krw, vnd, weight, formatDateTime } from '../../lib/format'
 import CopyButton from '../../components/CopyButton'
@@ -235,6 +236,9 @@ export default function OrderPage() {
       )}
 
       {/* 📍 지금 위치 — 파트너의 도착·통관·배송일정 보고가 그대로 반영됩니다 */}
+      {/* 개인 링크 — 회원가입 없이 내 주문 전부 (고객 풀, 26-09-06). 처음 받은 직후엔 저장하라고 크게 알립니다. */}
+      <MyLinkPanel />
+
       {!cancelled && (
         <section className="panel">
           <div className="panel__head">내 물건 위치</div>

@@ -8,10 +8,10 @@ import CostBreakdown from '../components/CostBreakdown'
 import { SHIPPING, RETURN_SHIPPING, estimateReturnShippingUsd } from '../config/shipping'
 import { PAYMENT, REFUND_DAYS, RETURN_POLICY } from '../config/payment'
 import { FEES } from '../config/fees'
-import { REQUIRED_CONSENTS } from '../config/legal'
+import { REQUIRED_CONSENTS, OPTIONAL_CONSENTS } from '../config/legal'
 import { FX } from '../config/fx'
 import { krw, vnd } from '../lib/format'
-import { rememberMyOrder } from '../lib/my-orders'
+import { rememberMyOrder, readMyKey, saveMyKey } from '../lib/my-orders'
 
 /**
  * 주문서 — 확장프로그램의 견적함에서 넘어옵니다.
@@ -54,7 +54,7 @@ export default function Checkout() {
   const [items, setItems] = useState([])
   const [track, setTrack] = useState('agent')
   const [zone, setZone] = useState(SHIPPING.defaultZone)
-  const [form, setForm] = useState({ name: '', phone: '', address: '', email: '' })
+  const [form, setForm] = useState({ name: '', phone: '', address: '', email: '', messenger: '' })
   /** 받는 분 정보를 펼쳐서 고칠지 — 저장된 값이 있으면 접힌 채로 시작합니다 */
   /** 저장된 값을 불러왔는가 — 안내 문구에만 씁니다 (입력칸은 항상 보입니다) */
   const [recipientRestored, setRecipientRestored] = useState(false)
@@ -65,6 +65,8 @@ export default function Checkout() {
    * 무엇에 동의하는지 큰 글씨로 보여줍니다 (config/legal.js).
    */
   const [consents, setConsents] = useState({})
+  // 선택 동의 — 새 소식 받기. 필수와 분리되어 있어 안 해도 접수됩니다 (고객 풀, 26-09-06).
+  const [marketing, setMarketing] = useState(false)
   const allAgreed = REQUIRED_CONSENTS.every((c) => consents[c.id])
   const [quote, setQuote] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -186,6 +188,9 @@ export default function Checkout() {
           coupangOrderNo: coupangOrderNo || undefined,
           // 중복 안내를 보고 "일부러 한 번 더 산다"고 확인한 재구매만 true
           force: force || undefined,
+          marketing,
+          // 이 브라우저의 개인 링크 열쇠 — 있으면 이 주문이 그 링크에 묶입니다
+          myKey: readMyKey() || undefined,
         }),
       })
       const data = await res.json()
@@ -197,7 +202,9 @@ export default function Checkout() {
       }
       if (!res.ok) throw new Error(data.error || '주문 생성에 실패했습니다.')
       rememberMyOrder(data.order.orderNo)
-      router.push(`/orders/${data.order.orderNo}`)
+      // 새 개인 링크 열쇠를 받았으면 이 브라우저에 기억 — 주문 화면에서 「내 주문 전체 보기」로 이어집니다
+      if (data.my?.key) saveMyKey(data.my.key)
+      router.push(`/orders/${data.order.orderNo}${data.my?.fresh ? '?welcome=1' : ''}`)
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
@@ -372,6 +379,7 @@ export default function Checkout() {
               ['phone', '베트남 전화번호 *', '09xx xxx xxx', 'tel'],
               ['address', '베트남 주소 * (한국 주소 아님)', 'Số nhà, đường, phường, quận', 'text', 'vn'],
               ['email', '이메일 (선택 — 진행 알림 수신)', 'you@example.com', 'email'],
+              ['messenger', '카카오톡 ID 또는 Zalo 번호 (선택 — 소식·연락용)', '예) kakao_id · 09xx xxx xxx', 'text'],
             ].map(([key, label, ph, type, flagCode]) => (
               <div className="field" key={key}>
                 <label className="field__label" htmlFor={key}>{flagCode ? <Flag code={flagCode} size={13} style={{ marginRight: 5 }} /> : null}{label}</label>
@@ -629,6 +637,17 @@ export default function Checkout() {
             <p className="note" style={{ marginTop: 10, fontSize: 13.5 }}>
               자세한 내용은 <a href="/notice" target="_blank" rel="noreferrer"><b>공지사항</b></a> 에서 확인하실 수 있습니다.
             </p>
+            {/* 선택 동의 — 필수 묶음(위)과 떨어뜨려, 안 해도 된다는 것이 보이게 */}
+            {OPTIONAL_CONSENTS.map((c) => (
+              <label key={c.id} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', marginTop: 10,
+                border: '1px dashed #c9d3e0', borderRadius: 10, cursor: 'pointer', background: marketing ? '#eef3ff' : '#fff',
+              }}>
+                <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)}
+                  style={{ width: 22, height: 22, marginTop: 1, flexShrink: 0 }} />
+                <span style={{ fontSize: 13.5, lineHeight: 1.6, color: '#3a4664' }}><b>선택</b> · {c.label}</span>
+              </label>
+            ))}
           </div>
         </section>
 

@@ -390,7 +390,7 @@ const KBPanel = (() => {
         ${priceRow('forwarding', '📦 배송만 신청', '', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
         ${priceRow('agent', '🛒 구매하고 배송까지 신청', '', qs.agent ?? (state.track === 'agent' ? q : null))}
       </div>
-      <div class="wline">📦 실측 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}<b style="color:#d9480f">영업일</b></div>
+      <div class="wline">📦 예상 <b>${(q.weight.chargeableG / 1000).toFixed(1)}kg</b> → 청구 <b>${q.shipping.billableKg}kg</b> · ${esc(state.confidenceLabel)} · 도착 ${esc(sched.totalDays.min)}~${esc(sched.totalDays.max)}<b style="color:#d9480f">영업일</b></div>
       ${agentLimitNote(q)}${minOrderNote(q)}${surcharged}${warn}${overseasBlock}
       <button class="detail-toggle" data-act="detail">${state.detailOpen ? '자세한 내역 접기 ▴' : '자세한 내역 보기 ▾'}</button>
       ${state.detailOpen

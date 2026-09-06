@@ -193,6 +193,40 @@ const KBExtract = (() => {
     return null
   }
 
+  /**
+   * 고시정보 표에 무게가 없을 때 — 옵션 선택 상자의 「개당 중량 × 개당 수량 × 수량 / 360g × 1개입 × 1개」
+   * 같은 줄이나 「내용량 360g」 같은 짧은 글에서 읽습니다.
+   *
+   * 26-09-06 사장님 화면: 아이엠마더 분유 360g × 2개가 고시정보에 무게가 없어 「분유 평균 800g」으로
+   * 잡혀 2.1kg(청구 2kg)이 됐습니다. 실제는 0.9kg → 청구 1kg. 무게 하나에 배송비가 두 배 차이 납니다.
+   *
+   * 1순위: 「360g × 1개입」 꼴 (옵션 상자 — 개입 수까지 함께)
+   * 2순위: 「중량/용량/내용량/무게 … 360g」 꼴의 짧은 줄
+   * 우리 카드(data-kb-ui)와 스크립트는 건너뛰고, 잎 요소 5,000개까지만 봅니다.
+   */
+  function extractOptionSpec() {
+    const root = first(['.prod-atf', '.prod-buy', '#contents', 'main']) || document.body
+    if (!root || typeof root.querySelectorAll !== 'function') return null
+    const PACK = /(\d[\d,]*(?:\.\d+)?\s?(?:kg|g|ml|l))\s?(?:×|x|\*)\s?(\d+)\s?개입/i
+    const LABELED = /(?:개당\s*)?(?:중량|용량|내용량|총\s*내용량|무게)[^\d]{0,24}(\d[\d,]*(?:\.\d+)?\s?(?:kg|g|ml|l))\b/i
+    let labeled = null
+    let seen = 0
+    for (const el of root.querySelectorAll('*')) {
+      if (++seen > 5000) break
+      if (el.children && el.children.length > 0) continue
+      if (el.closest && el.closest('[data-kb-ui], script, style, noscript')) continue
+      const t = text(el)
+      if (!t || t.length > 160) continue
+      const pack = t.match(PACK)
+      if (pack) return { label: '옵션', value: `${pack[1]} × ${pack[2]}개입` }
+      if (!labeled) {
+        const m = t.match(LABELED)
+        if (m) labeled = { label: '옵션', value: m[1] }
+      }
+    }
+    return labeled
+  }
+
   /** 페이지의 배지 텍스트를 모두 모읍니다 (로켓직구·해외직구 판별용) */
   function extractBadges() {
     const out = new Set()
@@ -574,7 +608,8 @@ const KBExtract = (() => {
       }
     }
 
-    const notice = extractNoticeSpec()
+    // 고시정보 표 → 없으면 옵션 상자·짧은 표기 (분유 360g 사례, 26-09-06)
+    const notice = extractNoticeSpec() ?? extractOptionSpec()
     let qty = readQuantity()
 
     // 선택된 수량 옵션이 있으면 가격과 상품명 끝의 "N개" 를 그 값으로.
@@ -728,7 +763,7 @@ const KBExtract = (() => {
     return items
   }
 
-  return { extractProduct, extractListItems, extractNoticeSpec, extractBadges, setSelectors, canonicalUrl, safeQuantity, readQuantity, DEFAULT_SELECTORS }
+  return { extractProduct, extractListItems, extractNoticeSpec, extractOptionSpec, extractBadges, setSelectors, canonicalUrl, safeQuantity, readQuantity, DEFAULT_SELECTORS }
 })()
 
 globalThis.KBExtract = KBExtract
