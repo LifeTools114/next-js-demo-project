@@ -1,0 +1,11 @@
+# Caddy 설정 — HTTPS 인증서를 자동으로 받고(Let's Encrypt), 3000번 Next.js 로 넘깁니다.
+# 도메인만 바꾸고 /etc/caddy/Caddyfile 로 복사한 뒤: sudo systemctl reload caddy
+app.example.com {
+  encode gzip
+  reverse_proxy 127.0.0.1:3000
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}

@@ -1,0 +1,20 @@
+# systemd 서비스 — 서버가 켜질 때 사이트가 자동으로 뜨고, 죽으면 다시 살아납니다.
+# 복사: sudo cp deploy/kb.service /etc/systemd/system/kb.service
+# 켜기: sudo systemctl daemon-reload && sudo systemctl enable --now kb
+[Unit]
+Description=Vietnam direct-purchase helper (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=kb
+WorkingDirectory=/srv/kb
+EnvironmentFile=/srv/kb/.env.local
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
