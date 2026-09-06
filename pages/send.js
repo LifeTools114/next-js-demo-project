@@ -131,9 +131,12 @@ export default function SendPage() {
   const items = useMemo(() => rows
     .map((r, i) => {
       const link = parseProductUrl(r.productUrl)
+      // 쇼핑몰 앱의 공유는 링크만 넘겨줍니다 — 이름을 안 적어도 상품 번호로 신청은 되게 하고,
+      // 이름을 적으면 무게(배송비)가 더 정확해집니다 (운영자 26-09-06: "링크만 가지고 오네").
+      const typedName = String(r.productName ?? '').trim()
       return {
         productId: link?.productId ?? `m-${i}`,
-        productName: String(r.productName ?? '').trim(),
+        productName: typedName || (link?.productId ? `상품 ${link.productId}` : ''),
         productPrice: Math.max(0, Math.round(Number(r.productPrice) || 0)),
         quantity: Math.max(1, Math.min(Number(r.quantity) || 1, 99)),
         productUrl: link?.url ?? String(r.productUrl ?? '').trim().slice(0, 500),
@@ -205,6 +208,7 @@ export default function SendPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice}
               placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
+              autoFocus={shared && i === 0}
               style={{ flex: 2, fontSize: 16, minHeight: 50 }} />
             <input className="input" type="number" inputMode="numeric" min="1" max="99" value={r.quantity}
               placeholder="개수" onChange={(e) => setRow(i, { quantity: e.target.value })}
@@ -258,7 +262,9 @@ export default function SendPage() {
             disabled={items.length === 0 || quoting}
             style={{ width: '100%', minHeight: 58, fontSize: 18, fontWeight: 800 }}>
             {quoting ? '계산 중…'
-              : items.length === 0 ? (isAgent ? '상품 링크·이름·가격을 넣어주세요' : '상품 이름과 가격을 넣어주세요')
+              : items.length === 0
+                ? (rows.some((r) => parseProductUrl(r.productUrl)?.productId) ? '가격을 넣어주세요'
+                  : isAgent ? '상품 링크·이름·가격을 넣어주세요' : '상품 이름과 가격을 넣어주세요')
               : isAgent ? '얼마인지 보기' : '배송비 얼마인지 보기'}
           </button>
         )}
@@ -277,8 +283,9 @@ export default function SendPage() {
       <div className="section" style={{ paddingTop: 0, paddingBottom: 4 }}>
         <div style={{ display: 'flex', gap: 8 }}>{[toggleBtn('forwarding'), toggleBtn('agent')]}</div>
         {shared && (
-          <p className="note" style={{ marginTop: 8, fontSize: 13 }}>
-            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. 이름·가격·개수를 확인해 주세요.
+          <p className="note" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
+            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. 쇼핑몰 앱은 <b>링크만</b> 넘겨주므로
+            <b> 가격</b>을 적어 주세요 — 바로 계산됩니다. 상품 이름까지 적으면 무게가 더 정확해집니다.
           </p>
         )}
       </div>
