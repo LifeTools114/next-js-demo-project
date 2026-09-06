@@ -69,17 +69,18 @@ export const SHIPPING = {
     /**
      * 운영자 확정 26-09-06: "배송 가능한 지역은 내가 과금표에 적은 지역만."
      * 과금표 = config/assumptions.js `zone-surcharges` (S1 견적 26.08.28).
-     * 고객 할증(USD)은 원가 × 1.2 (운영자 규칙 26.08.29) — 원가 자체는
+     * 고객 할증(USD)은 원가 × 1.2 에서 소수점 아래를 버린 값 (운영자 규칙 26.08.29,
+     * "뒤에 .4불은 모두 빼주세요" 26-09-06) — 원가 자체는
      * config/costs.server.js 에만 있고 이 파일은 확장 번들에 실리므로 적지 않습니다.
      * 여기 없는 도시(중부·남부 전부)는 배송하지 않습니다 — 화면 공지가 이 목록을 읽습니다.
      */
     hanoi: { label: '하노이 시내', surchargeUsd: 0 },
     vinhphuc: { label: '빈푹', surchargeUsd: 6 },
-    bacninh: { label: '박닌', surchargeUsd: 8.4 },
-    bacgiang: { label: '박장', surchargeUsd: 8.4 },
-    hungyen: { label: '흥옌', surchargeUsd: 8.4 },
-    haiduong: { label: '하이즈엉', surchargeUsd: 20.4 },
-    haiphong: { label: '하이퐁', surchargeUsd: 20.4 },
+    bacninh: { label: '박닌', surchargeUsd: 8 },
+    bacgiang: { label: '박장', surchargeUsd: 8 },
+    hungyen: { label: '흥옌', surchargeUsd: 8 },
+    haiduong: { label: '하이즈엉', surchargeUsd: 20 },
+    haiphong: { label: '하이퐁', surchargeUsd: 20 },
   },
   defaultZone: 'hanoi',
 

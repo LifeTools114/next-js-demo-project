@@ -99,12 +99,14 @@ test('서비스 지역: 운영자 과금표의 북부 7개 도시뿐이며, 하�
   for (const [k, z] of Object.entries(SHIPPING.zones)) {
     if (k !== 'hanoi') assert.ok(z.surchargeUsd > 0, `${k}: 하노이 밖은 현지운송비 할증이 붙어야 합니다`)
   }
-  // 고객가 = 원가 × 1.2 (운영자 규칙 26.08.29). 원가는 서버 전용 파일에만 있습니다.
+  // 고객가 = 원가 × 1.2 에서 소수점 아래 버림 (운영자 26.08.29 + "뒤에 .4불은 모두 빼주세요" 26-09-06).
+  // 원가는 서버 전용 파일에만 있습니다.
   const { COSTS, COST_MARKUP } = await import('../config/costs.server.js')
   assert.deepEqual(Object.keys(COSTS.zoneUsd).sort(), Object.keys(SHIPPING.zones).sort(), '원가표와 지역 목록이 같아야 합니다')
   for (const [k, z] of Object.entries(SHIPPING.zones)) {
-    const want = Math.round(COSTS.zoneUsd[k] * COST_MARKUP * 10) / 10
-    assert.equal(z.surchargeUsd, want, `${k}: 고객 할증은 원가 × ${COST_MARKUP} 이어야 합니다`)
+    const want = Math.floor(COSTS.zoneUsd[k] * COST_MARKUP + 1e-9)
+    assert.equal(z.surchargeUsd, want, `${k}: 고객 할증은 원가 × ${COST_MARKUP} 의 소수점 버림이어야 합니다`)
+    assert.ok(Number.isInteger(z.surchargeUsd), `${k}: 할증은 달러 정수여야 합니다 (.4 같은 꼬리 없이)`)
   }
 })
 
