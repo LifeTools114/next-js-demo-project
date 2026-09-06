@@ -860,7 +860,7 @@
     const addr1 = w.address1 || '서울특별시 강서구 개화동로 11길 5'
     const zip = w.zip || '07504'
     const code = w.code || 'YS-ECOM'
-    const phone = w.phone || '010-7360-1156'
+    const phone = w.phone || '010-4803-6031' // 서버 설정이 없을 때의 기본값 — config/warehouse.js 와 같아야 합니다
 
     // 배송지 다이얼로그가 열려 있으면 빈 칸을 조용히 채워둡니다 (받는사람·전화·상세주소).
     // 고객이 직접 하겠다고 했으면 손대지 않습니다 — 지우고 다시 치는 것을 방해합니다.

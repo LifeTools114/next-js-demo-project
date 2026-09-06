@@ -26,8 +26,8 @@ export const WAREHOUSE = {
   address2: env('KR_WAREHOUSE_ADDR2'),
   /** 세부주소 코드의 접두사 — "YS-ECOM 이름" 의 YS-ECOM 부분 */
   code: env('KR_WAREHOUSE_CODE') || 'YS-ECOM',
-  /** 배송지 연락처 — 확장이 쿠팡 배송지 입력창에 자동으로 채웁니다 */
-  phone: env('KR_WAREHOUSE_PHONE') || '010-7360-1156',
+  /** 배송지 연락처 — 고객이 쇼핑몰 배송지의 휴대폰 칸에 넣는 번호 (운영자 확정 26-09-06) */
+  phone: env('KR_WAREHOUSE_PHONE') || '010-4803-6031',
   configured: Boolean(address1),
 }
 
