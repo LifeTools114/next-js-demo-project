@@ -1071,12 +1071,17 @@
     const chip = document.createElement('button')
     chip.id = 'kb-helper-chip'
     chip.dataset.kbUi = '1'
-    chip.textContent = '🇻🇳'
+    // 무슨 버튼인지 글로 씁니다 — 지름 46px 짜리 🇻🇳 동그라미는 눈에 띄지도,
+    // 뜻이 통하지도 않았습니다 (운영자 26-09-06).
+    chip.innerHTML = '<span style="font-size:25px;line-height:1">🇻🇳</span>' +
+      '<span style="text-align:left">배송·구매대행 신청' +
+      '<span style="display:block;font-size:11.5px;font-weight:700;opacity:.9;margin-top:2px">하노이 도착 가격 보기</span></span>'
     chip.title = '하노이 배송 도우미 다시 열기'
     chip.style.cssText =
-      'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:46px;height:46px;' +
-      'border:1px solid #dbe4f0;border-radius:50%;background:#fff;font-size:21px;cursor:pointer;' +
-      'box-shadow:0 4px 14px rgba(0,0,0,.2)'
+      'position:fixed;right:16px;bottom:16px;z-index:2147483647;min-width:188px;min-height:60px;' +
+      'display:flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;' +
+      'border:0;border-radius:15px;background:#3182f6;color:#fff;font:800 16px/1.25 sans-serif;' +
+      'cursor:pointer;box-shadow:0 6px 20px rgba(49,130,246,.42)'
     chip.addEventListener('click', () => {
       try { sessionStorage.removeItem(closedKey()) } catch { /* 무시 */ }
       chip.remove()
@@ -1117,6 +1122,11 @@
   }
 
   async function renderCheckoutHelper() {
+    /**
+     * 성함을 치는 중이면 다시 그리지 않습니다 — 카드는 금액이 바뀔 때마다
+     * 다시 그려지는데, 그때 입력칸이 새로 만들어지면 치던 글자가 날아갑니다.
+     */
+    try { if (document.activeElement?.id === 'kb-name-input') return } catch { /* 무시 */ }
     try {
       // 옛 전역 닫기 기록은 지웁니다 — 이미 걸려 있는 탭도 이 업데이트로 풀립니다.
       sessionStorage.removeItem('kb-helper-closed')
@@ -1285,10 +1295,21 @@
         renderCheckoutHelper()
       }
 
-      let name = getRecipientName()
+      /**
+       * 이름은 카드의 입력칸에서 받습니다 (창을 띄우지 않습니다).
+       * 아직 비어 있으면 자동 등록을 시작하지 않고 그 칸을 짚어줍니다 —
+       * 이름 없이 넣은 배송지는 창고에서 주인을 못 찾습니다.
+       */
+      const name = getRecipientName()
       if (!name) {
-        name = (window.prompt('소포 주인 확인용 — 본인 이름을 입력하세요 (신청서의 받는 분과 동일하게)', '') ?? '').trim()
-        if (name) { try { localStorage.setItem(NAME_KEY, name) } catch { /* 무시 */ } }
+        helperAddrBusy = false
+        card.dataset.kbHtml = ''
+        renderCheckoutHelper()
+        toast('소포에 적을 성함을 먼저 넣어주세요 — 창고가 주인을 찾는 단서입니다.', false)
+        const el = document.getElementById('kb-name-input')
+        el?.focus()
+        spotlight(el, '👆 성함을 넣어주세요')
+        return
       }
       /**
        * 배송지 창이 다른 출처 프레임에 그려지면 최상위는 창 안을 못 봅니다.
@@ -1733,10 +1754,6 @@
       '⭐ 상세주소의 <u>본인 이름</u>으로 소포 주인을 찾습니다 — 꼭 넣어주세요!</div>' +
       `<button data-copy="${esc(addr1)}" style="margin-top:7px;width:100%;min-height:34px;border:0;border-radius:9px;` +
       'background:#3182f6;color:#fff;font-weight:700;cursor:pointer">📋 주소 복사 — 우편번호 찾기에 붙여넣기</button>' +
-      (getRecipientName()
-        ? `<button id="kb-addr-name" style="margin-top:4px;width:100%;min-height:22px;border:0;background:transparent;` +
-          `color:#8b95a1;font-size:10.5px;cursor:pointer">상세주소 이름: ${esc(getRecipientName())} (누르면 변경)</button>`
-        : '') +
       '</div>'
 
     /**
@@ -1772,6 +1789,29 @@
         'border-radius:8px;background:#f9fafb;color:#8b95a1;font-size:10.5px;cursor:pointer">' +
         '🩺 진단 정보 복사 — 붙여넣어 관리자에게 보내주세요</button>'
       : ''
+    /**
+     * 소포에 적을 성함 — 창고가 소포 주인을 찾는 **유일한** 단서입니다.
+     *
+     * 예전에는 자동입력을 누르면 창(prompt)이 떠서 물었습니다. 한 번 넣으면
+     * 어디에 쓰이는지 다시 보이지 않아, 시험 삼아 넣은 이름이 그대로 남아
+     * 남의 이름으로 배송지가 등록됐습니다 (운영자 26-09-06).
+     * 이제 카드 안에 항상 보이고, 그 자리에서 고치고 지울 수 있습니다.
+     */
+    const nm = getRecipientName()
+    const nameBlock =
+      '<div style="margin-top:7px;padding:9px 10px;border-radius:10px;background:#fff8e6;border:1px solid #ffe0a3">' +
+      '<div style="font-size:11.5px;font-weight:800;color:#7a4b00">🏷 소포에 적을 성함' +
+      ' <span style="font-weight:700;opacity:.85">(신청서의 받는 분과 같게)</span></div>' +
+      `<input id="kb-name-input" value="${esc(nm)}" placeholder="예: 홍길동" ` +
+      'style="margin-top:5px;width:100%;min-height:38px;box-sizing:border-box;padding:0 10px;' +
+      'border:1.5px solid #f0b429;border-radius:8px;font-size:14px;font-weight:700;color:#191f28;background:#fff">' +
+      (nm
+        ? '<button id="kb-name-clear" style="margin-top:4px;border:0;background:transparent;color:#8b95a1;' +
+          'font-size:10.5px;cursor:pointer;text-decoration:underline">이 이름 지우기</button>'
+        : '') +
+      '<div style="margin-top:3px;font-size:10.5px;color:#7a4b00;line-height:1.5">상세주소에 <b>' +
+      `${esc(code)} ${nm ? esc(nm) : '성함'}</b> 으로 들어갑니다 — 창고가 이 이름으로 소포 주인을 찾습니다.</div></div>`
+
     const miniForm = onCart || ok || helperTrack !== 'forwarding'
       ? ''
       : helperAddrStep === 'save'
@@ -1791,7 +1831,8 @@
               '<span style="font-weight:700;font-size:11px">누르면 나머지는 자동으로 진행됩니다</span></div>'
             : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
               'font-size:13.5px;font-weight:800;text-align:center">⏳ 배송지 자동 등록 중…</div>') + diagBtn
-        : '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:52px;border:0;border-radius:10px;' +
+        : nameBlock +
+          '<button id="kb-addr-fill" style="margin-top:7px;width:100%;min-height:52px;border:0;border-radius:10px;' +
           // 주소가 틀린 동안에는 빨강 — 초록은 "다 됐다" 는 뜻이라 여기서는 거짓말입니다.
           'background:#d92d20;color:#fff;font-weight:900;font-size:15.5px;cursor:pointer;' +
           'animation:kbAlert 1.6s ease-out 3">' +
@@ -1889,17 +1930,31 @@
     )
     card.querySelector('#kb-helper-x').addEventListener('click', () => {
       card.remove()
+      // 카드를 닫으면 짚어 둔 표시도 함께 치웁니다 — 카드가 없는데 빨간
+      // 동그라미만 남아 있으면 무엇을 하라는 것인지 알 수 없습니다.
+      clearSpotlight()
       // 이 결제 화면에서만 닫힘 — 다른 결제·장바구니에는 그대로 나타납니다.
       try { sessionStorage.setItem(closedKey(), '1') } catch { /* 무시 */ }
       renderReopenChip()
     })
-    card.querySelector('#kb-addr-name')?.addEventListener('click', () => {
-      const next = window.prompt('상세주소에 넣을 본인 이름 (신청서의 받는 분과 동일하게)', getRecipientName())
-      if (next === null) return
-      try { localStorage.setItem(NAME_KEY, next.trim()) } catch { /* 무시 */ }
+    /**
+     * 소포에 적을 성함 — 창고가 소포 주인을 찾는 유일한 단서입니다.
+     * 예전에는 window.prompt 로 물었는데, 한 번 넣은 값이 어디에 쓰이는지
+     * 보이지 않아 시험 삼아 넣은 이름이 그대로 남았습니다 (운영자 26-09-06).
+     * 이제 카드 안 입력칸에 항상 보이고, 지우기도 그 자리에서 됩니다.
+     */
+    const nameInput = card.querySelector('#kb-name-input')
+    const saveName = (v) => {
+      try { localStorage.setItem(NAME_KEY, String(v ?? '').trim()) } catch { /* 무시 */ }
+      // 포커스를 놓아야 다시 그려집니다 — 치는 중에는 그리지 않도록 막아 두었으니까요.
+      try { nameInput?.blur() } catch { /* 무시 */ }
+      clearSpotlight() // "성함을 넣어주세요" 표시는 넣는 순간 치웁니다
       card.dataset.kbHtml = ''
       renderCheckoutHelper()
-    })
+    }
+    nameInput?.addEventListener('change', (e) => saveName(e.target.value))
+    nameInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(e.target.value) })
+    card.querySelector('#kb-name-clear')?.addEventListener('click', () => saveName(''))
     card.querySelector('#kb-addr-help')?.addEventListener('click', () => {
       helperAddrHelpOpen = !helperAddrHelpOpen
       card.dataset.kbHtml = ''
@@ -1971,9 +2026,58 @@
 
   const MONEY_HOSTS = ['checkout.coupang.com', 'cart.coupang.com']
 
+  /**
+   * 쿠팡 아무 화면에서나 보이는 시작 버튼 (운영자 26-09-06:
+   * "쿠팡 접속하면 바로 뜨도록").
+   *
+   * 상품 화면에는 견적 패널이, 결제·장바구니에는 도우미 카드가 이미 뜹니다.
+   * 그 밖의 화면(홈·검색·카테고리)에서는 아무것도 없어서, 우리 서비스로
+   * 들어올 입구가 보이지 않았습니다. 여기서 그 입구를 만듭니다.
+   */
+  const PRODUCT_PATH = /\/(vp|vm)\/products\//
+  const LAUNCH_CLOSED_KEY = 'kb-launch-closed'
+
+  async function renderLauncher() {
+    if (!IS_TOP) return
+    if (MONEY_HOSTS.includes(location.host) || PRODUCT_PATH.test(location.pathname)) return
+    try { if (sessionStorage.getItem(LAUNCH_CLOSED_KEY)) return } catch { /* 무시 */ }
+    if (document.getElementById('kb-launch')) return
+    if (!document.body) return
+
+    const cart = (await send('getCart'))?.cart ?? []
+    const wrap = document.createElement('div')
+    wrap.id = 'kb-launch'
+    wrap.dataset.kbUi = '1'
+    wrap.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483646;display:flex;align-items:flex-start;gap:6px'
+    const btn = document.createElement('button')
+    btn.style.cssText =
+      'min-width:188px;min-height:60px;display:flex;align-items:center;justify-content:center;gap:8px;' +
+      'padding:0 18px;border:0;border-radius:15px;background:#3182f6;color:#fff;' +
+      'font:800 16px/1.25 sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(49,130,246,.42)'
+    btn.innerHTML = '<span style="font-size:25px;line-height:1">🇻🇳</span>' +
+      '<span style="text-align:left">배송·구매대행 신청' +
+      `<span style="display:block;font-size:11.5px;font-weight:700;opacity:.9;margin-top:2px">${
+        cart.length > 0 ? `견적함 ${cart.length}개 — 신청서 열기` : '하노이 도착 가격 보기'}</span></span>`
+    btn.addEventListener('click', () => { send('openSite') })
+    const x = document.createElement('button')
+    x.textContent = '✕'
+    x.title = '이 탭에서 숨기기'
+    x.style.cssText =
+      'width:26px;height:26px;border:0;border-radius:50%;background:#fff;color:#8b95a1;' +
+      'font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18)'
+    x.addEventListener('click', () => {
+      try { sessionStorage.setItem(LAUNCH_CLOSED_KEY, '1') } catch { /* 무시 */ }
+      wrap.remove()
+    })
+    wrap.append(btn, x)
+    document.body.appendChild(wrap)
+  }
+
   async function run() {
     if (looksLikeOrderComplete()) return runOrderComplete()
     if (MONEY_HOSTS.includes(location.host)) return renderCheckoutHelper()
+    // 그 밖의 쿠팡 화면 — 우리 서비스로 들어올 입구를 띄웁니다.
+    return renderLauncher()
   }
 
   if (IS_TOP) {
@@ -1983,6 +2087,7 @@
     const timer = setInterval(() => {
       tries += 1
       run()
+      // 결제·장바구니가 아니면 몇 번만 시도합니다 (시작 버튼은 한 번 뜨면 끝).
       if (tries >= 8 && !MONEY_HOSTS.includes(location.host)) clearInterval(timer)
     }, 1500)
     run()

@@ -333,3 +333,65 @@ test('배송지 자동 등록은 단계별로 보여주고, 마지막 [저장]�
   // 주소가 맞아지면 단계 표는 사라집니다.
   assert.ok(cap.includes("if (ok) { helperAddrStep = ''"), '주소가 맞으면 단계 표를 지웁니다')
 })
+
+test('접힌 상태의 버튼은 무슨 버튼인지 글로 쓰고, 눈에 띄게 크다', () => {
+  /*
+   * 예전에는 지름 46~56px 짜리 🇻🇳 동그라미였습니다. "우측에 작게 표시되는
+   * VN 로고" 가 무슨 버튼인지 알 수 없다는 지적(운영자 26-09-06)에 따라
+   * 하는 일을 글로 쓴 큰 버튼으로 바꿨습니다.
+   */
+  const panel = readFileSync(new URL('../extension/src/content/panel.js', import.meta.url), 'utf8')
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  for (const [name, src] of [['상품 화면', panel], ['결제 화면', cap]]) {
+    assert.ok(src.includes('배송·구매대행 신청'), `${name}: 버튼에 하는 일을 써야 합니다`)
+    assert.ok(/min-width:\s*188px/.test(src) && /min-height:\s*60px/.test(src), `${name}: 예전(46~56px)보다 확실히 커야 합니다`)
+  }
+  // 동그라미로 되돌아가지 않게 (border-radius:50% + 고정 46/56px)
+  assert.ok(!/width:\s*46px;height:\s*46px/.test(cap), '작은 동그라미로 되돌리면 안 됩니다')
+  assert.ok(!/\.fab \{ width: 56px; height: 56px/.test(panel), '작은 동그라미로 되돌리면 안 됩니다')
+})
+
+test('쿠팡 어느 화면에서나 시작 버튼이 뜬다 — 단 상품·결제 화면은 빼고', () => {
+  // "쿠팡 접속하면 바로 뜨도록" (운영자 26-09-06). 홈·검색·카테고리에는
+  // 아무 입구가 없었습니다. 상품 화면에는 견적 패널이, 결제 화면에는
+  // 도우미 카드가 이미 뜨므로 거기서는 겹치지 않게 뺍니다.
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  const fn = cap.slice(at(cap, 'async function renderLauncher'), at(cap, "wrap.append(btn, x)"))
+  assert.ok(fn.includes('MONEY_HOSTS.includes(location.host)') && fn.includes('PRODUCT_PATH.test(location.pathname)'),
+    '상품·결제 화면에서는 그리지 않아야 합니다')
+  assert.ok(/PRODUCT_PATH = \/\\\/\(vp\|vm\)\\\/products\\\//.test(cap), '상품 화면 경로를 알아봐야 합니다')
+  assert.ok(fn.includes("send('openSite')"), '누르면 우리 화면으로 갑니다')
+  assert.ok(cap.includes('return renderLauncher()'), 'run() 이 시작 버튼을 그려야 합니다')
+  // 이 탭에서 닫을 수 있어야 합니다 (쇼핑을 가릴 수 있으니).
+  assert.ok(fn.includes('LAUNCH_CLOSED_KEY'), '닫으면 이 탭에서는 다시 뜨지 않아야 합니다')
+})
+
+test('소포에 적을 성함은 창(prompt)이 아니라 카드 안 입력칸에서 받는다', () => {
+  /*
+   * 창으로 물으면 한 번 넣은 값이 어디에 쓰이는지 다시 보이지 않아, 시험 삼아
+   * 넣은 이름이 그대로 남습니다 (운영자 26-09-06: "박승우는 샘플" ).
+   */
+  const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
+  assert.ok(!/window\.prompt\([^)]*이름/.test(stripComments(cap)), '이름을 창으로 묻지 않습니다')
+  assert.ok(cap.includes('id="kb-name-input"'), '카드 안에 성함 입력칸이 있어야 합니다')
+  assert.ok(cap.includes('kb-name-clear'), '지우는 방법도 그 자리에 있어야 합니다')
+  assert.ok(cap.includes('소포에 적을 성함'), '무엇을 넣는 칸인지 써야 합니다')
+  // 이름이 비어 있으면 자동 등록을 시작하지 않습니다 — 주인을 못 찾는 배송지가 됩니다.
+  const flow = cap.slice(at(cap, 'const name = getRecipientName()'), at(cap, 'const jobAt = Date.now()'))
+  assert.ok(flow.includes('성함을 먼저 넣어주세요') && flow.includes('return'), '이름 없이 진행하면 안 됩니다')
+  // 치는 도중에 카드가 다시 그려지면 글자가 날아갑니다.
+  assert.ok(cap.includes("document.activeElement?.id === 'kb-name-input'"), '치는 중에는 다시 그리지 않습니다')
+})
+
+test('신청서의 하노이 주소 입력칸은 언제나 보인다', () => {
+  /*
+   * 저장된 값이 있으면 입력칸을 접고 요약만 보여줬더니 "하노이 주소 입력하는
+   * 곳이 없고 바로 신청이 된다"는 일이 생겼습니다 (운영자 26-09-06).
+   * 배송지는 이 서비스에서 가장 비싼 실수가 나는 자리입니다.
+   */
+  const checkout = readFileSync(new URL('../pages/checkout.js', import.meta.url), 'utf8')
+  assert.ok(!checkout.includes('editRecipient'), '입력칸을 접는 상태가 남아 있으면 안 됩니다')
+  assert.ok(checkout.includes('하노이 주소 * (한국 주소 아님)'), '주소 입력칸이 있어야 합니다')
+  assert.ok(checkout.includes('setRecipientRestored'), '불러온 값임을 알려야 합니다')
+  assert.ok(checkout.includes('이 주소가 맞는지 확인해 주세요'), '확인하라고 말해야 합니다')
+})

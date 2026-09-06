@@ -13,9 +13,17 @@ const KBPanel = (() => {
 :host { all: initial; }
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
 .wrap { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000; width: 340px; max-width: calc(100vw - 32px); }
-.fab { width: 56px; height: 56px; border-radius: 50%; border: 0; margin-left: auto; display: flex;
-  align-items: center; justify-content: center; font-size: 24px; cursor: pointer;
-  background: #3182f6; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.22); }
+/*
+ * 접었을 때 보이는 버튼 — 예전에는 지름 56px 짜리 🇻🇳 동그라미였습니다.
+ * 무슨 버튼인지 알 수 없고 눈에도 안 띈다는 지적(운영자 26-09-06)에 따라
+ * 하는 일을 글로 쓴 **큰 버튼**으로 바꿉니다 (넓이 기준 약 3배).
+ */
+.fab { min-width: 188px; min-height: 60px; border-radius: 15px; border: 0; margin-left: auto;
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px;
+  font: 800 16px/1.25 inherit; text-align: left; cursor: pointer;
+  background: #3182f6; color: #fff; box-shadow: 0 6px 20px rgba(49,130,246,.42); }
+.fab .fab-ico { font-size: 25px; line-height: 1 }
+.fab .fab-sub { display: block; font-size: 11.5px; font-weight: 700; opacity: .9; margin-top: 2px }
 .fab[data-state="blocked"] { background: #c53030; }
 .fab[data-state="error"] { background: #4e5968; }
 .card { background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(27,18,32,.2);
@@ -493,7 +501,9 @@ const KBPanel = (() => {
         : state.view === 'maintenance' ? '🌙'
         : state.view === 'manual-quote' ? '📋'
         : '🇻🇳'
-      wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="하노이 배송 견적">${icon}</button>`
+      wrap.innerHTML = `<button class="fab" data-state="${fabState()}" title="하노이 배송 견적">` +
+        `<span class="fab-ico">${icon}</span><span>배송·구매대행 신청` +
+        '<span class="fab-sub">하노이 도착 가격 보기</span></span></button>'
       wrap.querySelector('.fab').addEventListener('click', () => {
         open = true
         render()

@@ -54,7 +54,8 @@ export default function Checkout() {
   const [zone, setZone] = useState(SHIPPING.defaultZone)
   const [form, setForm] = useState({ name: '', phone: '', address: '', email: '' })
   /** 받는 분 정보를 펼쳐서 고칠지 — 저장된 값이 있으면 접힌 채로 시작합니다 */
-  const [editRecipient, setEditRecipient] = useState(true)
+  /** 저장된 값을 불러왔는가 — 안내 문구에만 씁니다 (입력칸은 항상 보입니다) */
+  const [recipientRestored, setRecipientRestored] = useState(false)
   const [methods, setMethods] = useState([])
   const [paymentMethod, setPaymentMethod] = useState('manual-bank')
   /**
@@ -89,9 +90,14 @@ export default function Checkout() {
           address: saved.address ?? '',
           email: saved.email ?? '',
         }))
-        // 저장된 값이 다 차 있으면 입력칸을 접고 요약만 보여줍니다 —
-        // 다시 오신 분이 같은 정보를 또 치지 않게. [바꾸기]로 언제든 펼칩니다.
-        if (saved.name && saved.phone && saved.address) setEditRecipient(false)
+        /*
+         * 예전에는 저장된 값이 다 차 있으면 입력칸을 **접고** 요약만 보여줬습니다.
+         * 그랬더니 "하노이 주소 입력하는 곳이 없고 바로 신청이 된다"는 일이
+         * 생겼습니다 (운영자 26-09-06). 배송지는 이 서비스에서 가장 비싼
+         * 실수가 나는 자리라, 다시 오신 분에게도 **항상 보이게** 합니다.
+         * 값은 채워 드리니 확인만 하시면 됩니다.
+         */
+        if (saved.name || saved.phone || saved.address) setRecipientRestored(true)
       }
     } catch { /* 저장값이 없거나 손상 — 빈 폼으로 시작 */ }
     recipientLoaded.current = true
@@ -399,28 +405,18 @@ export default function Checkout() {
               요약만 보여주고, 고치실 때만 [바꾸기]로 입력칸을 펼칩니다.
               (저장은 이 브라우저 안에만 — 서버로 보내지 않습니다)
             */}
-            {!editRecipient ? (
-              <div style={{
-                display: 'flex', alignItems: 'flex-start', gap: 12,
-                padding: '14px 16px', border: '2px solid #e5e8eb', borderRadius: 12, background: '#fbfcfd',
+            {recipientRestored ? (
+              <p className="note" style={{
+                marginBottom: 12, fontSize: 12.5, fontWeight: 700, color: '#17916b',
+                background: '#e6f6f0', border: '1px solid #b7e4d2', borderRadius: 9, padding: '9px 11px',
               }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: '#191f28' }}>{form.name}</div>
-                  <div style={{ fontSize: 15, color: '#4e5968', marginTop: 3 }}>{form.phone}</div>
-                  <div style={{ fontSize: 14.5, color: '#4e5968', marginTop: 3, lineHeight: 1.5 }}>{form.address}</div>
-                  {form.email ? <div style={{ fontSize: 13.5, color: '#8b95a1', marginTop: 3 }}>{form.email}</div> : null}
-                </div>
-                <button type="button" onClick={() => setEditRecipient(true)}
-                  style={{
-                    flexShrink: 0, padding: '10px 14px', minHeight: 44, borderRadius: 10,
-                    border: '2px solid #dbe4f0', background: '#fff', color: '#3182f6',
-                    fontSize: 15, fontWeight: 800, cursor: 'pointer',
-                  }}>바꾸기</button>
-              </div>
-            ) : (<>
-            <p className="note" style={{ marginBottom: 12, fontSize: 12 }}>
-              한 번만 적어주시면 이 브라우저에 저장돼, 다음부터는 확인만 하시면 됩니다.
-            </p>
+                ✓ 지난번에 넣으신 정보를 불러왔습니다 — <b>이 주소가 맞는지 확인해 주세요.</b>
+              </p>
+            ) : (
+              <p className="note" style={{ marginBottom: 12, fontSize: 12 }}>
+                한 번만 적어주시면 이 브라우저에 저장돼, 다음부터는 확인만 하시면 됩니다.
+              </p>
+            )}
             {[
               ['name', '받는 분 이름 *', 'Nguyễn Thị Mai / 홍길동', 'text'],
               ['phone', '베트남 전화번호 *', '09xx xxx xxx', 'tel'],
@@ -454,7 +450,6 @@ export default function Checkout() {
                 </p>
               </div>
             )}
-            </>)}
           </div>
         </section>
 
