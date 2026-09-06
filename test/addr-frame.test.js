@@ -154,3 +154,44 @@ test('창 안에 손이 닿지 않으면, 창 뒤에 가려진 버튼을 그만 
     '표시를 거두고 창 안에서 무엇을 누를지 안내해야 합니다')
   assert.ok(cap.includes('MANUAL_MSG.frame') && /frame: `쿠팡 창 안에서/.test(cap), '창 안 안내 문구')
 })
+
+test('배송 요청사항 창도 프레임 안에서 이어받는다', () => {
+  /*
+   * 26-09-06 사장님 진단: 배송 요청사항 창도 배송지 창과 같은 id.coupang.com
+   * 프레임에 그려집니다. 최상위에서는 창 안의 보기(문 앞·비밀번호없이 출입)가
+   * 보이지 않아, 창 뒤에 가려진 [변경]을 계속 짚고 있었습니다.
+   */
+  assert.ok(cap.includes("const NOTE_JOB_KEY = 'kbNoteJob'") && cap.includes("const NOTE_STATE_KEY = 'kbNoteJobState'"),
+    '요청사항도 작업·보고 키로 최상위와 프레임이 말합니다')
+  const helper = cap.slice(at(cap, 'const noteWork = async (job)'), at(cap, '// 프레임이 창과 함께 나중에'))
+  for (const mark of ["report(key)", "report(key, true)", "report('noteSave')", "report('done')", "report('failed')"]) {
+    assert.ok(helper.includes(mark), `프레임 보고: ${mark}`)
+  }
+  assert.ok(helper.includes("clickChoice(key, root)"), '보기는 창 안에서만 고릅니다')
+  assert.ok(helper.includes("spotlight(findExact('noteSave'), '👆 저장을 눌러주세요')"), '저장이 안 눌리면 짚어줍니다')
+
+  // 최상위는 보고를 비추고, 창이 사라져 보고가 끊겨도 화면 요약으로 끝을 압니다.
+  const top = cap.slice(at(cap, 'async function runDeliveryNote'), at(cap, '// ②-b'))
+  assert.ok(top.includes('await readNoteState(jobAt)'), '프레임 보고를 읽습니다')
+  assert.ok(top.includes('noteLooksSet(pageTextSansOurUi())'),
+    '저장하면 창이 통째로 사라져 마지막 보고가 없습니다 — 화면 요약으로도 끝을 알아야 합니다')
+  assert.ok(top.includes('chrome.storage.local.remove([NOTE_JOB_KEY, NOTE_STATE_KEY])'), '끝나면 작업을 지웁니다')
+})
+
+test('주소 검색이 창 안에 그려지는 화면도 처리한다', () => {
+  /*
+   * 26-09-06 사장님 화면: 쿠팡이 우편번호 검색을 다음(Daum) 프레임이 아니라
+   * **창 안에 직접** 그렸습니다. 그러면 postcode-fill.js 가 돌지 않고, 우리는
+   * "아직 [우편번호 찾기]를 안 눌렀다"고 오해해 엉뚱한 곳을 짚습니다.
+   */
+  assert.ok(cap.includes('function addrSearchInput'), '창 안 검색칸을 알아봐야 합니다')
+  assert.ok(cap.includes('async function searchAddressInPlace'), '거기서 바로 검색·선택합니다')
+  const fn = block('function addrSearchInput')
+  assert.ok(fn.includes('NOT_SEARCHY'), '상세주소·받는사람 칸을 검색칸으로 착각하면 안 됩니다')
+  const search = cap.slice(at(cap, 'async function searchAddressInPlace'), at(cap, '/** 다음 우편번호 프레임'))
+  assert.ok(search.includes("hitsKey('zipSubmit'"), '돋보기(검색) 버튼도 눌러봅니다')
+  assert.ok(/예:\|Tip\|팁/.test(search), '"도로명 + 건물번호 (예: …)" 안내를 결과로 착각하면 안 됩니다')
+  // 두 흐름(최상위·프레임) 모두에서 씁니다.
+  // 최상위 흐름과 프레임 흐름 두 군데에서 부릅니다 (선언 1 + 호출 2)
+  assert.equal(cap.split('searchAddressInPlace(addr1)').length - 1, 3, '최상위와 프레임 모두에서 씁니다')
+})

@@ -383,7 +383,8 @@ test('소포에 적을 성함은 창(prompt)이 아니라 카드 안 입력칸�
   assert.ok(/font-size:13.5px;font-weight:900;color:#7a4b00/.test(cap), '그 한 줄은 굵고 크게')
   assert.ok(!/<div[^>]*>🏷 소포에 적을 성함/.test(cap), '칸 위에 따로 라벨을 두지 않습니다')
   // 이름이 비어 있으면 자동 등록을 시작하지 않습니다 — 주인을 못 찾는 배송지가 됩니다.
-  const flow = cap.slice(at(cap, 'const name = getRecipientName()'), at(cap, 'const jobAt = Date.now()'))
+  // 이름을 확인한 **바로 뒤**에 막아야 합니다 (사이에 다른 일이 끼면 이미 늦습니다)
+  const flow = cap.slice(at(cap, 'const name = getRecipientName()')).slice(0, 900)
   assert.ok(flow.includes('성함을 먼저 넣어주세요') && flow.includes('return'), '이름 없이 진행하면 안 됩니다')
   // 치는 도중에 카드가 다시 그려지면 글자가 날아갑니다.
   assert.ok(cap.includes("document.activeElement?.id === 'kb-name-input'"), '치는 중에는 다시 그리지 않습니다')

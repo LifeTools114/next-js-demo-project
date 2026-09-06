@@ -570,6 +570,77 @@
   }
   const daumOpen = () => allRoots().some((d) =>
     [...d.querySelectorAll('iframe')].some((f) => /daum|postcode/i.test(f.src ?? '')))
+  /**
+   * 주소 검색창 — 쿠팡은 우편번호 검색을 **창 안에 직접** 그리기도 합니다
+   * (26-09-06 사장님 화면: id.coupang.com 창 안에 "도로명, 건물명, 번지 검색").
+   * 그러면 다음(Daum) 프레임이 열리지 않아 postcode-fill.js 가 돌지 않고,
+   * 우리는 "아직 [우편번호 찾기]를 안 눌렀다" 고 오해합니다.
+   * 그래서 이 검색칸을 알아보고 여기서 직접 검색·선택합니다.
+   */
+  const SEARCHY = /도로명|건물명|번지|우편번호|주소검색|검색/
+  const NOT_SEARCHY = /상세|받는|이름|성함|전화|휴대|연락/
+  function addrSearchInput() {
+    for (const d of allRoots()) {
+      let els
+      try { els = d.querySelectorAll('input[type="text"], input[type="search"], input:not([type])') } catch { continue }
+      for (const el of els) {
+        if (!el.offsetParent || el.closest('[data-kb-ui]') || el.readOnly) continue
+        const hint = [el.placeholder, el.getAttribute('aria-label'), el.name, el.id, el.className]
+          .map((v) => String(v ?? '')).join(' ')
+        if (SEARCHY.test(hint) && !NOT_SEARCHY.test(hint)) return el
+      }
+    }
+    return null
+  }
+
+  /**
+   * 창 안 검색칸으로 창고 주소를 찾아 고릅니다.
+   * 도로명(마지막 세 토막)으로 검색하고, 결과 줄에서 그 도로명이 든 것을 누릅니다.
+   * @returns {Promise<boolean>} 결과를 골랐으면 true
+   */
+  async function searchAddressInPlace(addr1) {
+    const input = addrSearchInput()
+    if (!input) return false
+    const road = String(addr1 ?? '').split(/\s+/).slice(-3).join(' ')
+    const tok = squash(road)
+    if (!tok) return false
+    setNativeValue(input, road)
+    const win = input.ownerDocument?.defaultView ?? window
+    try {
+      input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }))
+      input.form?.dispatchEvent(new win.Event('submit', { bubbles: true, cancelable: true }))
+    } catch { /* 무시 */ }
+    // 돋보기 버튼도 눌러봅니다 — Enter 를 안 받는 화면이 있습니다.
+    for (const d of allRoots()) {
+      const btn = [...d.querySelectorAll('button, a, [role="button"]')].find((b) => {
+        if (!b.offsetParent || b.closest('[data-kb-ui]')) return false
+        const t = candText(b)
+        return hitsKey('zipSubmit', t) || /search|검색/i.test(String(b.className) + ' ' + (b.getAttribute('aria-label') ?? ''))
+      })
+      if (btn) { fireClick(btn); break }
+    }
+    // 결과에서 도로명이 든 줄을 누릅니다.
+    const until = Date.now() + 12_000
+    while (Date.now() < until) {
+      await sleep(500)
+      for (const d of allRoots()) {
+        let els
+        try { els = d.querySelectorAll('li, tr, a, button, div, p, span') } catch { continue }
+        for (const el of els) {
+          if (!el.offsetParent || el.closest('[data-kb-ui]') || el.childElementCount > 6) continue
+          const t = squash(el.textContent)
+          if (!t.includes(tok) || t.length > 200) continue
+          // 안내 문구("도로명 + 건물번호 (예: …)")가 아니라 결과 줄이어야 합니다.
+          if (/예:|Tip|팁/.test(el.textContent)) continue
+          const target = el.matches('a, button, li') ? el : (el.closest('a, button, li') ?? el)
+          fireClick(target)
+          return true
+        }
+      }
+    }
+    return false
+  }
+
   /** 다음 우편번호 프레임(postcode-fill.js)에 남기는 검색 요청 */
   const postcodeQuery = (addr1) => ({ q: addr1, road: addr1.split(/\s+/).slice(-3).join(' '), at: Date.now() })
   /**
@@ -704,17 +775,33 @@
     const step = (id) => { helperNoteStep = id; redrawCard() }
     const stop = (msg, ok) => {
       helperNoteBusy = false
+      helperNoteManual = ''
       clearSpotlight()
+      // 프레임 쪽 도우미도 멈추게 — 남겨 두면 다음 창에서 옛 작업을 잇습니다.
+      try { chrome.storage.local.remove([NOTE_JOB_KEY, NOTE_STATE_KEY]) } catch { /* 무시 */ }
       toast(msg, ok)
       redrawCard()
     }
     const WAIT = globalThis.__kbNoteWaitMs ?? 40_000
 
-    // ① 창 열기 — 창이 열렸는지는 «비밀번호없이 출입» 문구로만 판단합니다.
+    /**
+     * 창이 다른 출처 프레임에 그려지면 최상위에서는 창 안이 보이지 않습니다.
+     * 프레임 쪽 도우미가 이어받도록 작업을 남기고, 그 보고를 단계 표시에 비춥니다.
+     */
+    const jobAt = Date.now()
+    try {
+      await chrome.storage.local.remove(NOTE_STATE_KEY)
+      await chrome.storage.local.set({ [NOTE_JOB_KEY]: { at: jobAt } })
+    } catch { /* 저장 불가 — 최상위 눈으로만 진행 */ }
+
+    // ① 창 열기 — [변경] 버튼은 최상위 화면에 있습니다.
     step('noteOpen')
     const started = Date.now()
     let asked = false
-    while (Date.now() - started < WAIT && !noteModalOpen()) {
+    let fromFrame = null
+    while (Date.now() - started < WAIT) {
+      fromFrame = await readNoteState(jobAt)
+      if (fromFrame || noteModalOpen()) break
       const opener = noteOpenTarget()
       if (opener) fireClick(opener)
       if (!asked && Date.now() - started > 2_000) {
@@ -725,13 +812,46 @@
       }
       await sleep(500)
     }
+
+    // ②-a 프레임이 맡았습니다 — 보고를 그대로 비춥니다 (표시는 프레임이 창 안에 그립니다).
+    if (fromFrame || (!noteModalOpen() && (await readNoteState(jobAt)))) {
+      clearSpotlight()
+      helperNoteManual = ''
+      const until = Date.now() + 150_000
+      while (Date.now() < until) {
+        /**
+         * 저장하면 창(프레임)이 통째로 사라져 마지막 보고를 못 남깁니다.
+         * 그래서 화면 요약이 맞아졌는지도 함께 봅니다 — 그게 진짜 결과입니다.
+         */
+        if (noteLooksSet(pageTextSansOurUi())) {
+          helperNoteDone = true
+          helperNoteStep = ''
+          return stop('✓ 배송 요청사항을 «문 앞 · 비밀번호없이 출입» 으로 맞췄습니다.', true)
+        }
+        const st = await readNoteState(jobAt)
+        if (st) {
+          if (st.step === 'done') {
+            helperNoteDone = true
+            helperNoteStep = ''
+            return stop('✓ 배송 요청사항을 «문 앞 · 비밀번호없이 출입» 으로 맞췄습니다.', true)
+          }
+          if (st.step === 'failed') return stop('창에서 «문 앞»과 «비밀번호없이 출입 가능해요» 를 직접 골라주세요.', false)
+          helperNoteStep = st.step
+          helperNoteManual = st.manual ? st.step : ''
+          redrawCard()
+        }
+        await sleep(500)
+      }
+      return stop('시간이 지났습니다 — 창에서 두 가지를 직접 골라주세요.', false)
+    }
+
     if (!noteModalOpen()) {
       return stop('배송 요청사항 창을 열지 못했습니다 — [변경]을 직접 눌러주세요.', false)
     }
     clearSpotlight()
     helperNoteManual = ''
 
-    // ② 문 앞 → ③ 비밀번호없이 출입 — 반드시 **창 안에서** 고릅니다.
+    // ②-b 이 화면에서 창이 보입니다 — 문 앞 → 비밀번호없이 출입.
     for (const key of ['noteDoor', 'noteNoCode']) {
       step(key)
       let hit = null
@@ -749,7 +869,7 @@
       clearSpotlight()
     }
 
-    // ④ 저장 — 창이 닫히면 된 것으로 봅니다.
+    // ③ 저장 — 창이 닫히면 된 것으로 봅니다.
     step('noteSave')
     let saved = false
     for (let i = 0; i < 8 && !saved; i++) {
@@ -1074,11 +1194,26 @@
    */
   const JOB_KEY = 'kbAddrJob'
   const JOB_STATE_KEY = 'kbAddrJobState'
+  /**
+   * 배송 요청사항도 같은 방식입니다 — 창이 다른 출처 프레임에 그려지면
+   * 최상위에서는 창 안의 보기(문 앞·비밀번호없이 출입)가 보이지 않습니다
+   * (26-09-06 사장님 화면: 창은 열렸는데 창 뒤 [변경]을 계속 짚고 있었습니다).
+   */
+  const NOTE_JOB_KEY = 'kbNoteJob'
+  const NOTE_STATE_KEY = 'kbNoteJobState'
   const JOB_FRESH_MS = 150_000
   /** 프레임이 맡았을 때 최상위가 더 기다려 주는 시간 (입력·검색까지) */
   const FRAME_EXTRA_MS = 60_000
   /** 최상위가 마지막으로 본 프레임 보고 — 진단 정보에 실립니다 */
   let lastFrameState = null
+
+  /** 배송 요청사항 — 지금 작업에 대한 프레임 보고만 인정 */
+  async function readNoteState(jobAt) {
+    try {
+      const st = (await chrome.storage.local.get(NOTE_STATE_KEY))?.[NOTE_STATE_KEY]
+      return st && st.jobAt === jobAt ? st : null
+    } catch { return null }
+  }
 
   /** 최상위가 읽습니다 — 지금 작업(jobAt)에 대한 프레임 보고만 인정 */
   async function readFrameState(jobAt) {
@@ -1161,6 +1296,7 @@
       let formSeen = 0
       let zipAt = 0
       let daumSeen = false
+      let searchTried = 0 // 창 안 검색칸으로 검색을 시도한 시각
       while (Date.now() - started < JOB_FRESH_MS) {
         if (!(await alive())) { clearSpotlight(); running = 0; return }
         // ① 저장된 창고 주소가 있으면 그 행의 [선택] 하나로 끝 (두 번째 이용부터)
@@ -1186,6 +1322,25 @@
           await sleep(300)
           continue
         }
+        /**
+         * ②-a 창 안에 주소 검색칸이 떠 있으면 여기서 바로 검색·선택합니다.
+         * (다음 프레임이 아니라 창 안에 그려지는 화면 — 26-09-06 사장님 화면)
+         */
+        if (addrSearchInput()) {
+          clearSpotlight()
+          await set('search')
+          if (!searchTried) {
+            searchTried = Date.now()
+            const picked = await searchAddressInPlace(addr1)
+            if (picked) daumSeen = true
+            else await set('search', true) // 직접 골라 달라고 안내
+          } else if (Date.now() - searchTried > 14_000) {
+            await set('search', true)
+          }
+          await sleep(600)
+          continue
+        }
+
         // ② 입력폼 — 받는사람·휴대폰 채우고 우편번호 검색
         const zipEl = findExact('zipSearch')
         if (zipEl) {
@@ -1240,15 +1395,81 @@
       running = 0
     }
 
+    /**
+     * 배송 요청사항 — 창 안의 보기를 고르고 저장까지. 창이 이 프레임에 있을 때만
+     * 움직이고, 보고는 kbNoteJobState 로 남깁니다.
+     */
+    let noteRunning = 0
+    const noteWork = async (job) => {
+      if (noteRunning === job.at) return
+      noteRunning = job.at
+      try { PAT?.apply((await chrome.storage.local.get('config'))?.config?.coupang) } catch { /* 번들 기본값 */ }
+      const report = async (step, manual) => {
+        try {
+          await chrome.storage.local.set({
+            [NOTE_STATE_KEY]: { jobAt: job.at, step, manual: Boolean(manual), at: Date.now(), host: location.host },
+          })
+        } catch { /* 저장 불가 */ }
+      }
+      const until = Date.now() + 150_000
+      const picked = { noteDoor: false, noteNoCode: false }
+      while (Date.now() < until) {
+        if (!noteModalOpen()) { await sleep(500); continue }
+        const root = noteModalRoot()
+        for (const key of ['noteDoor', 'noteNoCode']) {
+          if (picked[key]) continue
+          await report(key)
+          let hit = null
+          for (let i = 0; i < 6 && !hit; i++) {
+            hit = clickChoice(key, root)
+            if (!hit) await sleep(400)
+          }
+          if (hit) {
+            picked[key] = true
+            clearSpotlight()
+          } else {
+            await report(key, true)
+            spotlight(findExactIn(root, key) ?? findExact(key), '👆 여기를 골라주세요')
+          }
+        }
+        if (!(picked.noteDoor && picked.noteNoCode)) { await sleep(600); continue }
+        await report('noteSave')
+        let saved = false
+        for (let i = 0; i < 8 && !saved; i++) {
+          clickExact('noteSave')
+          await sleep(500)
+          saved = !noteModalOpen()
+        }
+        if (!saved) {
+          await report('noteSave', true)
+          spotlight(findExact('noteSave'), '👆 저장을 눌러주세요')
+          while (Date.now() < until && noteModalOpen()) await sleep(700)
+        }
+        clearSpotlight()
+        await report('done')
+        noteRunning = 0
+        return
+      }
+      clearSpotlight()
+      await report('failed')
+      noteRunning = 0
+    }
+
     // 프레임이 창과 함께 나중에 만들어지는 경우(흔함): 이미 걸려 있는 작업을 바로 잇습니다.
     const job = await readJob()
     if (fresh(job)) work(job)
+    try {
+      const nj = (await chrome.storage.local.get(NOTE_JOB_KEY))?.[NOTE_JOB_KEY]
+      if (nj?.at && Date.now() - nj.at < JOB_FRESH_MS) noteWork(nj)
+    } catch { /* 무시 */ }
     // 프레임이 먼저 있고 [자동입력]이 나중에 눌리는 경우: 작업이 걸리는 순간 시작합니다.
     try {
       chrome.storage.onChanged.addListener((changes, area) => {
-        if (area !== 'local' || !changes[JOB_KEY]) return
-        const j = changes[JOB_KEY].newValue
+        if (area !== 'local') return
+        const j = changes[JOB_KEY]?.newValue
         if (fresh(j)) work(j)
+        const nj = changes[NOTE_JOB_KEY]?.newValue
+        if (nj?.at && Date.now() - nj.at < JOB_FRESH_MS) noteWork(nj)
       })
     } catch { /* onChanged 없음(테스트 스텁) — 처음 읽은 것만 */ }
   }
@@ -1723,6 +1944,7 @@
       let detailDone = 0
       let zipAsked = false
       let daumSeen = false
+      let topSearchTried = 0
       /**
        * "주소를 골랐다" 는 신호는 두 가지입니다.
        *   ① 다음 우편번호 창이 열렸다가 닫혔다 (postcode-fill.js 가 골랐거나 고객이 골랐거나)
@@ -1738,6 +1960,15 @@
           clearSpotlight() // 검색창이 열렸으면 표시는 방해만 됩니다
           if (helperAddrWaitManual) setWait('', '') // "직접 눌러주세요" 는 끝 — 검색·선택은 자동입니다
           setStep('search')
+          continue
+        }
+        // 창 안에 주소 검색칸이 그려지는 화면 — 여기서 바로 검색·선택합니다.
+        if (!topSearchTried && addrSearchInput()) {
+          topSearchTried = Date.now()
+          clearSpotlight()
+          if (helperAddrWaitManual) setWait('', '')
+          setStep('search')
+          if (await searchAddressInPlace(addr1)) daumSeen = true
           continue
         }
         if (daumSeen || addressChosen(addr1)) {
