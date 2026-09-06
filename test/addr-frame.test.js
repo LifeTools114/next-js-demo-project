@@ -122,3 +122,35 @@ test('클릭 대상·저장된 행·입력칸 찾기는 열린 shadow root 까�
   const roots = block('function allRoots')
   assert.ok(roots.includes('el.shadowRoot'), 'shadowRoot 를 따라 들어갑니다')
 })
+
+test('배송지 창을 띄우는 쿠팡 주소가 모두 실려 있다 (id.coupang.com)', () => {
+  /*
+   * 26-09-06 사장님 진단: 창이 **id.coupang.com 프레임(540x723)** 에 그려지는데
+   * manifest 에 그 주소가 없어 우리 스크립트가 그 안에서 돌지 못했습니다
+   * (frameState: null). 창은 열려 있는데 확장은 ① 에서 멈춰, 창 뒤에 가려진
+   * [배송지 변경] 을 계속 짚고 있었습니다.
+   */
+  const entry = manifest.content_scripts.find((c) => c.js.includes('src/content/order-capture.js'))
+  assert.ok(entry.matches.includes('https://id.coupang.com/*'), '배송지 창 프레임 주소가 빠지면 창 안에서 아무것도 못 합니다')
+  assert.ok(manifest.host_permissions.includes('https://id.coupang.com/*'), 'host_permissions 에도 있어야 합니다')
+})
+
+test('창 안에 손이 닿지 않으면, 창 뒤에 가려진 버튼을 그만 짚는다', () => {
+  /*
+   * 쿠팡이 또 다른 주소로 창을 옮기면 같은 일이 반복됩니다. 그때 최소한
+   * 엉뚱한 곳을 짚지는 말아야 합니다 — 틀린 자리를 짚는 표시는 안 짚느니만 못합니다.
+   * (가짜 화면 frame-blind 로 확인: 표시가 사라지고 문구가 창 안 안내로 바뀝니다)
+   */
+  const fn = block('function bigCrossFrame')
+  assert.ok(/r\.width < 320 \|\| r\.height < 320/.test(fn), '작은 다리 프레임(0x0)은 창이 아닙니다')
+  assert.ok(fn.includes('getComputedStyle'), '보이는지 판단은 계산된 스타일로')
+  assert.ok(!/f\.offsetParent/.test(fn), // 설명하는 주석은 남아 있어도 됩니다 — 쓰지만 않으면
+
+    '창은 position:fixed 라 offsetParent 가 null 입니다 — 그걸로 판단하면 창을 못 알아봅니다')
+
+  const loop = cap.slice(at(cap, 'while (!mode) {'), at(cap, 'savedSel = findSavedSelect(code)'))
+  assert.ok(loop.includes('bigCrossFrame()'), '감시 루프가 창이 떠 있는지 봐야 합니다')
+  assert.ok(loop.includes("setWait('frame', MANUAL_MSG.frame)") && loop.includes('clearSpotlight()'),
+    '표시를 거두고 창 안에서 무엇을 누를지 안내해야 합니다')
+  assert.ok(cap.includes('MANUAL_MSG.frame') && /frame: `쿠팡 창 안에서/.test(cap), '창 안 안내 문구')
+})

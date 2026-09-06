@@ -104,12 +104,28 @@ const KBExtract = (() => {
         if (!isProduct) continue
 
         const offers = Array.isArray(c.offers) ? c.offers[0] : c.offers
-        const price = toNumber(offers?.price ?? offers?.lowPrice)
+        /**
+         * offers.price 가 있으면 **그 상품 하나의 값**입니다.
+         * 없고 lowPrice 만 있으면(AggregateOffer) 색상·사이즈 옵션들 중
+         * **가장 싼 것**의 값입니다 — 고객이 고른 옵션의 값이 아닙니다.
+         *
+         * 26-09-06 운영자 화면: 카라티(18컬러 S-5L)에서 화면은 21,800원인데
+         * JSON-LD 최저가는 10,900원이었습니다. 그대로 쓰면 구매대행에서
+         * 한 벌당 10,900원을 우리가 물어야 합니다. 그래서 확정값인지
+         * 아닌지를 표시해 두고, 아래에서 화면 값과 견줍니다.
+         */
+        const exact = toNumber(offers?.price)
+        const low = toNumber(offers?.lowPrice)
+        const high = toNumber(offers?.highPrice)
         if (!c.name) continue
 
         return {
           productName: String(c.name).trim(),
-          price,
+          price: exact ?? low,
+          /** 고른 옵션의 값으로 믿어도 되는가 (AggregateOffer 의 최저가는 아님) */
+          priceExact: Boolean(exact),
+          lowPrice: low,
+          highPrice: high,
           image: typeof c.image === 'string' ? c.image : c.image?.[0] ?? null,
           brand: typeof c.brand === 'string' ? c.brand : c.brand?.name ?? null,
           source: 'json-ld',
@@ -131,6 +147,8 @@ const KBExtract = (() => {
     return {
       productName: name.replace(/\s*[-|]\s*쿠팡!?\s*$/, '').trim(),
       price: toNumber(meta('product:price:amount') ?? meta('og:price:amount')),
+      priceExact: true, // meta 가격은 이 상품 하나의 값입니다
+
       image: meta('og:image'),
       brand: meta('product:brand'),
       source: 'meta',
@@ -143,7 +161,9 @@ const KBExtract = (() => {
     if (!name) return null
     return {
       productName: name,
-      price: toNumber(text(first(selectors.price))),
+      // 셀렉터가 빗나가도 화면에서 제일 큰 금액으로 찾아냅니다 —
+      // 값이 멀쩡히 떠 있는데 "가격을 읽지 못했습니다" 만 나오면 안 됩니다.
+      price: toNumber(text(first(selectors.price))) ?? screenPriceWide(),
       image: null,
       brand: null,
       source: 'selector',
@@ -315,6 +335,105 @@ const KBExtract = (() => {
     return rects.some((b) => Math.abs((b.top + b.bottom) / 2 - mid) <= 120)
   }
 
+  /** 요소의 글자 모양 — 화면에서 제일 큰 금액을 고르는 데 씁니다 */
+  const styleOf = (el) => {
+    try {
+      const view = el.ownerDocument?.defaultView ?? globalThis.window
+      const cs = view?.getComputedStyle?.(el)
+      if (cs) return cs
+    } catch { /* 접근 불가 */ }
+    return el.style ?? {}
+  }
+  const PRICE_TEXT = /^[0-9][0-9,]{2,}원$/
+
+  /**
+   * 화면에 **크게** 떠 있는 금액 — 고객이 실제로 보고 있는 값입니다.
+   *
+   * 셀렉터(.total-price 등)가 쿠팡의 새 화면에서 다 빗나가므로, 구조 대신
+   * "구매 버튼 위쪽 본문에서 글자가 가장 큰 금액" 으로 찾습니다.
+   * 취소선(정가)과 장바구니 미리보기·추천 상품 값은 제외합니다.
+   */
+  function screenPriceWide() {
+    const buys = buyButtonRects()
+    const floor = buys.length > 0 ? Math.min(...buys.map((r) => r.bottom)) : Infinity
+    const rightEdge = buys.length > 0 ? Math.max(...buys.map((r) => r.right)) : Infinity
+    let nodes
+    try { nodes = document.querySelectorAll('strong, span, div, b, em, p, dd') } catch { return null }
+    let best = null
+    for (const el of nodes) {
+      const t = String(el.textContent ?? '').replace(/\s+/g, '')
+      if (!PRICE_TEXT.test(t)) continue
+      // 같은 금액을 감싸고 있는 껍데기는 건너뜁니다 — 가장 안쪽만 봅니다.
+      if ([...(el.children ?? [])].some((c) => PRICE_TEXT.test(String(c.textContent ?? '').replace(/\s+/g, '')))) continue
+      if (!visible(el)) continue
+      const r = rectOf(el)
+      // 구매 버튼보다 아래(추천 상품)·오른쪽(장바구니 미리보기)은 이 상품의 값이 아닙니다.
+      if (!r || r.top > floor || r.left > rightEdge) continue
+      const st = styleOf(el)
+      // 취소선은 정가입니다 (31% 31,600원)
+      if (/line-through/.test(String(st.textDecoration ?? st.textDecorationLine ?? ''))) continue
+      if (el.closest?.('del, s, strike')) continue
+      const n = toNumber(t)
+      if (!n) continue
+      const size = Number.parseFloat(st.fontSize) || 0
+      if (!best || size > best.size) best = { n, size }
+    }
+    return best?.n ?? null
+  }
+
+  /** 화면 금액 — 셀렉터 먼저, 빗나가면 넓은 그물 */
+  function readScreenPrice() {
+    return toNumber(text(first(selectors.price))) ?? screenPriceWide()
+  }
+
+  /**
+   * 낱개 값을 정합니다 — **고객이 화면에서 보는 값**이 기준입니다.
+   *
+   * JSON-LD 를 무턱대고 믿으면 안 되는 경우가 둘 있습니다.
+   *   · 옵션 묶음의 최저가(AggregateOffer) — 고른 옵션이 더 비쌉니다
+   *   · 회원가(와우) 가 화면에만 반영된 경우
+   * 반대로 화면 값을 무턱대고 믿어도 안 됩니다 — 로켓 상품은 수량을 올리면
+   * 화면의 큰 금액이 **이미 곱해진 총액**이라, 거기에 또 곱하면 개수의
+   * 제곱으로 부풀어 오릅니다.
+   *
+   * @returns {{ price:number, basis:string }} basis: json-ld·meta·screen·selector
+   */
+  function resolveUnitPrice(base, screen, qty) {
+    const ld = base.price
+    if (!screen) return { price: ld, basis: base.source }
+    if (!ld) return { price: screen, basis: 'selector' }
+    if (screen === ld) return { price: ld, basis: base.source }
+
+    if (base.priceExact) {
+      /**
+       * 확정값의 **정수배** = 로켓 상품의 곱해진 총액입니다 (21,420 × 15 = 321,300).
+       * 낱개 값은 JSON-LD 쪽이고, 그 배수가 곧 개수입니다 (아래에서 되짚습니다).
+       */
+      if (screen > ld && screen % ld === 0 && screen / ld <= 999) return { price: ld, basis: base.source }
+      /**
+       * 화면이 **더 싸다** = 회원가·할인입니다. 곱해진 총액은 낱개 값보다 작을 수
+       * 없으므로 이 방향은 헷갈릴 여지가 없습니다 — 고객이 낼 값을 그대로 씁니다.
+       */
+      if (screen < ld) return { price: screen, basis: 'screen' }
+      /**
+       * 화면이 더 비싼데 배수가 아니다 = 할인이 섞인 총액일 수 있습니다. 이걸
+       * 낱개 값으로 오해하면 개수를 곱할 때 몇 배로 부풀어 오르므로 지키던 값을 씁니다.
+       */
+      return { price: ld, basis: base.source }
+    }
+    /**
+     * JSON-LD 가 옵션 묶음의 **최저가**입니다 — 고객이 고른 옵션은 더 비쌀 수
+     * 있으므로 화면 값이 기준입니다. 다만 화면 값이 옵션 값 범위를 넘고 개수로
+     * 나누어떨어지면 "고른 옵션의 값 × 개수" 인 총액이라 나눠서 되돌립니다.
+     */
+    const outOfRange = (n) => (base.highPrice ? n > base.highPrice : false)
+    const inRange = (n) => (base.lowPrice ? n >= base.lowPrice : true) && !outOfRange(n)
+    if (qty >= 2 && screen % qty === 0 && outOfRange(screen) && inRange(screen / qty)) {
+      return { price: screen / qty, basis: 'screen' }
+    }
+    return { price: screen, basis: 'screen' }
+  }
+
   /**
    * 수량 칸을 구조 없이 찾습니다 — 셀렉터가 다 빗나갔을 때의 그물.
    *   ① 이름표(aria-label·name·id·class·placeholder)에 '수량' 이 있는 입력칸
@@ -421,17 +540,28 @@ const KBExtract = (() => {
         : `${productName}, ${opt.count}개`
     }
     /**
-     * 화면 금액으로 개수를 되짚습니다 — 수량 칸을 끝내 못 찾았을 때의 마지막 그물.
-     *
-     * 쿠팡은 수량을 올리면 큰 가격을 곱해진 총액으로 바꿉니다 (15개 → 321,300원 =
-     * 21,420원 × 15, 26-09-06 운영자 화면). 낱개 값(JSON-LD·meta)이 있고 화면 금액이
-     * 그 정수배(2~999)이면 그 배수가 곧 화면에서 고른 개수입니다. 딱 나누어떨어질
-     * 때만 씁니다 — 할인가·다른 옵션처럼 배수가 아닌 차이는 건드리지 않습니다.
-     * (수량 옵션 보정이 들어간 뒤의 가격과 비교하므로 "2개 세트" 옵션과 겹쳐
-     *  두 번 곱하지 않습니다)
+     * 화면 값과 견줍니다.
+     *   · 고른 옵션·회원가가 화면에만 반영된 경우 → 화면 값을 낱개 값으로
+     *   · 화면 값이 낱개 값의 정수배 → 곱해진 총액이니 그 배수가 곧 개수
+     * 수량 옵션("2개 42,840원")이 이미 값을 정했으면 그쪽이 더 구체적이라 건드리지 않습니다.
      */
-    const shownPrice = base.source === 'selector' ? null : toNumber(text(first(selectors.price)))
-    if (!qty.found && shownPrice && price && shownPrice > price && shownPrice % price === 0) {
+    const shownPrice = base.source === 'selector' ? null : readScreenPrice()
+    let basis = base.source
+    // 수량 옵션("2개 42,840원")이 값을 정했으면 그쪽이 더 구체적입니다 — 개수 되짚기에만 씁니다.
+    if (shownPrice && !opt?.price) {
+      const resolved = resolveUnitPrice({ ...base, price }, shownPrice, qty.found ? qty.value : 1)
+      price = resolved.price
+      basis = resolved.basis
+    }
+    /**
+     * 개수 되짚기 — 수량 칸을 끝내 못 찾았을 때의 마지막 그물.
+     * 쿠팡은 로켓 상품의 수량을 올리면 큰 가격을 곱해진 총액으로 바꿉니다
+     * (15개 → 321,300원 = 21,420원 × 15, 26-09-06 운영자 화면). 낱개 값이
+     * **확정값**일 때만 씁니다 — 옵션 묶음의 최저가로 나누면 엉뚱한 개수가 나옵니다.
+     */
+    const unitTrusted = Boolean(opt?.price) || (base.priceExact && basis !== 'screen')
+    if (!qty.found && shownPrice && price && unitTrusted
+        && shownPrice > price && shownPrice % price === 0) {
       const n = shownPrice / price
       if (n >= 2 && n <= 999) qty = { value: n, found: true, how: 'ratio' }
     }
@@ -454,8 +584,10 @@ const KBExtract = (() => {
       quantityFound: qty.found,
       /** 개수를 어떻게 알았나 — selector·labeled·number-input·near-buy·stepper·ratio·'' */
       quantityHow: qty.how ?? '',
-      /** 화면의 큰 금액(낱개 값과 다를 때만) — ratio 로 알아낸 개수를 화면에 설명하는 데 씁니다 */
+      /** 화면의 큰 금액(낱개 값과 다를 때만) — 되짚은 개수·회원가를 화면에 설명하는 데 씁니다 */
       shownPrice: shownPrice && shownPrice !== price ? shownPrice : null,
+      /** JSON-LD 가 말한 값 (화면 값과 다르면 패널이 어느 쪽을 썼는지 보여줍니다) */
+      catalogPrice: base.price && base.price !== price ? base.price : null,
       /**
        * 가격을 어디서 읽었는가 — 개수 계산의 안전 판단에 씁니다.
        *
@@ -465,7 +597,7 @@ const KBExtract = (() => {
        * 제곱으로 부풀어 오릅니다 — 그래서 main.js 가 이 값을 보고
        * 낱개인지 확신할 수 없으면 1개로만 계산합니다.
        */
-      priceBasis: base.source,
+      priceBasis: basis,
       image: base.image,
       brand: base.brand,
       categoryPath: extractBreadcrumb(),
@@ -518,7 +650,9 @@ const KBExtract = (() => {
     const raw = Number(extracted?.quantity)
     const page = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1
     if (page <= 1) return { quantity: 1, uncertain: false }
-    const trusted = extracted?.priceBasis === 'json-ld' || extracted?.priceBasis === 'meta'
+    // 'screen' 은 화면에 뜬 **고른 옵션의 낱개 값** 이라 곱해도 안전합니다.
+    // 'selector' 만 위험합니다 — 그 값은 이미 곱해진 총액일 수 있습니다.
+    const trusted = ['json-ld', 'meta', 'screen'].includes(extracted?.priceBasis)
     return trusted ? { quantity: page, uncertain: false } : { quantity: 1, uncertain: true }
   }
 

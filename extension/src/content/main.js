@@ -253,6 +253,9 @@
       quantityHow: extracted.quantityHow ?? '',
       unitPrice: extracted.price,
       shownPrice: extracted.shownPrice ?? null,
+      // 화면 값(회원가·고른 옵션)을 쓴 경우를 패널이 알아야 그 사실을 말해줍니다
+      priceBasis: extracted.priceBasis,
+      catalogPrice: extracted.catalogPrice ?? null,
       confidenceLabel: conf.label,
       confidenceClass: q.weight.confidence.level === 'high' ? 'ok' : 'warn',
       ruleText: K.roundingRuleText(),

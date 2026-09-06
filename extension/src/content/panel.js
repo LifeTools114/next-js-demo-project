@@ -354,10 +354,21 @@ const KBPanel = (() => {
               : ''}</div>`
         : ''
 
+    /**
+     * 화면에 뜬 값(회원가·고른 옵션)으로 계산했다고 밝힙니다.
+     *
+     * 26-09-06 운영자 화면: 카라티 화면가 21,800원인데 쿠팡 목록값(옵션 최저가)은
+     * 10,900원이었습니다. 어느 값으로 계산했는지 안 보이면 금액을 믿을 수 없습니다.
+     */
+    const priceLine = state.priceBasis === 'screen' && state.unitPrice
+      ? `<div class="qtyline">화면 가격 <b>${esc(state.fmt.krw(state.unitPrice))}</b> 기준입니다${
+          state.catalogPrice ? ` (쿠팡 목록값 ${esc(state.fmt.krw(state.catalogPrice))})` : ''}</div>`
+      : ''
+
     return `<div class="body">
       ${banner}${opHint}
       <p class="name">${esc(state.productName)}</p>
-      ${qtyLine}
+      ${qtyLine}${priceLine}
       <div class="pricebox">
         ${priceRow('forwarding', '📦 배송만', '배송비 · 쿠팡 결제는 내가', qs.forwarding ?? (state.track === 'forwarding' ? q : null))}
         ${priceRow('agent', '🛒 구매하고 배송까지', '총액 · 저희가 대신', qs.agent ?? (state.track === 'agent' ? q : null))}

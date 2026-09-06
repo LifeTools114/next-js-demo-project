@@ -221,3 +221,32 @@ test('표본 300종 중 정책상 막아야 할 품목만 차단된다', () => {
   // 반대로 본체는 계속 차단되어야 합니다.
   assert.equal(checkEligibility({ productName: 'LG 트롬 식기세척기 12인용' }).shippable, false)
 })
+
+test('옷 치수(S-5L)를 용량으로 읽지 않는다 — 티셔츠 한 장이 5kg 이 되던 사고', () => {
+  /*
+   * 26-09-06 사장님 화면. "고흡성 콜론 PK 반팔 무지 카라티 단체 유니폼
+   * (남녀공용 18컬러 S-5L 빅사이즈)" 의 **S-5L** 은 치수인데 5리터로 읽혀
+   * 티셔츠 한 장이 5.8kg 이 되었습니다. 두 장이면 청구 11kg —
+   * 국제배송비만 12만원이 넘어 아무도 주문할 수 없는 견적이었습니다.
+   */
+  const tee = '고흡성 콜론 PK 반팔 무지 카라티 단체 유니폼 (남녀공용 18컬러 S-5L 빅사이즈)'
+  assert.equal(parseProductSpec(tee).volumeMl, null, '치수는 용량이 아닙니다')
+  for (const name of ['맨투맨 M~4L 빅사이즈', '트레이닝 팬츠 XS/5XL', '카라티 S - 5L']) {
+    assert.equal(parseProductSpec(name).volumeMl, null, `${name} — 치수 표기`)
+  }
+  // 옷은 리터로 팔지 않습니다 — 카테고리 쪽에서도 한 번 더 막습니다.
+  const { form } = detectForm(tee)
+  assert.equal(form.id, 'apparel', `의류로 잡혀야 합니다 (지금: ${form.id})`)
+  assert.equal(form.ignoreVolume, true, '의류는 용량 표기를 무시해야 합니다')
+
+  const two = estimateItemWeight({ productName: tee }, 2)
+  assert.ok(two.chargeableG <= 1500, `티셔츠 두 장이 ${two.chargeableG}g — 1.5kg 을 넘으면 안 됩니다`)
+  assert.ok(two.actualG >= 300, `${two.actualG}g — 두 장이면 최소 300g 은 돼야 합니다`)
+})
+
+test('진짜 용량 표기는 그대로 읽는다 (치수 걸러내기가 과하지 않은가)', () => {
+  assert.equal(parseProductSpec('코카콜라 제로 1.5L 24입').volumeMl, 1500)
+  assert.equal(parseProductSpec('다우니 섬유유연제 3L 리필').volumeMl, 3000)
+  assert.equal(parseProductSpec('제주 삼다수 2L 12병').volumeMl, 2000)
+  assert.equal(parseProductSpec('세탁세제 리필 5L 대용량').volumeMl, 5000)
+})

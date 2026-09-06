@@ -894,6 +894,33 @@
     } catch { return null }
   }
 
+  /**
+   * 화면을 덮고 있는 **큰 다른-출처 프레임** — 배송지 창이 그 안에 있습니다.
+   *
+   * 26-09-06 운영자 진단: 창이 id.coupang.com 프레임(540x723)에 그려지는데
+   * manifest 가 그 주소를 안 실어 우리 스크립트가 그 안에서 돌지 않았습니다.
+   * 주소는 이제 넣었지만, 쿠팡이 또 다른 주소로 옮기면 같은 일이 반복됩니다.
+   * 그때 최상위가 할 수 있는 최소한은 **창 뒤에 가려진 버튼을 그만 짚는 것**
+   * 입니다 — 엉뚱한 곳을 짚는 표시는 안 짚느니만 못합니다.
+   */
+  function bigCrossFrame() {
+    for (const f of document.querySelectorAll('iframe')) {
+      try { if (f.contentDocument) continue } catch { /* 다른 출처 — 아래로 */ }
+      const r = f.getBoundingClientRect()
+      if (r.width < 320 || r.height < 320) continue
+      /**
+       * offsetParent 로 보이는지 판단하면 안 됩니다 — 창은 대개
+       * position:fixed 이고, fixed 요소의 offsetParent 는 null 입니다.
+       * (가짜 화면에서 이 조건 때문에 창을 못 알아봤습니다 26-09-06)
+       */
+      let cs = null
+      try { cs = getComputedStyle(f) } catch { /* 접근 불가 */ }
+      if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0)) continue
+      return true
+    }
+    return false
+  }
+
   /** 최상위 문서에 손이 닿는가 — 닿으면(같은 출처) 최상위가 이 프레임을 이미 봅니다 */
   const topReachable = () => { try { return Boolean(window.top.document) } catch { return false } }
 
@@ -1283,6 +1310,7 @@
         add: '쿠팡 창에서 [+ 배송지 추가]를 직접 한 번 눌러주세요 — 누르면 나머지는 자동으로 진행됩니다.',
         zip: '쿠팡 [우편번호 찾기]를 직접 한 번 눌러주세요 — 주소 검색·선택·상세주소는 자동으로 진행됩니다.',
         pick: `배송지 목록에서 ${code} 옆 [선택]을 직접 눌러주세요 — 누르면 바로 끝납니다.`,
+        frame: `쿠팡 창 안에서 ${code} 주소의 [선택] (없으면 [+ 배송지 추가])을 직접 눌러주세요.`,
       }
       const WATCH_MS = globalThis.__kbAddrWatchMs ?? 75_000
       const AUTO_MS = 2_600 // 이 시간 안에 반응이 없으면 직접 눌러달라고 안내
@@ -1315,6 +1343,17 @@
           else if (helperAddrWaitManual) setWait('', '')
           setStep(fs.step)
           await sleep(400)
+          continue
+        }
+        /**
+         * 창은 떠 있는데(큰 다른-출처 프레임) 우리 손이 닿지 않습니다 —
+         * 창 뒤에 가려진 [배송지 변경]을 계속 짚지 않고, 창 안에서 무엇을
+         * 눌러야 하는지로 안내를 바꿉니다.
+         */
+        if (bigCrossFrame() && !findExact('addAddr') && !findSavedSelect(code) && !findExact('zipSearch')) {
+          if (helperAddrWaitManual !== 'frame') { clearSpotlight(); setWait('frame', MANUAL_MSG.frame) }
+          setStep('add')
+          await sleep(500)
           continue
         }
         savedSel = findSavedSelect(code)
@@ -1414,7 +1453,8 @@
         const found = {}
         for (const key of ['openAddr', 'addAddr', 'zipSearch', 'pick']) found[key] = countMatches(key)
         const missing = Object.entries(found).filter(([, n]) => n === 0).map(([k]) => k)
-        reportHealth('addrAutofill', missing, found, { stage: helperAddrWaitManual || 'watch', step: helperAddrStep, frame: frameSeen })
+        reportHealth('addrAutofill', missing, found,
+          { stage: helperAddrWaitManual || 'watch', step: helperAddrStep, frame: frameSeen, bigFrame: bigCrossFrame() })
         return finish(true,
           `배송지 창을 확인하지 못했습니다 — [🩺 진단 정보 복사]를 눌러 내용을 관리자에게 보내주세요. (도우미 v${ver})`,
           false)
@@ -1732,6 +1772,7 @@
               (helperAddrWaitManual === 'zip' ? '[우편번호 찾기]를'
                 : helperAddrWaitManual === 'add' ? '[+ 배송지 추가]를'
                 : helperAddrWaitManual === 'pick' ? `${code} 옆 [선택]을`
+                : helperAddrWaitManual === 'frame' ? `창에서 ${code} 주소의 [선택]을`
                 : '[배송지 변경]을') + ' 직접 눌러주세요<br>' +
               '<span style="font-weight:700;font-size:11px">누르면 나머지는 자동으로 진행됩니다</span></div>'
             : '<div style="margin-top:7px;padding:12px;border-radius:10px;background:#e6f6f0;color:#17916b;' +
