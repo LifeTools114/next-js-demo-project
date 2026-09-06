@@ -59,7 +59,7 @@
     return { coupangOrderNo, amountKrw }
   }
 
-  function toast(text, ok) {
+  function toast(text, ok, ms = 6000) {
     const el = document.createElement('div')
     el.dataset.kbUi = '1'
     el.textContent = text
@@ -70,7 +70,7 @@
       `position:fixed;right:16px;bottom:${bottom}px;z-index:2147483647;max-width:232px;padding:10px 14px;border-radius:10px;` +
       `font:600 13px/1.4 sans-serif;color:#fff;background:${ok ? '#17916b' : '#b3801d'};box-shadow:0 4px 14px rgba(0,0,0,.2)`
     document.body.appendChild(el)
-    setTimeout(() => el.remove(), 6000)
+    setTimeout(() => el.remove(), ms)
   }
 
   /**
@@ -235,7 +235,9 @@
     if (res?.ok && res.data?.matched) {
       toast(`✓ 매입 기록됨 — ${res.data.order.orderNo} (쇼핑몰 ${coupangOrderNo})`, true)
     } else if (res?.ok) {
-      toast('매입 자동 기록 보류 — 확장 팝업의 발주 목록에서 직접 기록하세요.', false)
+      // 운영자 브라우저에서 고객 흐름을 시험하다 이 문구만 보고 막혔습니다 (운영자 26-09-06).
+      toast('운영자 브라우저라 고객용 신청서 카드는 뜨지 않습니다. 맞는 구매대행 발주가 없어 매입 기록은 보류 — ' +
+        '발주는 팝업 [운영] 탭에서. 고객 흐름을 보려면 [운영] 탭에서 토큰을 비우고 F5.', false, 15000)
     } else if (res?.status === 401 || res?.status === 403) {
       // 서버를 옮기면 예전 토큰이 남아 조용히 실패했습니다 — 이유를 보여줍니다 (26-09-06).
       // 실패한 시도는 가드를 남기지 않습니다 — 토큰을 고친 뒤 새로고침하면 다시 시도됩니다.
