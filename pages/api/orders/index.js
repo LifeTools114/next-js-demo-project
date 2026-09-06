@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     const openOrderNos = dup.openOrderNos ?? [o.orderNo]
     return res.status(409).json({
       error: dup.kind === 'coupang-order-no'
-        ? `이 쿠팡 주문번호는 이미 접수된 주문 ${o.orderNo} 에 연결되어 있습니다.`
+        ? `이 쇼핑몰 주문번호는 이미 접수된 주문 ${o.orderNo} 에 연결되어 있습니다.`
         : openOrderNos.length > 1
           ? `같은 상품 구성의 미결제 주문이 ${openOrderNos.length}건 남아 있습니다 (${openOrderNos.join(', ')}).`
           : `같은 상품 구성의 주문 ${o.orderNo} 이(가) ${minutesAgo}분 전에 이미 접수되어 있습니다.`,

@@ -403,3 +403,33 @@ test('확장은 쇼핑몰 화면을 조작하지 않는다 — 읽기만 합니�
   const cap = readFileSync(new URL('../extension/src/content/order-capture.js', import.meta.url), 'utf8')
   assert.ok(cap.includes("dataset.kbUi = '1'"), '우리 요소에는 표시를 남깁니다')
 })
+
+test('고객에게 보이는 글에는 남의 상호를 쓰지 않는다', () => {
+  /*
+   * 운영자 확정 26-09-06: "특히 쿠팡이라는 이름을 뺀다."
+   *
+   * 우리가 남의 상호를 화면에 쓰면, 고객은 그 회사가 만든 프로그램이라고
+   * 오해합니다. 크롬 웹스토어가 확장을 내리는 가장 흔한 이유가 이 사칭입니다.
+   *
+   * 다만 **어느 화면을 읽을지 고르는 코드**에는 남을 수밖에 없습니다 —
+   * manifest 의 주소 패턴, 화면 글자를 걸러내는 정규식이 그렇습니다.
+   * 그래서 여기서는 "정규식 안"만 허용하고, 그 밖의 글자에 상호가 있으면
+   * 화면에 나갈 말로 보고 실패시킵니다.
+   */
+  const files = [
+    ['content', 'order-capture.js'], ['content', 'panel.js'], ['content', 'main.js'],
+    ['content', 'extract.js'], ['content', 'parse-page.js'], ['content', 'patterns.js'],
+    ['popup', 'popup.js'], ['popup', 'popup.html'], ['background', 'service-worker.js'],
+  ]
+  for (const [dir, f] of files) {
+    const url = new URL(`../extension/src/${dir}/${f}`, import.meta.url)
+    if (!existsSync(url)) continue
+    const code = stripComments(readFileSync(url, 'utf8'))
+    for (const line of code.split('\n')) {
+      if (!line.includes('쿠팡')) continue
+      // 정규식 리터럴 안이면 통과 — 남의 화면 글자를 알아보는 데 필요합니다.
+      assert.ok(/\/[^/\n]*쿠팡[^/\n]*\//.test(line),
+        `${f}: 고객에게 보이는 글에 남의 상호가 있습니다 → ${line.trim()}`)
+    }
+  }
+})
