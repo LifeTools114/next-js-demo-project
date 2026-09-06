@@ -47,6 +47,10 @@ if ! command -v node >/dev/null 2>&1 || [ "$(node -v | sed 's/^v//; s/\..*//')" 
 fi
 echo "node $(node -v) · npm $(npm -v)"
 
+step "2b/8 캡처 글자 읽기(OCR) — tesseract 한국어"
+$APT install tesseract-ocr tesseract-ocr-kor
+tesseract --version | head -n 1
+
 step "3/8 앱 계정(kb) · 코드 → $APP_DIR"
 id kb >/dev/null 2>&1 || useradd -m -s /bin/bash kb
 mkdir -p $APP_DIR && chown kb:kb $APP_DIR

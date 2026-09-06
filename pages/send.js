@@ -83,8 +83,10 @@ export default function SendPage() {
   const [quoting, setQuoting] = useState(false)
   const [error, setError] = useState(null)
   const [shared, setShared] = useState(false)
-  /** 줄별 「링크 미리 읽기」 상태 — { i: 'loading' | 'ok' | 'fail' } */
+  /** 줄별 「링크 미리 읽기」 상태 — { i: 'loading' | 'ok' | 'resolved' | 'fail' } */
   const [peek, setPeek] = useState({})
+  /** 줄별 「캡처 읽기」 상태 — { i: 'loading' | 'ok' | 'fail' | 'off' } */
+  const [ocr, setOcr] = useState({})
 
   // 신청서에서 쓰던 이름이 있으면 그대로 씁니다 — 두 번 적지 않게.
   useEffect(() => {
@@ -102,6 +104,23 @@ export default function SendPage() {
     if (!router.isReady) return
     const q = router.query
     if (q.track === 'agent') setTrack('agent')
+    // 캡처 공유(안드로이드: 캡처 → 공유 → 베트남 직구) — 서비스 워커가 kb-share 에 넣어 둔 이미지를 읽습니다
+    if (q.shot === '1' && typeof caches !== 'undefined') {
+      ;(async () => {
+        try {
+          const cache = await caches.open('kb-share')
+          const res = await cache.match('/kb-share/shot')
+          if (!res) return
+          const blob = await res.blob()
+          await cache.delete('/kb-share/shot')
+          setShared(true)
+          if (q.track !== 'forwarding' && q.track !== 'agent') setTrack('forwarding')
+          ocrFill(0, blob)
+        } catch { /* 보관함이 없으면 그냥 빈 화면 */ }
+      })()
+      router.replace('/send', undefined, { shallow: true })
+      return
+    }
     const { link, productName } = fromShare({ title: q.title, text: q.text, url: q.url })
     if (link) {
       setRows([{ ...emptyRow(), productUrl: link.url, productName }])
@@ -180,6 +199,31 @@ export default function SendPage() {
   }
   const switchTrack = (next) => { setTrack(next); setQuote(null); setError(null) }
 
+  /**
+   * 캡처(이미지) → 서버가 글자를 읽어(OCR) 상품명·가격을 채웁니다 (운영자 26-09-07).
+   * 이미지는 읽는 동안만 서버에 있고 저장되지 않습니다. 읽은 값은 고객이 확인·수정합니다.
+   */
+  const ocrFill = async (i, blob) => {
+    if (!blob) return
+    setOcr((p) => ({ ...p, [i]: 'loading' }))
+    setQuote(null)
+    try {
+      const res = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': blob.type || 'image/png' }, body: blob })
+      const d = await res.json()
+      if (!d.ok) { setOcr((p) => ({ ...p, [i]: d.reason === 'ocr-not-installed' ? 'off' : 'fail' })); return }
+      setRows((prev) => prev.map((r, k) => (k !== i ? r : {
+        ...r,
+        productName: d.productName || r.productName,
+        productPrice: d.productPrice ?? r.productPrice,
+        shotOption: d.option ?? '',
+        edit: false,
+      })))
+      setOcr((p) => ({ ...p, [i]: 'ok' }))
+    } catch {
+      setOcr((p) => ({ ...p, [i]: 'fail' }))
+    }
+  }
+
   const getQuote = async () => {
     if (items.length === 0) return
     setQuoting(true)
@@ -228,7 +272,7 @@ export default function SendPage() {
     <>
       {rows.map((r, i) => {
         const link = parseProductUrl(r.productUrl)
-        const auto = peek[i] === 'ok' && !r.edit
+        const auto = (peek[i] === 'ok' || (ocr[i] === 'ok' && r.productName && r.productPrice)) && !r.edit
         const qty = Math.max(1, Math.min(Number(r.quantity) || 1, 99))
         return (
           <div key={i} style={{
@@ -250,6 +294,31 @@ export default function SendPage() {
                 쇼핑몰 상품 링크가 아닌 것 같습니다. 앱에서 상품 → 공유 → 링크 복사한 주소를 넣어주세요.
               </p>
             )}
+            {/* 📷 캡처 — 앱 상품 화면을 캡처해 올리면 이름·가격을 읽어 채웁니다 (안드로이드는 캡처 → 공유 → 베트남 직구로도 됩니다) */}
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, marginBottom: 8,
+              borderRadius: 10, border: '1.5px dashed #8fb0ff', background: '#f5f8ff', color: '#0a2e9c', fontSize: 14, fontWeight: 800, cursor: 'pointer',
+            }}>
+              📷 앱 화면 캡처로 이름·가격 채우기
+              <input type="file" accept="image/*" hidden data-shot-input={i}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) ocrFill(i, f); e.target.value = '' }} />
+            </label>
+            {ocr[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 캡처의 글자를 읽는 중… (몇 초)</p>}
+            {ocr[i] === 'ok' && (
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#e6f6f0', color: '#0f6e4f' }}>
+                ✓ 캡처에서 읽었습니다 — 이름·가격이 맞는지 확인해 주세요{r.shotOption ? ` (옵션 ${r.shotOption})` : ''}. 틀리면 「고치기」.
+              </p>
+            )}
+            {ocr[i] === 'fail' && (
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
+                캡처에서 이름·가격을 못 읽었습니다 — 상품명과 가격이 크게 보이는 화면을 다시 캡처하거나, 아래에 직접 적어 주세요.
+              </p>
+            )}
+            {ocr[i] === 'off' && (
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
+                지금은 캡처 읽기를 쓸 수 없습니다 — 아래에 직접 적어 주세요.
+              </p>
+            )}
             {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중…</p>}
             {peek[i] === 'resolved' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#e6f6f0', color: '#0f6e4f' }}>
@@ -265,7 +334,7 @@ export default function SendPage() {
             {auto ? (
               /* 2) 읽어온 상품 — 고객이 고른 옵션 그대로. 개수만 정합니다 */
               <div data-auto-item="1" style={{ border: '1px solid #b7e4d2', background: '#f2fbf7', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ fontSize: 12, color: '#17916b', fontWeight: 800 }}>✓ 읽어온 상품 (고른 옵션 그대로)</div>
+                <div style={{ fontSize: 12, color: '#17916b', fontWeight: 800 }}>{ocr[i] === 'ok' ? '✓ 캡처에서 읽은 상품' : '✓ 읽어온 상품 (고른 옵션 그대로)'}</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#191f28', marginTop: 4, lineHeight: 1.4 }}>{r.productName}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: '#1b64da' }}>{krw(Number(r.productPrice) || 0)}</span>
@@ -378,8 +447,9 @@ export default function SendPage() {
         <div style={{ display: 'flex', gap: 8 }}>{[toggleBtn('forwarding'), toggleBtn('agent')]}</div>
         {shared && (
           <p className="note" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
-            ✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. <b>가격</b>만 적으면 바로 계산됩니다.
-            이름은 안 적어도 되고, 적으면 무게가 더 정확해집니다.
+            {ocr[0]
+              ? <>✓ 공유받은 <b>캡처</b>에서 이름·가격을 읽어 아래 첫 줄에 넣습니다. 맞는지 확인하고 <b>개수</b>만 정해 주세요.</>
+              : <>✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. <b>가격</b>만 적으면 바로 계산됩니다. 이름은 안 적어도 되고, 적으면 무게가 더 정확해집니다.</>}
           </p>
         )}
       </div>
@@ -460,8 +530,9 @@ export default function SendPage() {
             <div className="panel__head">3. 무엇을 사셨나요</div>
             <div className="panel__body">
               <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-                쇼핑몰 앱에서 상품 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 아래 링크 칸에 붙여넣고
-                <b>가격</b>만 적어 주세요. 링크가 없으면 이름과 가격만 적어도 됩니다.
+                가장 쉬운 길: 쇼핑몰 앱의 상품 화면을 <b>캡처</b>해서 아래 「📷 캡처로 채우기」에 올리면
+                이름·가격을 읽어 줍니다 (안드로이드는 캡처 직후 <b>공유 → 베트남 직구</b>로도 됩니다).
+                링크를 붙여넣고 가격만 적어도 되고, 이름과 가격만 적어도 됩니다.
               </p>
               {productRows}
             </div>
@@ -480,8 +551,8 @@ export default function SendPage() {
                 저희가 대신 사서 베트남까지 보내드립니다. 결제는 다음 화면(신청서)에서
                 <b> 상품값 + 수수료 + 배송비</b>를 한 번에 합니다.
                 <br />
-                <small>링크: 쇼핑몰 앱에서 상품 화면 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 여기 붙여넣기.
-                그다음 <b>가격</b>과 <b>개수</b>만 적으시면 됩니다.</small>
+                <small>링크: 쇼핑몰 앱에서 상품 화면 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 여기 붙여넣기(꼭 필요 — 그 상품을 저희가 삽니다).
+                가격은 같은 화면을 <b>캡처</b>해 「📷 캡처로 채우기」에 올리면 읽어 주고, 직접 적으셔도 됩니다.</small>
               </p>
               {productRows}
             </div>
@@ -494,10 +565,11 @@ export default function SendPage() {
         <div className="panel__head">📱 폰에 앱처럼 두기</div>
         <div className="panel__body">
           <p className="note" style={{ fontSize: 13.5, lineHeight: 1.75 }}>
-            <b>안드로이드(크롬)</b>: 오른쪽 위 ⋮ → <b>홈 화면에 추가</b>. 그 뒤로는 쇼핑몰 앱에서
-            상품 <b>공유</b> → 「베트남 직구」를 고르면 링크가 이 화면으로 바로 옵니다.
+            <b>안드로이드(크롬)</b>: 오른쪽 위 ⋮ → <b>앱 설치</b>(또는 홈 화면에 추가). 그 뒤로는 쇼핑몰 앱에서
+            상품 화면을 <b>캡처 → 공유 → 「베트남 직구」</b>를 고르면 이름·가격이 이 화면에 채워지고,
+            상품 <b>공유 → 「베트남 직구」</b>로 링크를 보낼 수도 있습니다.
             <br />
-            <b>아이폰(사파리)</b>: 공유 버튼 → <b>홈 화면에 추가</b>. 링크는 복사해서 위 칸에 붙여넣습니다.
+            <b>아이폰(사파리)</b>: 공유 버튼 → <b>홈 화면에 추가</b>. 캡처는 「📷 캡처로 채우기」에서 앨범에서 고르고, 링크는 복사해 붙여넣습니다.
           </p>
         </div>
       </section>

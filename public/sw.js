@@ -1,7 +1,28 @@
-/* 폰 웹앱(홈 화면에 추가)용 서비스 워커 — 설치만 돕고, 아무것도 저장하지 않습니다.
-   주문·금액·환율은 항상 서버의 최신 값이어야 하므로 캐시를 두지 않습니다.
-   fetch 리스너는 비어 있습니다 — 일부 안드로이드 크롬은 이 리스너가 있어야
-   「앱 설치」(WebAPK)로 올려 주고, 그래야 쇼핑몰 앱의 공유 목록에 나타납니다. */
+/* 폰 웹앱(홈 화면에 추가)용 서비스 워커.
+   하는 일은 하나 — 쇼핑몰 앱·캡처에서 「공유」로 들어온 것(POST /send)을 받아 신청 화면(GET /send?…)으로 넘깁니다.
+   캡처 이미지는 이 브라우저 안의 임시 보관함(kb-share)에 잠깐 두었다가 화면이 읽으면 지웁니다.
+   그 밖의 요청은 손대지 않고, 페이지·주문·금액을 캐시하지 않습니다 (항상 서버의 최신 값). */
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
-self.addEventListener('fetch', () => { /* 네트워크 그대로 — 가로채지 않습니다 */ })
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url)
+  if (event.request.method !== 'POST' || url.pathname !== '/send') return
+  event.respondWith((async () => {
+    const params = new URLSearchParams()
+    try {
+      const form = await event.request.formData()
+      for (const k of ['title', 'text', 'url']) {
+        const v = form.get(k)
+        if (typeof v === 'string' && v.trim()) params.set(k, v.trim().slice(0, 1000))
+      }
+      const shot = form.getAll('shots').find((f) => f && typeof f === 'object' && f.size > 0)
+      if (shot) {
+        const cache = await caches.open('kb-share')
+        await cache.put('/kb-share/shot', new Response(shot, { headers: { 'Content-Type': shot.type || 'image/png' } }))
+        params.set('shot', '1')
+      }
+    } catch { /* 폼을 못 읽어도 신청 화면은 엽니다 */ }
+    return Response.redirect(`/send?${params.toString()}`, 303)
+  })())
+})
