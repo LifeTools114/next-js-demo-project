@@ -46,7 +46,12 @@ test('짧은 링크 — 302 를 한 단계씩 따라가다 pageKey/상품 주소
   const calls = []
   const fetchImpl = async (url, opts) => {
     calls.push(url)
-    if (url === 'https://link.coupang.com/a/abc') { assert.equal(opts.redirect, 'manual'); return resp(302, { location: 'https://link.coupang.com/re/AFFSDP?lptag=AF1&pageKey=424242&itemId=5&vendorItemId=9&traceid=x' }) }
+    if (url === 'https://link.coupang.com/a/abc') {
+      assert.equal(opts.redirect, 'manual')
+      // PC 브라우저에게는 302, 폰 브라우저에게는 중간 페이지 — PC 로 먼저 물어야 합니다
+      if (/Mobile/.test(opts.headers['User-Agent'])) return resp(200, { url, body: '<title>Deeplink Redirect</title>' })
+      return resp(302, { location: 'https://link.coupang.com/re/AFFSDP?lptag=AF1&pageKey=424242&itemId=5&vendorItemId=9&traceid=x' })
+    }
     if (url.startsWith('https://www.coupang.com/vp/products/424242')) { assert.equal(opts.redirect, 'follow'); return resp(200, { url, body: PAGE }) }
     throw new Error('unexpected ' + url)
   }
@@ -130,4 +135,20 @@ test('같은 상품을 동시에 여러 번 물어도 한 번만 엽니다 (진�
 test('제목만 「쿠팡!」인 빈 화면은 이름으로 치지 않습니다', () => {
   assert.equal(parseProductHtml('<title>쿠팡!</title>').productName, '')
   assert.equal(parseProductHtml('<title>분유 360g | 쿠팡</title>').productName, '분유 360g')
+})
+
+test('짧은 링크가 PC 에도 200 중간 페이지를 주면 폰 브라우저로 한 번 더 열어 이중 인코딩된 주소까지 찾습니다', async () => {
+  _resetPeekCache()
+  const tries = []
+  const fetchImpl = async (url, opts) => {
+    const mobile = /Mobile/.test(opts.headers['User-Agent'])
+    if (url.startsWith('https://link.coupang.com/')) {
+      tries.push(mobile ? 'mobile' : 'pc')
+      return resp(200, { url, body: mobile ? '<a href="https%253A%252F%252Fwww.coupang.com%252Fvp%252Fproducts%252F4242%253FitemId%253D7">모바일 웹으로 보기</a>' : '<title>Deeplink Redirect</title>' })
+    }
+    return resp(200, { url, body: PAGE })
+  }
+  const r = await peekProduct('https://link.coupang.com/a/dbl', { fetchImpl, log: quiet })
+  assert.equal(r.ok, true); assert.equal(r.productId, '4242'); assert.equal(r.url, 'https://www.coupang.com/vp/products/4242?itemId=7')
+  assert.deepEqual(tries, ['pc', 'mobile'])
 })
