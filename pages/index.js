@@ -25,8 +25,8 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         <ServiceAreaNotice />
       </div>
 
-      {/* 폰 전용 시작점 — 캡처한 사진 넣기 + 어디를 캡처하는지 (PC 화면은 아래 그대로) */}
-      <CaptureGuide />
+      {/* 폰 전용 시작점 — 「📷 캡처한 사진 넣기」 하나 + 무엇을 캡처하는지 두 줄 (PC 화면은 아래 그대로, 폰에서는 숨김) */}
+      <CaptureGuide ratePerKgUsd={ratePerKgUsd} agencyBaseKrw={agencyBaseKrw} />
 
       {/*
         PC 로 오신 분 — 확장이 상품 화면을 읽어 주므로 이 버튼은 폰 없이 PC 로만 할 때의 길입니다.
@@ -44,7 +44,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         </p>
       </div>
 
-      <section className="panel">
+      <section className="panel only-pc">
         <div className="panel__head">이용 방식 두 가지</div>
         <div className="panel__body">
           <div className="row">
@@ -73,7 +73,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel only-pc">
         <div className="panel__head">확장프로그램이 해주는 일</div>
         <div className="panel__body">
           <div className="row">
@@ -99,7 +99,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel only-pc">
         <div className="panel__head">추가 비용이 붙는 품목</div>
         <div className="panel__body">
           <div className="row">

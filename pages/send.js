@@ -16,6 +16,10 @@
  *   ② 쿠팡 앱으로 보내드리고
  *   ③ 돌아오시면 상품을 담아 신청서로 잇습니다
  *
+ * 사진 넣는 곳은 화면에 📷 버튼 **하나**(data-shot-input 하나)뿐입니다 — 줄마다 두지 않습니다 (운영자 26-09-07:
+ * "사진 올리는 곳이 너무 많다"). 상품 화면 캡처는 비어 있는 첫 줄을, 주문완료 캡처는 줄 전체를 새로 채웁니다.
+ * 설명 글은 최소로 — 버튼 이름이 곧 설명입니다 (운영자 26-09-07: "필요없는 말이 너무 많다").
+ *
  * 가장 자주 깨지는 곳은 **상세주소**입니다. "YS-ECOM 이름"이 빠지면 창고에서
  * 소포 주인을 못 찾습니다. 그래서 이름을 먼저 받아 상세주소를 만들어 드리고,
  * 이름이 없으면 그 칸은 복사조차 되지 않게 막아 둡니다.
@@ -82,7 +86,6 @@ export default function SendPage() {
   const [quote, setQuote] = useState(null)
   const [quoting, setQuoting] = useState(false)
   const [error, setError] = useState(null)
-  const [shared, setShared] = useState(false)
   /** 줄별 「링크 미리 읽기」 상태 — { i: 'loading' | 'ok' | 'resolved' | 'fail' } */
   const [peek, setPeek] = useState({})
   /** 줄별 「캡처 읽기」 상태 — { i: 'loading' | 'ok' | 'fail' | 'off' } */
@@ -115,7 +118,6 @@ export default function SendPage() {
           if (!res) return
           const blob = await res.blob()
           await cache.delete('/kb-share/shot')
-          setShared(true)
           if (q.track !== 'forwarding' && q.track !== 'agent') setTrack('forwarding')
           ocrFill(0, blob)
         } catch { /* 보관함이 없으면 그냥 빈 화면 */ }
@@ -126,7 +128,6 @@ export default function SendPage() {
     // 결제 완료 알림 문자(알림톡·SMS)를 공유하면 — 캡처 없이 글자만으로 주문번호·상품을 읽습니다
     const sharedText = [q.title, q.text].filter(Boolean).join('\n')
     if (/주문\s*번호\s*[:：]?\s*\d/.test(sharedText)) {
-      setShared(true)
       applyInterpretation({ ok: true, kind: 'text' }, sharedText)
       router.replace('/send', undefined, { shallow: true })
       return
@@ -134,7 +135,6 @@ export default function SendPage() {
     const { link, productName } = fromShare({ title: q.title, text: q.text, url: q.url })
     if (link) {
       setRows([{ ...emptyRow(), productUrl: link.url, productName }])
-      setShared(true)
       peekRow(0, link.url)
       // 공유로 온 상품은 대부분 「대신 사 달라」는 뜻 — 배송만이 필요하면 위에서 바꿉니다
       if (q.track !== 'forwarding') setTrack('agent')
@@ -240,8 +240,11 @@ export default function SendPage() {
         quantity: it.quantity ?? 1,
         shotOption: it.option ?? '',
       })))
-      setOcr(Object.fromEntries(items.map((_, k) => [k, 'ok'])))
     }
+    // 「읽는 중」 표시는 여기서 반드시 끝냅니다 — 상품이 안 읽힌 주문(번호만)도 📷 버튼이 멈추지 않게
+    setOcr((p) => (items.length
+      ? Object.fromEntries(items.map((_, k) => [k, 'ok']))
+      : Object.fromEntries(Object.entries(p).filter(([, v]) => v === 'ok'))))
     if (d.warehouse?.name && !name.trim()) setName(d.warehouse.name)
   }
 
@@ -257,7 +260,8 @@ export default function SendPage() {
 
   const ocrFill = async (i, blob) => {
     if (!blob) return
-    setOcr((p) => ({ ...p, [i]: 'loading' }))
+    // 지난 실패·꺼짐 표시는 지우고(버튼 아래 안내가 하나만 보이게) 읽은 줄의 ok 표시는 둡니다
+    setOcr((p) => ({ ...Object.fromEntries(Object.entries(p).filter(([, v]) => v === 'ok')), [i]: 'loading' }))
     setQuote(null)
     try {
       const res = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': blob.type || 'image/png' }, body: blob })
@@ -275,6 +279,15 @@ export default function SendPage() {
     } catch {
       setOcr((p) => ({ ...p, [i]: 'fail' }))
     }
+  }
+
+  /** 📷 버튼은 하나 — 상품 캡처는 비어 있는 첫 줄에, 없으면 새 줄에. (주문완료 캡처면 applyOrder 가 줄 전체를 바꿉니다) */
+  const ocrShot = (blob) => {
+    // 이름·가격이 아직 없는 첫 줄 — 링크만 붙여넣은 줄(가격 없음)도 여기 해당해, 링크는 두고 이름·가격만 채웁니다
+    const target = rows.findIndex((r) => !(String(r.productName ?? '').trim() && Number(r.productPrice) > 0))
+    if (target >= 0) { ocrFill(target, blob); return }
+    setRows((prev) => [...prev, emptyRow()])
+    ocrFill(rows.length, blob)
   }
 
   const getQuote = async () => {
@@ -326,90 +339,92 @@ export default function SendPage() {
     <div data-shop-order="1" style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 12, border: '2px solid #17916b', background: '#f2fbf7' }}>
       <div style={{ fontSize: 14, fontWeight: 900, color: '#0f6e4f' }}>✓ 결제 완료 화면에서 읽었습니다</div>
       <div style={{ fontSize: 13.5, marginTop: 6, lineHeight: 1.6 }}>
-        쇼핑몰 주문번호 <b>{shopOrder.orderNo ?? '(못 읽음 — 아래에서 적어 주세요)'}</b> · 상품 <b>{shopOrder.itemCount}</b>개
-        {shopOrder.moreItems ? <> (외 {shopOrder.moreItems}건은 「+ 상품 링크 하나 더」로 보태 주세요)</> : null}
+        쇼핑몰 주문번호 <b>{shopOrder.orderNo ?? '(못 읽음 — 아래에 적어 주세요)'}</b> · 상품 <b>{shopOrder.itemCount}</b>개
+        {shopOrder.moreItems ? <> · 외 {shopOrder.moreItems}건은 아래에 더해 주세요</> : null}
       </div>
       {shopOrder.warehouse && !shopOrder.warehouse.found && (
         <p className="note" style={{ marginTop: 8, fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-          ⚠ 배송지에 저희 창고 코드({WAREHOUSE.code})가 보이지 않습니다. 쇼핑몰 주문의 배송지가 창고 주소인지 확인해 주세요.
+          ⚠ 배송지에 창고 코드({WAREHOUSE.code})가 보이지 않습니다. 배송지가 창고 주소인지 확인해 주세요.
         </p>
       )}
       {!shopOrder.orderNo && (
         <input className="input" inputMode="numeric" placeholder="쇼핑몰 주문번호 (숫자만)" style={{ marginTop: 8, minHeight: 46 }}
           onChange={(e) => setShopOrder((o) => ({ ...o, orderNo: e.target.value.replace(/\D/g, '').slice(0, 20) || null }))} />
       )}
-      <div style={{ fontSize: 12.5, color: '#4e5968', marginTop: 6 }}>아래 상품·개수·가격이 맞는지 보고 「배송비 얼마인지 보기」를 누르세요. 신청서에 주문번호가 자동으로 붙습니다.</div>
+    </div>
+  )
+
+  /** 📷 사진 넣는 곳 — 화면에 하나뿐. 읽는 중·실패 안내도 여기 한 곳에만 */
+  const shotState = Object.values(ocr).find((v) => v !== 'ok') ?? null
+  const shotButton = (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 54,
+        borderRadius: 12, border: '2px dashed #3182f6', background: '#f5f8ff', color: '#0a2e9c', fontSize: 16, fontWeight: 900, cursor: 'pointer',
+      }}>
+        {shotState === 'loading' ? '⏳ 읽는 중…' : isAgent ? '📷 상품 화면 캡처 넣기' : '📷 주문완료 화면 캡처 넣기'}
+        <input type="file" accept="image/*" hidden data-shot-input="0"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f && shotState !== 'loading') ocrShot(f); e.target.value = '' }} />
+      </label>
+      {shotState === 'fail' && (
+        <p className="note" style={{ margin: '8px 0 0', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>못 읽었습니다. 아래에 직접 적어 주세요.</p>
+      )}
+      {shotState === 'off' && (
+        <p className="note" style={{ margin: '8px 0 0', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>지금은 캡처 읽기를 쓸 수 없습니다. 아래에 직접 적어 주세요.</p>
+      )}
     </div>
   )
 
   const productRows = (
     <>
+      {shotButton}
       {orderCard}
       {rows.map((r, i) => {
         const link = parseProductUrl(r.productUrl)
         const auto = (peek[i] === 'ok' || (ocr[i] === 'ok' && r.productName && r.productPrice)) && !r.edit
         const qty = Math.max(1, Math.min(Number(r.quantity) || 1, 99))
+        // 배송만에서 캡처로 읽힌 줄은 링크 칸을 접습니다 — 이미 산 물건이라 링크는 필요 없습니다 (구매하고 배송까지는 링크가 필수)
+        const showLink = isAgent || !auto || Boolean(r.productUrl)
         return (
           <div key={i} style={{
             border: '1px solid #e5e8eb', borderRadius: 12, padding: 12, marginBottom: 10, background: '#fbfcfd',
           }}>
             {/* 1) 링크 — 고객은 이것만 붙여넣습니다 (운영자 26-09-06: "고객이 링크만 붙여넣게 합시다") */}
-            <input className="input" type="url" inputMode="url" value={r.productUrl}
-              placeholder="여기에 상품 링크를 붙여넣으세요"
-              onChange={(e) => {
-                const v = e.target.value
-                setRow(i, { productUrl: v, edit: false })
-                // 붙여넣기처럼 한 번에 완전한 링크가 들어오면 바로 읽습니다
-                if (parseProductUrl(v)?.productId || /link\.coupang\.com/.test(v)) peekRow(i, v)
-              }}
-              onBlur={(e) => { if (parseProductUrl(e.target.value) && !peek[i]) peekRow(i, e.target.value) }}
-              style={{ fontSize: 15, minHeight: 52, marginBottom: 8, borderColor: r.productUrl && !link ? '#ff6a00' : (auto ? '#17916b' : undefined) }} />
+            {showLink && (
+              <input className="input" type="url" inputMode="url" value={r.productUrl}
+                placeholder="여기에 상품 링크를 붙여넣으세요"
+                onChange={(e) => {
+                  const v = e.target.value
+                  setRow(i, { productUrl: v, edit: false })
+                  // 붙여넣기처럼 한 번에 완전한 링크가 들어오면 바로 읽습니다
+                  if (parseProductUrl(v)?.productId || /link\.coupang\.com/.test(v)) peekRow(i, v)
+                }}
+                onBlur={(e) => { if (parseProductUrl(e.target.value) && !peek[i]) peekRow(i, e.target.value) }}
+                style={{ fontSize: 15, minHeight: 52, marginBottom: 8, borderColor: r.productUrl && !link ? '#ff6a00' : (auto ? '#17916b' : undefined) }} />
+            )}
             {r.productUrl && !link && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                쇼핑몰 상품 링크가 아닌 것 같습니다. 앱에서 상품 → 공유 → 링크 복사한 주소를 넣어주세요.
+                상품 링크가 아닌 것 같습니다 (앱에서 공유 → 링크 복사).
               </p>
             )}
-            {/* 📷 캡처 — 앱 상품 화면을 캡처해 올리면 이름·가격을 읽어 채웁니다 */}
-            <label style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, marginBottom: 8,
-              borderRadius: 10, border: '1.5px dashed #8fb0ff', background: '#f5f8ff', color: '#0a2e9c', fontSize: 14, fontWeight: 800, cursor: 'pointer',
-            }}>
-              📷 앱 화면 캡처로 이름·가격 채우기
-              <input type="file" accept="image/*" hidden data-shot-input={i}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) ocrFill(i, f); e.target.value = '' }} />
-            </label>
-            {ocr[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 캡처의 글자를 읽는 중… (몇 초)</p>}
-            {ocr[i] === 'ok' && (
-              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#e6f6f0', color: '#0f6e4f' }}>
-                ✓ 캡처에서 읽었습니다 — 이름·가격이 맞는지 확인해 주세요{r.shotOption ? ` (옵션 ${r.shotOption})` : ''}. 틀리면 「고치기」.
-              </p>
-            )}
-            {ocr[i] === 'fail' && (
-              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                캡처에서 이름·가격을 못 읽었습니다 — 상품명과 가격이 크게 보이는 화면을 다시 캡처하거나, 아래에 직접 적어 주세요.
-              </p>
-            )}
-            {ocr[i] === 'off' && (
-              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                지금은 캡처 읽기를 쓸 수 없습니다 — 아래에 직접 적어 주세요.
-              </p>
-            )}
-            {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중… (몇 초 걸릴 수 있어요)</p>}
+            {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중…</p>}
             {peek[i] === 'resolved' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#e6f6f0', color: '#0f6e4f' }}>
-                ✓ 링크 확인됨 (상품 번호 {link?.productId}). 쇼핑몰이 서버의 자동 읽기를 막아 <b>가격</b>은 직접 적어 주세요 — 이름은 안 적어도 됩니다.
+                ✓ 링크 확인됨 (상품 번호 {link?.productId}). <b>가격</b>을 적어 주세요.
               </p>
             )}
             {peek[i] === 'fail' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                쇼핑몰 상품 링크로 확인되지 않았습니다 — 아래에 이름과 가격을 직접 적어 주세요.
+                쇼핑몰 상품 링크로 확인되지 않았습니다. 이름·가격을 적어 주세요.
               </p>
             )}
 
             {auto ? (
               /* 2) 읽어온 상품 — 고객이 고른 옵션 그대로. 개수만 정합니다 */
               <div data-auto-item="1" style={{ border: '1px solid #b7e4d2', background: '#f2fbf7', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ fontSize: 12, color: '#17916b', fontWeight: 800 }}>{ocr[i] === 'ok' ? '✓ 캡처에서 읽은 상품' : '✓ 읽어온 상품 (고른 옵션 그대로)'}</div>
+                <div style={{ fontSize: 12, color: '#17916b', fontWeight: 800 }}>
+                  {ocr[i] === 'ok' ? `✓ 캡처에서 읽은 상품${r.shotOption ? ` · 옵션 ${r.shotOption}` : ''}` : '✓ 읽어온 상품 (고른 옵션 그대로)'}
+                </div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#191f28', marginTop: 4, lineHeight: 1.4 }}>{r.productName}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: '#1b64da' }}>{krw(Number(r.productPrice) || 0)}</span>
@@ -428,14 +443,14 @@ export default function SendPage() {
                 <div style={{ marginTop: 6, textAlign: 'right' }}>
                   <button type="button" onClick={() => setRow(i, { edit: true })}
                     style={{ border: 0, background: 'transparent', color: '#8b95a1', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
-                    이름·가격이 다르면 고치기
+                    고치기
                   </button>
                 </div>
               </div>
             ) : (
               /* 3) 직접 적기 — 링크를 못 읽었거나 링크가 없을 때 */
               <>
-                <input className="input" value={r.productName} placeholder="상품 이름 (쇼핑몰 화면 그대로)"
+                <input className="input" value={r.productName} placeholder="상품 이름"
                   onChange={(e) => setRow(i, { productName: e.target.value })}
                   style={{ fontSize: 16, minHeight: 50, marginBottom: 8 }} />
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -467,7 +482,7 @@ export default function SendPage() {
         style={{
           width: '100%', minHeight: 48, borderRadius: 10, border: '2px dashed #dbe4f0',
           background: '#fff', color: '#3182f6', fontSize: 15, fontWeight: 800, cursor: 'pointer',
-        }}>+ 상품 링크 하나 더</button>
+        }}>+ 상품 하나 더</button>
 
       {error && <p className="note note--danger" style={{ marginTop: 10 }}>{error}</p>}
 
@@ -484,7 +499,7 @@ export default function SendPage() {
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#f04452' }}>≈ {vnd(quote.totalVnd)}</div>
           <div style={{ fontSize: 12.5, color: '#8b95a1', marginTop: 6 }}>
-            청구무게 {quote.shipping?.billableKg}kg · 창고에서 실제로 달아본 뒤 확정됩니다
+            청구무게 {quote.shipping?.billableKg}kg · 창고 실측 후 확정
           </div>
         </div>
       )}
@@ -502,7 +517,7 @@ export default function SendPage() {
             {quoting ? '계산 중…'
               : items.length === 0
                 ? (rows.some((r) => parseProductUrl(r.productUrl)?.productId) ? '가격을 넣어주세요'
-                  : isAgent ? '상품 링크를 붙여넣어 주세요' : '상품 링크 또는 이름·가격을 넣어주세요')
+                  : isAgent ? '상품 링크를 붙여넣어 주세요' : '캡처를 넣거나 상품을 적어주세요')
               : isAgent ? '얼마인지 보기' : '배송비 얼마인지 보기'}
           </button>
         )}
@@ -514,21 +529,11 @@ export default function SendPage() {
     <Layout title={`${t.name} — 폰으로 하기`}>
       <div className="section" style={{ paddingBottom: 6 }}>
         <h1 className="section__title">{t.emoji} {t.name}</h1>
-        <p className="section__sub">{t.line} — 폰만 있으면 됩니다.</p>
       </div>
 
       {/* ── 방식 고르기 — 배송만 / 구매하고 배송까지 ──────────── */}
       <div className="section" style={{ paddingTop: 0, paddingBottom: 4 }}>
         <div style={{ display: 'flex', gap: 8 }}>{[toggleBtn('forwarding'), toggleBtn('agent')]}</div>
-        {shared && (
-          <p className="note" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
-            {shopOrder
-              ? <>✓ 공유받은 <b>결제 완료 화면</b>에서 주문번호와 상품을 읽었습니다. 아래를 확인하고 배송비 계산으로 가세요.</>
-              : ocr[0]
-              ? <>✓ 공유받은 <b>캡처</b>에서 이름·가격을 읽어 아래 첫 줄에 넣습니다. 맞는지 확인하고 <b>개수</b>만 정해 주세요.</>
-              : <>✓ 공유받은 상품 링크를 아래 첫 줄에 넣었습니다. <b>가격</b>만 적으면 바로 계산됩니다. 이름은 안 적어도 되고, 적으면 무게가 더 정확해집니다.</>}
-          </p>
-        )}
       </div>
 
       {!isAgent && (
@@ -538,7 +543,7 @@ export default function SendPage() {
             <div className="panel__head">1. 쇼핑몰 배송지에 이대로 넣어주세요</div>
             <div className="panel__body">
               <div className="field" style={{ marginBottom: 14 }}>
-                <label className="field__label" htmlFor="myname">받는 분 성함 (한글 또는 영문)</label>
+                <label className="field__label" htmlFor="myname">받는 분 성함</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input id="myname" className="input" value={name} placeholder={`예) ${SAMPLE_NAME}`}
                     onChange={(e) => setName(e.target.value)}
@@ -553,15 +558,12 @@ export default function SendPage() {
                       }}>지우기</button>
                   ) : null}
                 </div>
-                <p className="note" style={{ marginTop: 6, fontSize: 13 }}>
-                  이 이름으로 창고에서 소포를 찾습니다. 신청서에 적으실 이름과 <b>같아야</b> 합니다.
-                </p>
               </div>
 
               <CopyRow label="받는 사람" value={WAREHOUSE.code} />
-              <CopyRow label="우편번호" value={WAREHOUSE.zip} hint="주소 검색 대신 우편번호로 찾으면 빠릅니다" />
+              <CopyRow label="우편번호" value={WAREHOUSE.zip} />
               <CopyRow label="주소" value={fullAddress} />
-              <CopyRow label="상세주소 — 이게 빠지면 소포 주인을 못 찾습니다" value={detail}
+              <CopyRow label="상세주소 — 이름이 빠지면 소포 주인을 못 찾습니다" value={detail}
                 disabled={!detail} danger
                 display={detail ? (
                   <>
@@ -571,19 +573,11 @@ export default function SendPage() {
                   <>
                     {WAREHOUSE.code} <span style={sampleStyle}>{SAMPLE_NAME}</span>
                     <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: '#ff6a00', marginTop: 6 }}>
-                      ↑ <span style={sampleStyle}>{SAMPLE_NAME}</span> 자리에 <b>본인 이름</b>을 넣어주세요 — 위 칸에 적으면 여기가 채워집니다
+                      ↑ <span style={sampleStyle}>{SAMPLE_NAME}</span> 자리에 <b>본인 이름</b>을 넣어주세요 (위 칸에 적기)
                     </span>
                   </>
-                )}
-                hint={detail ? '쇼핑몰 배송지의 «상세주소» 칸에 이대로 넣어주세요' : undefined} />
+                )} />
               <CopyRow label="전화번호" value={WAREHOUSE.phone} />
-
-              <p className="note note--danger" style={{ marginTop: 4, fontSize: 13.5, lineHeight: 1.7 }}>
-                ⚠️ <b>상세주소</b>가 가장 중요합니다. 「{WAREHOUSE.code}{' '}
-                <span style={detail ? markStyle : sampleStyle}>{name.trim() || SAMPLE_NAME}</span>」처럼
-                <b> 코드 뒤에 본인 이름</b>이 없으면, 창고에 물건이 도착해도 누구 것인지 알 수 없어
-                배송이 늦어집니다.
-              </p>
             </div>
           </section>
 
@@ -595,22 +589,16 @@ export default function SendPage() {
                 style={{ display: 'block', textAlign: 'center', minHeight: 56, fontSize: 17, lineHeight: '32px' }}>
                 쇼핑몰 열기 →
               </a>
-              <p className="note" style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.75 }}>
-                결제하실 때 <b>배송지를 위 주소로 바꾸시면</b> 됩니다.
-                결제가 끝나면 이 화면으로 돌아와 아래 3번을 이어서 해주세요.
+              <p className="note" style={{ marginTop: 10, fontSize: 13.5 }}>
+                배송지를 위 주소로 바꿔 결제한 뒤 돌아오세요.
               </p>
             </div>
           </section>
 
-          {/* ── 3. 상품 담고 신청 ───────────────────────────────── */}
+          {/* ── 3. 상품 담고 신청 — 📷 주문완료 캡처 하나면 상품·개수·가격·주문번호까지 ── */}
           <section className="panel">
             <div className="panel__head">3. 무엇을 사셨나요</div>
             <div className="panel__body">
-              <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-                <b>가장 쉬운 길</b>: 결제가 끝난 <b>「주문완료」 화면을 캡처</b>해서 「📷 캡처로 채우기」에 올리세요.
-                상품·개수·가격과 <b>쇼핑몰 주문번호</b>까지 한 번에 읽어 신청서에 붙입니다.
-                상품 화면 캡처도 되고, 링크나 이름·가격을 직접 적어도 됩니다.
-              </p>
               {productRows}
             </div>
           </section>
@@ -623,13 +611,8 @@ export default function SendPage() {
           <section className="panel">
             <div className="panel__head">1. 무엇을 사드릴까요</div>
             <div className="panel__body">
-              <p className="note" style={{ marginBottom: 12, fontSize: 13.5, lineHeight: 1.7 }}>
-                🛒 한국 결제수단이 없어도 됩니다. <b>상품 링크·가격·개수</b>만 적어주시면
-                저희가 대신 사서 베트남까지 보내드립니다. 결제는 다음 화면(신청서)에서
-                <b> 상품값 + 수수료 + 배송비</b>를 한 번에 합니다.
-                <br />
-                <small>링크: 쇼핑몰 앱에서 상품 화면 → <b>공유(또는 링크)</b> 버튼 → <b>링크 복사</b> → 여기 붙여넣기(꼭 필요 — 그 상품을 저희가 삽니다).
-                가격은 같은 화면을 <b>캡처</b>해 「📷 캡처로 채우기」에 올리면 읽어 주고, 직접 적으셔도 됩니다.</small>
+              <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
+                상품 링크를 붙여넣고 가격·개수를 확인하세요. 상품값 + 수수료 + 배송비를 신청서에서 한 번에 결제합니다.
               </p>
               {productRows}
             </div>

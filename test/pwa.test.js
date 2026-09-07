@@ -44,20 +44,33 @@ test('/send — 배송만·구매하고 배송까지 두 방식, 상품 링크 �
   assert.ok(s.includes('fromShare({ title: q.title, text: q.text, url: q.url })'))
   assert.ok(s.includes("q.track === 'agent'"))
   assert.ok(s.includes("q.shot === '1'") && s.includes("cache.match('/kb-share/shot')"), '공유된 캡처를 읽습니다')
-  assert.ok(s.includes('data-shot-input') && s.includes("fetch('/api/ocr'"), '📷 캡처로 채우기')
+  assert.ok(s.includes('data-shot-input') && s.includes("fetch('/api/ocr'"), '📷 캡처 넣기')
+  // 사진 넣는 곳은 화면에 하나 — 줄마다 두지 않습니다 (운영자 26-09-07: "사진 올리는 부분이 너무 많다")
+  // (주석을 벗기지 않고 셉니다 — accept="image/*" 의 /* 가 주석 시작으로 잡히기 때문. 머리말 주석은 = 없이 적습니다)
+  assert.equal((s.match(/data-shot-input=/g) ?? []).length, 1, '📷 버튼은 하나')
+  assert.ok(s.includes('📷 주문완료 화면 캡처 넣기') && s.includes('📷 상품 화면 캡처 넣기'), '방식마다 버튼 이름이 곧 설명')
+  // 긴 설명은 두지 않습니다 — 지운 문구가 되살아나면 실패
+  for (const gone of ['폰만 있으면 됩니다', '가장 쉬운 길', '공유받은', '잘 읽히는 캡처', '이름·가격이 다르면 고치기']) {
+    assert.ok(!s.includes(gone), `${gone} — 설명은 축약`)
+  }
   // 구매하고 배송까지는 창고 주소를 보여주지 않습니다 (필요 없음)
   assert.ok(s.includes('{!isAgent && (') && s.includes('{isAgent && ('))
 })
 
-test('첫 화면(폰 전용) — 「캡처한 사진 넣기」 버튼과 배송만·구매하고 배송까지 안내, PC 블록은 그대로', () => {
+test('첫 화면(폰 전용) — 「캡처한 사진 넣기」 버튼 하나와 배송만·구매하고 배송까지 두 줄, PC 블록은 폰에서 숨김', () => {
   const home = read('pages/index.js')
-  assert.ok(home.includes('<CaptureGuide />') && home.includes('only-pc'), '폰 블록은 CaptureGuide, PC 블록은 only-pc')
+  assert.ok(home.includes('<CaptureGuide ') && home.includes('only-pc'), '폰 블록은 CaptureGuide, PC 블록은 only-pc')
+  // PC 용 설명 패널 셋은 폰에서 숨깁니다 (운영자 26-09-07: "모바일 버전에 필요없는 말이 너무 많다")
+  assert.equal((home.match(/className="panel only-pc"/g) ?? []).length, 3, 'PC 설명 패널 셋은 only-pc')
   const g = read('components/CaptureGuide.js')
   assert.ok(g.includes('only-mobile') && g.includes('data-home-shot'))
-  assert.ok(g.includes('📷 캡처한 사진 넣기') && g.includes('📷 주문완료 화면 캡처 넣기') && g.includes('📷 상품 화면 캡처 넣기'))
+  assert.ok(g.includes('📷 캡처한 사진 넣기'))
+  assert.equal((g.match(/data-home-shot=/g) ?? []).length, 1, '첫 화면의 사진 넣는 곳은 하나')
   assert.ok(g.includes('📦 배송만') && g.includes('🛒 구매하고 배송까지'))
+  assert.ok(g.includes('주문완료') && g.includes('상품 화면'), '무엇을 캡처하는지는 한 줄씩')
+  assert.ok(!g.includes('<svg') && !g.includes('잘 읽히는 캡처'), '그림·긴 설명은 두지 않습니다')
   assert.ok(g.includes("caches.open('kb-share')") && g.includes("cache.put('/kb-share/shot'"), '공유 받기와 같은 보관함으로 넘깁니다')
-  for (const word of ['배송대행', '구매대행']) assert.ok(!g.replace(/\/\*[\s\S]*?\*\//g, '').includes(word), `${word} 는 쉬운 말로`)
+  for (const word of ['배송대행', '구매대행']) assert.ok(!g.replace(/^\/\*\*[\s\S]*?\*\//, '').includes(word), `${word} 는 쉬운 말로`)
   const css = read('styles/globals.css')
   assert.ok(css.includes('.only-mobile { display: none; }') && css.includes('.only-pc { display: block; }'), '820px 이상에서 폰 블록 숨김')
 })
