@@ -15,7 +15,8 @@
     "check:leak": "node scripts/check-leak.mjs",
     "check:ext": "node scripts/check-ext-fresh.mjs",
     "telegram:webhook": "node scripts/telegram-webhook.mjs",
-    "pack:store": "node scripts/pack-store.mjs"
+    "pack:store": "node scripts/pack-store.mjs",
+    "pack:phone": "node scripts/pack-phone.mjs"
   },
   "dependencies": {
     "next": "16.3.3",
