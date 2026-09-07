@@ -106,7 +106,6 @@ export default function CaptureGuide() {
         <ShotButton big testId="any">📷 캡처한 사진 넣기</ShotButton>
         <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5, lineHeight: 1.6 }}>
           쇼핑몰 앱 화면을 <b>캡처</b>해서 넣으면 상품·개수·가격을 읽어 신청서를 채워 드립니다.
-          안드로이드는 캡처 직후 <b>공유 → 「베트남 직구」</b>로 보내도 됩니다.
         </p>
       </div>
 

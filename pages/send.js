@@ -369,7 +369,7 @@ export default function SendPage() {
                 쇼핑몰 상품 링크가 아닌 것 같습니다. 앱에서 상품 → 공유 → 링크 복사한 주소를 넣어주세요.
               </p>
             )}
-            {/* 📷 캡처 — 앱 상품 화면을 캡처해 올리면 이름·가격을 읽어 채웁니다 (안드로이드는 캡처 → 공유 → 베트남 직구로도 됩니다) */}
+            {/* 📷 캡처 — 앱 상품 화면을 캡처해 올리면 이름·가격을 읽어 채웁니다 */}
             <label style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, marginBottom: 8,
               borderRadius: 10, border: '1.5px dashed #8fb0ff', background: '#f5f8ff', color: '#0a2e9c', fontSize: 14, fontWeight: 800, cursor: 'pointer',
@@ -608,8 +608,8 @@ export default function SendPage() {
             <div className="panel__body">
               <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
                 <b>가장 쉬운 길</b>: 결제가 끝난 <b>「주문완료」 화면을 캡처</b>해서 「📷 캡처로 채우기」에 올리세요.
-                상품·개수·가격과 <b>쇼핑몰 주문번호</b>까지 한 번에 읽어 신청서에 붙입니다
-                (안드로이드는 캡처 직후 <b>공유 → 베트남 직구</b>). 상품 화면 캡처도 되고, 링크나 이름·가격을 직접 적어도 됩니다.
+                상품·개수·가격과 <b>쇼핑몰 주문번호</b>까지 한 번에 읽어 신청서에 붙입니다.
+                상품 화면 캡처도 되고, 링크나 이름·가격을 직접 적어도 됩니다.
               </p>
               {productRows}
             </div>
@@ -637,19 +637,6 @@ export default function SendPage() {
         </>
       )}
 
-      {/* ── 앱처럼 쓰기 ─────────────────────────────────────── */}
-      <section className="panel">
-        <div className="panel__head">📱 폰에 앱처럼 두기</div>
-        <div className="panel__body">
-          <p className="note" style={{ fontSize: 13.5, lineHeight: 1.75 }}>
-            <b>안드로이드(크롬)</b>: 오른쪽 위 ⋮ → <b>앱 설치</b>(또는 홈 화면에 추가). 그 뒤로는 쇼핑몰 앱에서
-            상품 화면을 <b>캡처 → 공유 → 「베트남 직구」</b>를 고르면 이름·가격이 이 화면에 채워지고,
-            상품 <b>공유 → 「베트남 직구」</b>로 링크를 보낼 수도 있습니다.
-            <br />
-            <b>아이폰(사파리)</b>: 공유 버튼 → <b>홈 화면에 추가</b>. 캡처는 「📷 캡처로 채우기」에서 앨범에서 고르고, 링크는 복사해 붙여넣습니다.
-          </p>
-        </div>
-      </section>
     </Layout>
   )
 }
