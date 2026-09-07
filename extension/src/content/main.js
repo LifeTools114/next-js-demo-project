@@ -20,6 +20,7 @@
   let zone = 'hanoi'
   let country = 'VN'
   let product = null
+  let lastItem = null // 견적에 쓴 정규화 항목 (productPrice·고시정보·배지 포함) — 담아두기에 그대로 씁니다
 
   const send = (type, payload) =>
     new Promise((resolve) => {
@@ -72,7 +73,9 @@
     onAdd: async () => {
       if (!product) return
       // 화면에서 고른 개수를 그대로 담습니다. 예전에는 무조건 1개였습니다.
-      const res = await send('addToCart', { ...product, quantity: safeQty, track })
+      // 담는 것은 견적에 쓴 정규화 항목(lastItem)입니다 — 추출 원본(product)은 가격 이름이 price 라
+      // 견적함·신청서에서 0원이 되었습니다 (PC 점검 26-09-07).
+      const res = await send('addToCart', { ...(lastItem ?? { ...product, productPrice: product.productPrice ?? product.price }), quantity: safeQty, track })
       addedProductId = product.productId
       KBPanel.setState({ added: true, cartCount: res?.count ?? 1 })
     },
@@ -246,6 +249,7 @@
         return u.origin + u.pathname + (keep.toString() ? `?${keep}` : '')
       })(),
     }
+    lastItem = item
     /* kb-operator-only */ reportWorker({ ok: true, item }) /* /kb-operator-only */
 
     // 두 트랙을 모두 계산합니다 — 첫 화면이 "배송대행 얼마 / 구매대행 얼마"

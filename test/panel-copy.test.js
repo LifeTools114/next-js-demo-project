@@ -103,7 +103,8 @@ test('[결제하기]: 배송만이면 열지 않고 "결제부터" 멘트, 구�
   const run = async (track, alreadyAdded) => {
     const sent = [], states = []
     const ctx = vm.createContext({
-      track, product: { productId: 'p1', productName: 'x', productPrice: 1000 }, safeQty: 1,
+      // 추출 원본은 가격이 price 입니다 — 담을 때 productPrice 로 옮겨야 견적함·신청서에 0원이 되지 않습니다 (26-09-07)
+      track, product: { productId: 'p1', productName: 'x', price: 1000 }, safeQty: 1, lastItem: null,
       addedProductId: alreadyAdded ? 'p1' : null, compute() {},
       KBPanel: { setState: (st) => states.push(JSON.parse(JSON.stringify(st))) },
       send: async (type, payload) => {
@@ -123,6 +124,8 @@ test('[결제하기]: 배송만이면 열지 않고 "결제부터" 멘트, 구�
 
   const agent = await run('agent', false)
   const types = agent.sent.map((s) => s.type)
+  const added = agent.sent.find((s) => s.type === 'addToCart')
+  assert.equal(added?.payload?.productPrice, 1000, '담긴 상품에 productPrice 가 있어야 합니다 (price 만 있으면 0원)')
   assert.ok(types.indexOf('addToCart') >= 0 && types.indexOf('addToCart') < types.indexOf('openCheckout'), '안 담겼으면 담은 뒤 신청서로')
   assert.deepEqual(agent.sent.find((s) => s.type === 'openCheckout').payload.items.map((i) => i.track), ['agent'])
 

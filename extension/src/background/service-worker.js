@@ -124,7 +124,8 @@ function sanitizeItems(items) {
     productId: String(i?.productId ?? `inline-${idx}`).slice(0, 64),
     productName: String(i?.productName ?? '').slice(0, 160),
     quantity: Math.max(1, Math.min(Number(i?.quantity) || 1, 99)),
-    productPrice: Math.max(0, Math.min(Number(i?.productPrice) || 0, 100_000_000)),
+    // 추출 원본은 price, 정규화 항목은 productPrice — 둘 다 받습니다 (담아두기 0원 문제, 26-09-07)
+    productPrice: Math.max(0, Math.min(Number(i?.productPrice ?? i?.price) || 0, 100_000_000)),
     // 국내 배송비·무료 조건·판매자 — 버리면 신청서 금액이 패널보다 배송비만큼 싸집니다.
     domesticShipKrw: Math.max(0, Math.min(Number(i?.domesticShipKrw) || 0, 50_000)),
     freeShipOverKrw: Math.max(0, Math.min(Number(i?.freeShipOverKrw) || 0, 10_000_000)),
