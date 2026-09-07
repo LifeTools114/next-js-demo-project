@@ -48,3 +48,16 @@ test('/send — 배송만·구매하고 배송까지 두 방식, 상품 링크 �
   // 구매하고 배송까지는 창고 주소를 보여주지 않습니다 (필요 없음)
   assert.ok(s.includes('{!isAgent && (') && s.includes('{isAgent && ('))
 })
+
+test('첫 화면(폰 전용) — 「캡처한 사진 넣기」 버튼과 배송만·구매하고 배송까지 안내, PC 블록은 그대로', () => {
+  const home = read('pages/index.js')
+  assert.ok(home.includes('<CaptureGuide />') && home.includes('only-pc'), '폰 블록은 CaptureGuide, PC 블록은 only-pc')
+  const g = read('components/CaptureGuide.js')
+  assert.ok(g.includes('only-mobile') && g.includes('data-home-shot'))
+  assert.ok(g.includes('📷 캡처한 사진 넣기') && g.includes('📷 주문완료 화면 캡처 넣기') && g.includes('📷 상품 화면 캡처 넣기'))
+  assert.ok(g.includes('📦 배송만') && g.includes('🛒 구매하고 배송까지'))
+  assert.ok(g.includes("caches.open('kb-share')") && g.includes("cache.put('/kb-share/shot'"), '공유 받기와 같은 보관함으로 넘깁니다')
+  for (const word of ['배송대행', '구매대행']) assert.ok(!g.replace(/\/\*[\s\S]*?\*\//g, '').includes(word), `${word} 는 쉬운 말로`)
+  const css = read('styles/globals.css')
+  assert.ok(css.includes('.only-mobile { display: none; }') && css.includes('.only-pc { display: block; }'), '820px 이상에서 폰 블록 숨김')
+})

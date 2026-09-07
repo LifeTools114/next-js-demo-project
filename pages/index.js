@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import ServiceAreaNotice from '../components/ServiceAreaNotice'
 import Flag from '../components/Flag'
+import CaptureGuide from '../components/CaptureGuide'
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
 import { FEES } from '../config/fees'
 import { TAXES } from '../config/taxes'
@@ -24,11 +25,14 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         <ServiceAreaNotice />
       </div>
 
+      {/* 폰 전용 시작점 — 캡처한 사진 넣기 + 어디를 캡처하는지 (PC 화면은 아래 그대로) */}
+      <CaptureGuide />
+
       {/*
-        폰으로 오신 분이 가장 먼저 눌러야 할 것 — 확장은 폰에서 돌지 않으므로
-        이 버튼이 폰 고객의 유일한 시작점입니다. 그래서 맨 위, 가장 크게.
+        PC 로 오신 분 — 확장이 상품 화면을 읽어 주므로 이 버튼은 폰 없이 PC 로만 할 때의 길입니다.
+        (폰 너비에서는 위 캡처 블록이 대신 보입니다)
       */}
-      <div className="section" style={{ paddingTop: 0 }}>
+      <div className="section only-pc" style={{ paddingTop: 0 }}>
         <Link href="/send" className="btn" style={{
           display: 'block', textAlign: 'center', minHeight: 62, fontSize: 19,
           fontWeight: 800, lineHeight: '38px',

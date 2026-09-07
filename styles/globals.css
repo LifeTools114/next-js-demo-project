@@ -348,3 +348,11 @@ img { max-width: 100%; display: block; }
   border-radius: var(--radius);
 }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* 폰 전용 / PC 전용 블록 — 첫 화면의 시작점이 기기마다 다릅니다 (26-09-07) */
+.only-mobile { display: block; }
+.only-pc { display: none; }
+@media (min-width: 820px) {
+  .only-mobile { display: none; }
+  .only-pc { display: block; }
+}
