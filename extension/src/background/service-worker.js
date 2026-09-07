@@ -360,6 +360,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
         return { ok: true, opened: urls.length }
       }
+      /* kb-operator-only */
+      case 'workerResult':
+        // 「대신 읽기」 창(src/worker)이 받아 처리합니다 — 배경은 조용히 응답만
+        return { ok: true }
+      case 'openWorker':
+        await chrome.tabs.create({ url: chrome.runtime.getURL('src/worker/worker.html') })
+        return { ok: true }
+      /* /kb-operator-only */
       default:
         return { ok: false, error: `알 수 없는 메시지: ${msg?.type}` }
     }

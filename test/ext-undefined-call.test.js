@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs'
 const FILES = [
   'src/content/order-capture.js', 'src/content/main.js', 'src/content/panel.js',
   'src/content/extract.js', 'src/content/parse-page.js', 'src/content/patterns.js',
-  'src/popup/popup.js', 'src/background/service-worker.js',
+  'src/popup/popup.js', 'src/background/service-worker.js', 'src/worker/worker.js',
 ]
 
 const BUILTINS = new Set(('if for while switch catch return typeof await async function new of ' +

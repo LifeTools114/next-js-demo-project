@@ -201,6 +201,7 @@ async function renderOps() {
   // 지우는 길을 버튼으로 — 「빈 칸으로 저장」은 알기 어려웠습니다 (운영자 26-09-06).
   $('ops-token-clear').hidden = !st.hasToken
   $('ops-token-note').hidden = !st.hasToken
+  /* kb-operator-only */ if ($('ops-worker')) $('ops-worker').hidden = !st.hasToken /* /kb-operator-only */
   const list = $('ops-list')
   if (!st.hasToken) {
     $('ops-empty').hidden = false
@@ -280,6 +281,11 @@ $('ops-token-save').addEventListener('click', async () => {
   $('ops-token').value = ''
   renderOps()
 })
+
+/* kb-operator-only */
+// 대신 읽기 창 — 팝업은 탭을 직접 열지 않고 배경에 부탁합니다 (팝업 규칙과 같게)
+$('ops-worker')?.addEventListener('click', () => { send('openWorker') })
+/* /kb-operator-only */
 
 $('ops-token-clear').addEventListener('click', async () => {
   await send('setAdminToken', { token: '' })

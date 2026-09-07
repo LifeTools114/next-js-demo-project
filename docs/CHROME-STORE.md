@@ -117,6 +117,7 @@ npm run pack:store
 
 결과: `dist/vietnam-helper-<버전>.zip`. 이 명령이 대신 해주는 것:
 - `host_permissions` 에서 개발용 `http://localhost:3000/*` 제거
+- 운영자 전용 「대신 읽기」(`src/worker/`, `kb-operator-only` 표식 블록) 제거 — 고객 배포본에는 자동으로 탭을 여는 코드가 없습니다
 - 확장이 붙는 기본 서버 주소(`DEFAULT_BACKEND`)를 `https://naka.1dollartool.com`(또는 `STORE_BACKEND_URL`)로 교체
   (https 여야 하고 `manifest.json` 의 host_permissions 에 있는 도메인이어야 합니다 — 아니면 중단)
 - 번들(`vendor/calc.js`)이 소스와 같은지 확인

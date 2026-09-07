@@ -489,3 +489,22 @@ test('주문완료 감지 정규식이 쿠팡 thank-you 주소와 배너 가드�
   // 운영자 토큰이 서버와 맞지 않으면 조용히 실패하지 않습니다.
   assert.match(src, /운영자 토큰이 이 서버와 맞지 않습니다/)
 })
+
+test('스토어 배포본 — 운영자 전용(대신 읽기) 코드는 걷어내고, 걷어낸 파일은 문법이 온전합니다', async () => {
+  const { stripOperatorBlocks, OPERATOR_MARKS } = await import('../scripts/lib/operator-strip.mjs')
+  const { execFileSync } = await import('node:child_process')
+  const { writeFileSync, mkdtempSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const dir = mkdtempSync(join(tmpdir(), 'kb-strip-'))
+  for (const rel of ['src/content/main.js', 'src/popup/popup.js', 'src/popup/popup.html', 'src/background/service-worker.js']) {
+    const before = readFileSync(new URL(`../extension/${rel}`, import.meta.url), 'utf8')
+    assert.ok(before.includes('kb-operator-only'), `${rel} 에 운영자 전용 표식이 있어야 걷어낼 수 있습니다`)
+    const after = stripOperatorBlocks(before)
+    for (const mark of OPERATOR_MARKS) assert.ok(!after.includes(mark), `${rel}: ${mark} 가 남았습니다`)
+    if (rel.endsWith('.js')) { const f = join(dir, rel.replace(/\//g, '_')); writeFileSync(f, after); execFileSync(process.execPath, ['--check', f]) }
+  }
+  // 걷어내기 전 원본은 대신 읽기 결과를 보고합니다 (운영자 브라우저에서만 동작)
+  const main = readFileSync(new URL('../extension/src/content/main.js', import.meta.url), 'utf8')
+  assert.ok(main.includes("location.hash.match(/kbjob=") && main.includes("type: 'workerResult'"))
+})

@@ -119,6 +119,18 @@
     chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.kbOn) compute() })
   } catch { /* 무시 */ }
 
+  /* kb-operator-only */
+  /**
+   * 대신 읽기 — 운영자의 「대신 읽기」 창이 이 탭을 #kbjob=… 으로 열었으면, 읽은 상품을 그 창에 돌려줍니다.
+   * 고객 브라우저에서는 해시가 없어 아무 일도 하지 않습니다. 스토어 배포본에서는 이 블록이 빠집니다.
+   */
+  function reportWorker(payload) {
+    const m = location.hash.match(/kbjob=([^&]+)/)
+    if (!m) return
+    try { chrome.runtime.sendMessage({ type: 'workerResult', jobId: decodeURIComponent(m[1]), payload }) } catch { /* 창이 닫혔으면 무시 */ }
+  }
+  /* /kb-operator-only */
+
   async function compute() {
     /**
      * 점검 시간 가드 — 쿠팡 페이지를 읽기 전에 먼저 확인합니다.
@@ -149,6 +161,7 @@
 
     if (!extracted.ok) {
       KBPanel.setState({ view: 'error', message: extracted.message })
+      /* kb-operator-only */ reportWorker({ ok: false, message: extracted.message }) /* /kb-operator-only */
       return
     }
 
@@ -190,6 +203,7 @@
         label: eligibility.label,
         reason: eligibility.reason,
       })
+      /* kb-operator-only */ reportWorker({ ok: true, item: { productName: extracted.productName, productPrice: extracted.price, specOverride: extracted.specOverride, categoryPath: extracted.categoryPath, badges: extracted.badges }, blocked: eligibility.label }) /* /kb-operator-only */
       return
     }
 
@@ -232,6 +246,8 @@
         return u.origin + u.pathname + (keep.toString() ? `?${keep}` : '')
       })(),
     }
+    /* kb-operator-only */ reportWorker({ ok: true, item }) /* /kb-operator-only */
+
     // 두 트랙을 모두 계산합니다 — 첫 화면이 "배송대행 얼마 / 구매대행 얼마"
     // 두 줄을 항상 같이 보여주기 때문입니다. (같은 상품이라 무게는 동일)
     const qF = K.quote([item], { track: 'forwarding', zone })

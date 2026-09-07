@@ -189,7 +189,18 @@ export default function SendPage() {
     setPeek((p) => ({ ...p, [i]: 'loading' }))
     try {
       const res = await fetch(`/api/product-peek?url=${encodeURIComponent(url)}`)
-      const d = await res.json()
+      let d = await res.json()
+      // 읽기 기기(사장님 PC·폰)가 대신 여는 중 — 최대 30초 동안 2초마다 물어봅니다 (운영자 아이디어 26-09-07)
+      if (!d.ok && d.reason === 'pending' && d.jobId) {
+        const until = Date.now() + 30000
+        while (Date.now() < until) {
+          await new Promise((r) => setTimeout(r, 2000))
+          const jr = await fetch(`/api/product-peek?job=${encodeURIComponent(d.jobId)}`)
+          const jd = await jr.json()
+          if (jd.ok || jd.reason !== 'pending') { d = jd; break }
+        }
+        if (!d.ok && d.reason === 'pending') d = { ok: false, reason: 'worker-timeout', productId: d.productId, url: d.url }
+      }
       if (!d.ok) {
         // 번호·정식 주소만 확인된 경우(쇼핑몰이 서버의 화면 읽기를 막음) — 주소는 정식으로 바꿔 두고 가격만 받습니다
         if (d.productId && d.url) setRows((prev) => prev.map((r, k) => (k !== i ? r : { ...r, productUrl: d.url })))
@@ -383,7 +394,7 @@ export default function SendPage() {
                 지금은 캡처 읽기를 쓸 수 없습니다 — 아래에 직접 적어 주세요.
               </p>
             )}
-            {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중…</p>}
+            {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중… (몇 초 걸릴 수 있어요)</p>}
             {peek[i] === 'resolved' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#e6f6f0', color: '#0f6e4f' }}>
                 ✓ 링크 확인됨 (상품 번호 {link?.productId}). 쇼핑몰이 서버의 자동 읽기를 막아 <b>가격</b>은 직접 적어 주세요 — 이름은 안 적어도 됩니다.
