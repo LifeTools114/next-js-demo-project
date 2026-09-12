@@ -30,15 +30,15 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
       <LinkStart ratePerKgUsd={ratePerKgUsd} agencyBaseKrw={agencyBaseKrw} shop={shop} />
 
       {/*
-        PC 로 오신 분 — 확장이 상품 화면을 읽어 주므로 이 버튼은 폰 없이 PC 로만 할 때의 길입니다.
-        (폰 너비에서는 위 캡처 블록이 대신 보입니다)
+        PC 로 오신 분 — 확장이 상품 화면을 읽어 주므로 이 버튼은 확장 없이 링크만으로 신청하는 길입니다.
+        (폰 너비에서는 위 링크 블록이 대신 보입니다)
       */}
       <div className="section only-pc" style={{ paddingTop: 0 }}>
         <Link href="/send" className="btn" style={{
           display: 'block', textAlign: 'center', minHeight: 62, fontSize: 19,
           fontWeight: 800, lineHeight: '38px',
         }}>
-          📱 폰으로 바로 시작하기
+          🔗 상품 링크로 신청하기
         </Link>
         <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5 }}>
           <b>배송만</b>은 쇼핑몰에 넣을 한국 창고 주소와 배송비를, <b>구매하고 배송까지</b>는 상품 링크만 주시면 전부 계산해 드립니다.

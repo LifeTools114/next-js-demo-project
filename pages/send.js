@@ -12,7 +12,7 @@
  * 배송만은 이 화면이 하는 일이 셋입니다.
  *   ① 쿠팡에 넣을 주소를 **한 항목씩 눌러 복사**하게 (외워 옮겨적지 않게)
  *   ② 쿠팡 앱으로 보내드리고
- *   ③ 돌아오시면 주문번호·상품 링크를 넣어 신청서로 잇습니다
+ *   ③ 돌아오시면 상품 링크를 넣어 신청서로 잇습니다
  * 가장 자주 깨지는 곳은 **상세주소**입니다. "YS-ECOM 이름"이 빠지면 창고에서 소포 주인을 못 찾습니다.
  * 그래서 이름을 먼저 받아 상세주소를 만들어 드리고, 이름이 없으면 그 칸은 복사조차 되지 않게 막아 둡니다.
  *
@@ -349,26 +349,11 @@ export default function SendPage({ shop }) {
     )
   }
 
-  /** 배송만 — 쇼핑몰 주문번호 (알림 문자를 공유했으면 읽힌 값, 아니면 직접). 신청서에 붙어 창고 입고와 맞춰집니다 */
-  const orderCard = !isAgent && (
-    <div data-shop-order={shopOrder ? '1' : '0'} style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 12, border: shopOrder ? '2px solid #17916b' : '1px solid #e5e8eb', background: shopOrder ? '#f2fbf7' : '#fbfcfd' }}>
-      {shopOrder ? (
-        <div style={{ fontSize: 13.5, lineHeight: 1.6, marginBottom: 6 }}>
-          <b style={{ color: '#0f6e4f' }}>✓ 결제 완료 알림에서 읽었습니다</b> · 상품 <b>{shopOrder.itemCount}</b>개
-          {shopOrder.moreItems ? <> · 외 {shopOrder.moreItems}건은 아래에 더해 주세요</> : null}
-        </div>
-      ) : null}
-      {shopOrder?.warehouse && !shopOrder.warehouse.found && (
-        <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-          ⚠ 배송지에 창고 코드({WAREHOUSE.code})가 보이지 않습니다. 배송지가 창고 주소인지 확인해 주세요.
-        </p>
-      )}
-      <label className="field__label" htmlFor="shop-order-no" style={{ fontSize: 12.5 }}>{shopWord} 주문번호 <span style={{ color: '#8b95a1', fontWeight: 500 }}>(주문내역에 있는 숫자)</span></label>
-      <input id="shop-order-no" className="input" inputMode="numeric" placeholder="예) 3102787036952" value={shopOrder?.orderNo ?? ''}
-        style={{ marginTop: 4, minHeight: 46 }}
-        onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 20); setShopOrder((o) => ({ ...(o ?? { itemCount: 0, warehouse: null, moreItems: 0 }), orderNo: v || null })) }} />
-    </div>
-  )
+  /**
+   * 결제 완료 알림 문자를 공유해 읽힌 상품·주문번호는 화면에 따로 보이지 않습니다 — 상품 줄로 펼쳐지고, 번호는 신청서에만
+   * 조용히 붙습니다 (운영자 26-09-12: "주문번호 … 이런 내용은 빼주세요"). 창고에서는 「YS-ECOM 이름」으로 찾습니다.
+   */
+  const orderCard = null
 
   const chipStyle = (on) => ({
     border: on ? '2px solid #1b64da' : '1.5px solid #dbe4f0', background: on ? '#e8f0ff' : '#fff', color: on ? '#0a2e9c' : '#4e5968',
@@ -547,7 +532,7 @@ export default function SendPage({ shop }) {
   )
 
   return (
-    <Layout title={`${t.name} — 폰으로 하기`}>
+    <Layout title={t.name}>
       <div className="section" style={{ paddingBottom: 6 }}>
         <h1 className="section__title">{t.emoji} {t.name}</h1>
       </div>
@@ -617,7 +602,7 @@ export default function SendPage({ shop }) {
             </div>
           </section>
 
-          {/* ── 3. 상품 담고 신청 — 주문번호 + 상품 링크 ───────────── */}
+          {/* ── 3. 상품 담고 신청 — 상품 링크 ───────────────────── */}
           <section className="panel">
             <div className="panel__head">3. 무엇을 사셨나요</div>
             <div className="panel__body">

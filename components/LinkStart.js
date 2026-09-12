@@ -78,7 +78,7 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw, shop }) {
               <strong>📦 배송만</strong> <span style={{ color: 'var(--ink-500)', fontWeight: 700 }}>· ${ratePerKgUsd}/kg</span>
               <br />
               <small style={{ color: 'var(--ink-500)' }}>
-                쿠팡에서 <Link href="/send?track=forwarding"><b>창고 주소</b></Link>로 결제한 뒤 주문번호와 상품 링크
+                쿠팡에서 <Link href="/send?track=forwarding"><b>창고 주소</b></Link>로 결제한 뒤 상품 링크
               </small>
             </span>
           </div>
