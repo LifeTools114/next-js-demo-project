@@ -53,14 +53,18 @@ const MUST_PASS = [
   '롯데리아 햄버거 기프티콘',
   '햄스터 사료 1kg',
   '스팸메일 차단 프로그램',
+  // 운영자 확정 26-09-12: 향수·매니큐어·스프레이·손소독제·보조배터리는 상온 국내배송 상품이라 모두 됨
+  '조말론 잉글리쉬 페어 코롱 100ml',
+  '샤넬 코코마드모아젤 오드퍼퓸 50ml',
+  '아세톤 네일리무버 100ml',
+  '미쟝센 헤어스프레이 300ml',
+  '아로마티카 손소독제 500ml',
+  '삼성 보조배터리 20000mAh',
 ]
 
 const MUST_BLOCK = [
-  ['조말론 잉글리쉬 페어 코롱 100ml', 'flammable'],
-  ['샤넬 코코마드모아젤 오드퍼퓸 50ml', 'flammable'],
-  ['아세톤 네일리무버 100ml', 'flammable'],
-  ['맥스 부탄가스 4개입', 'flammable'],
-  ['삼성 보조배터리 20000mAh', 'battery'],
+  ['맥스 부탄가스 4개입', 'dangerous'],
+  ['지포 라이터 오리지널', 'dangerous'],
   ['참이슬 후레쉬 소주 20병', 'alcohol-tobacco'],
   ['에쎄 체인지 담배 1보루', 'alcohol-tobacco'],
   ['제주 흑돼지 삼겹살 1kg', 'quarantine-animal'],
@@ -180,12 +184,12 @@ test('화장품 이름의 유제품 단어를 축산물로 오판하지 않는�
 test('장바구니는 하나라도 불가면 전체가 불가다', () => {
   const r = checkCartEligibility([
     p('토리든 세럼 50ml'),
-    p('조말론 코롱 100ml'),
+    p('맥스 부탄가스 4개입'),
     p('농심 신라면 5개입'),
   ])
   assert.equal(r.shippable, false)
   assert.equal(r.blocked.length, 1)
-  assert.equal(r.blocked[0].ruleId, 'flammable')
+  assert.equal(r.blocked[0].ruleId, 'dangerous')
 })
 
 test('관세 품목군: 세금이 더 붙는 품목을 구분한다', () => {

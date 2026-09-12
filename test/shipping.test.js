@@ -225,7 +225,7 @@ test('견적: 명세 합계가 총액과 일치한다', () => {
 })
 
 test('견적: 배송 불가 상품이 있으면 표시된다', () => {
-  const q = quote([{ productName: '조말론 코롱 100ml', productPrice: 98000, quantity: 1 }], { track: TRACK.AGENT })
+  const q = quote([{ productName: '맥스 부탄가스 4개입', productPrice: 9000, quantity: 1 }], { track: TRACK.AGENT }) // 향수는 26-09-12 부터 됩니다
   assert.equal(q.eligibility.shippable, false)
   assert.equal(q.eligibility.blocked.length, 1)
 })

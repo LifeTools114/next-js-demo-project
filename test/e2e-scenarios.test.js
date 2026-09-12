@@ -161,7 +161,7 @@ test('S05 차액이 기준 미만 → 임시 견적서 금액 그대로 확정',
 test('S06 금지 품목은 접수 자체가 거절된다', () => {
   assert.throws(
     () => createOrder({ consents: ALL_CONSENTS,
-      items: [item('보조배터리 20000mAh', 39000)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
+      items: [item('맥스 부탄가스 4개입', 9000)], zone: 'hanoi', track: 'forwarding', customer: CUSTOMER,
     }),
     /배송할 수 없는/,
   )

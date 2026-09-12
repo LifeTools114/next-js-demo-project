@@ -200,8 +200,8 @@ test('표본 300종의 청구무게가 상식 범위에 들어온다 (운영자 
  * 대형 가전으로 막히는 오차단을 놓쳤습니다. 이제 실제로 검사합니다.
  */
 test('표본 300종 중 정책상 막아야 할 품목만 차단된다', () => {
-  // 배터리·향수(인화성)·유제품/육류(검역)·대형 가전 본체만 차단이 정상입니다.
-  const ALLOWED_BLOCK_RULES = ['battery', 'flammable', 'quarantine-animal', 'oversize']
+  // 항공 위험물(가스·폭죽)·유제품/육류(검역)·대형 가전 본체만 차단이 정상입니다 (향수·배터리는 26-09-12 부터 허용).
+  const ALLOWED_BLOCK_RULES = ['dangerous', 'quarantine-animal', 'oversize']
   const blocked = WEIGHT_SAMPLES
     .map(([productName, , , categoryName]) =>
       ({ productName, res: checkEligibility({ productName, categoryName, price: 30000, quantity: 1 }) }))

@@ -234,7 +234,7 @@ test('서버 최종 거절: 배송 불가 상품은 주문 생성 자체가 막�
     () => createOrder({ consents: ALL_CONSENTS, items: overseas, zone: 'hanoi', track: 'forwarding', customer: CUSTOMER }),
     /배송할 수 없는 상품/,
   )
-  const banned = [{ productName: '샤넬 오드퍼퓸 50ml', productPrice: 200000, quantity: 1 }]
+  const banned = [{ productName: '참이슬 후레쉬 소주 20병', productPrice: 40000, quantity: 1 }] // 향수는 26-09-12 부터 됩니다 — 주류로 검사
   assert.throws(
     () => createOrder({ consents: ALL_CONSENTS, items: banned, zone: 'hanoi', track: 'agent', customer: CUSTOMER }),
     /배송할 수 없는 상품/,

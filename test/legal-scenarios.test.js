@@ -114,10 +114,12 @@ test('L09 수취인 정보 정확성 책임을 고지한다', () => {
 
 // ── 금지 품목 ────────────────────────────────────────────────────────
 
-test('L10 항공 위험물 고지 + 실제 차단 (배터리)', () => {
+test('L10 배터리 고지 — 막지 않고 안내만 (운영자 26-09-12: 상온 국내배송 상품은 모두 됨)', () => {
   assert.ok(noticeSays('prohibited', /배터리/))
-  assert.equal(checkEligibility({ productName: '앤커 보조배터리 20000mAh' }).shippable, false)
-  assert.throws(() => order({ items: [item('앤커 보조배터리 20000mAh', 39000)] }), /배송할 수 없는/)
+  const r = checkEligibility({ productName: '앤커 보조배터리 20000mAh' })
+  assert.equal(r.shippable, true)
+  assert.ok(r.warnings.some((w) => w.id === 'battery-caution'))
+  assert.doesNotThrow(() => order({ items: [item('앤커 보조배터리 20000mAh', 39000)] }))
 })
 
 test('L11 검역 품목 고지 + 실제 차단 (축산물·냉장냉동)', () => {
@@ -131,9 +133,11 @@ test('L11 검역 품목 고지 + 실제 차단 (축산물·냉장냉동)', () =>
   assert.equal(checkEligibility({ productName: '동원 리챔 스팸 340g' }).shippable, true)
 })
 
-test('L12 인화성 물질 고지 + 실제 차단 (향수)', () => {
-  assert.ok(noticeSays('prohibited', /인화성|향수/))
-  assert.equal(checkEligibility({ productName: '조말론 잉글리쉬페어 코롱 30ml' }).shippable, false)
+test('L12 항공 위험물 고지 + 실제 차단 (부탄가스) — 향수는 된다 (운영자 26-09-12)', () => {
+  assert.ok(noticeSays('prohibited', /위험물|가스/))
+  assert.ok(noticeSays('prohibited', /향수[^.]*보낼 수 있습니다/), '향수가 된다는 것도 고지에 있어야 합니다')
+  assert.equal(checkEligibility({ productName: '맥스 부탄가스 4개입' }).shippable, false)
+  assert.equal(checkEligibility({ productName: '조말론 잉글리쉬페어 코롱 30ml' }).shippable, true)
 })
 
 test('L13 해외직구(타국 발송) 고지 + 실제 차단', () => {

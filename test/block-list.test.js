@@ -1,7 +1,7 @@
 /**
- * 배송 불가 정책 — 운영자 최종 확정 26-09-06:
- * "중국 등 해외직구, 인화성·위험물, 배터리·강자성, 주류·담배, 냉장·냉동 식품,
- *  생고기·냉장 유제품·회, 대형 가전·가구 — 이거 빼고는 모두 됨."
+ * 배송 불가 정책 — 운영자 최종 확정 26-09-12:
+ * "담배·술·흉기·냉동식품·정육·생선·계란 같은 건 안 되지만, 상온으로 국내에서 배송 중인 건 모두 된다.
+ *  향수 같은 건 베트남에서 해외직구가 모두 가능하다." (인화성·배터리 차단은 이 날 풀림 — 가스·폭죽만 남김)
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -11,9 +11,9 @@ import { checkEligibility } from '../lib/eligibility.js'
 const chk = (productName, categoryPath = '', extra = {}) =>
   checkEligibility({ productName, categoryPath, price: 10000, quantity: 1, ...extra })
 
-test('고객 목록 = 차단 6개(순서 고정) + 상담 1개(중량 초과)', () => {
+test('고객 목록 = 차단 5개(순서 고정) + 상담 1개(중량 초과)', () => {
   assert.deepEqual(LISTED_BLOCK_RULES.map((r) => r.id),
-    ['flammable', 'battery', 'alcohol-tobacco', 'cold-chain', 'quarantine-animal', 'oversize'])
+    ['dangerous', 'alcohol-tobacco', 'cold-chain', 'quarantine-animal', 'oversize'])
   assert.deepEqual(LISTED_CONSULT_RULES.map((r) => r.id), ['overweight'])
   const by = Object.fromEntries(BLOCK_RULES.map((r) => [r.id, r]))
   assert.equal(by['cold-chain'].reason, '항공 배송 중에는 냉장·냉동을 유지할 수 없어 상할 수 있습니다. 상온으로 파는 식품은 문제 없음')
@@ -32,6 +32,22 @@ test('일곱 가지 빼고는 모두 된다 — 의약품·씨앗·특별소비�
   assert.equal(seed.shippable, true)
   assert.ok(seed.warnings.some((w) => w.id === 'plant-caution'))
   assert.equal(chk('화투 고스톱 세트').shippable, true)
+})
+
+test('향수·매니큐어·스프레이·손소독제는 안내 없이 되고, 보조배터리는 안내만, 가스·폭죽만 위험물로 막는다 (26-09-12)', () => {
+  for (const name of ['샤넬 넘버5 오드퍼퓸 100ml', '조말론 잉글리쉬페어 코롱 30ml', '아세톤 네일리무버 100ml', '미쟝센 헤어스프레이 300ml', '아로마티카 손소독제 500ml', '3M 순간접착제']) {
+    const r = chk(name)
+    assert.equal(r.shippable, true, `${name} 이 ${r.label}('${r.matchedKeyword}')로 막혔습니다`)
+    assert.deepEqual(r.warnings.map((w) => w.id), [], `${name} 에 안내가 붙었습니다`)
+  }
+  const bat = chk('앤커 보조배터리 20000mAh')
+  assert.equal(bat.shippable, true)
+  assert.ok(bat.warnings.some((w) => w.id === 'battery-caution'), '배터리는 물류사 반려 가능 안내만')
+  for (const name of ['맥스 부탄가스 4개입', '지포 라이터 오리지널', '불꽃놀이 폭죽 세트']) {
+    const r = chk(name)
+    assert.equal(r.shippable, false, `${name} 은 항공 위험물로 막혀야 합니다`); assert.equal(r.ruleId, 'dangerous')
+  }
+  assert.ok(!BLOCK_RULES.some((r) => r.id === 'flammable' || r.id === 'battery'), '인화성·배터리 차단 규칙은 없어야 합니다')
 })
 
 test('명백한 불법 반입품(총기·마약·짝퉁·중고폰)만은 목록 없이 계속 막는다', () => {
