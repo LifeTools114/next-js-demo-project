@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "베트남 직구 도우미",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "description": "한국 온라인몰 상품의 베트남 도착 예상 가격을 계산하고, 배송지 입력 방법을 안내합니다. 화면을 대신 조작하지 않습니다.",
   "default_locale": "ko",
   "permissions": [
@@ -10,6 +10,7 @@
   "host_permissions": [
     "https://www.coupang.com/*",
     "https://m.coupang.com/*",
+    "https://shop.coupang.com/*",
     "https://mc.coupang.com/*",
     "https://checkout.coupang.com/*",
     "https://cart.coupang.com/*",
@@ -23,7 +24,8 @@
     {
       "matches": [
         "https://www.coupang.com/vp/products/*",
-        "https://m.coupang.com/vm/products/*"
+        "https://m.coupang.com/vm/products/*",
+        "https://shop.coupang.com/*"
       ],
       "js": [
         "src/content/patterns.js",

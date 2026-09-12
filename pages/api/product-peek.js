@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const job = getJob(jobId)
     if (!job) return res.status(200).json({ ok: false, reason: 'unknown-job' })
     if (job.status === 'pending') return res.status(200).json({ ok: false, reason: 'pending', jobId, productId: job.productId, url: job.url })
-    if (job.status === 'failed') return res.status(200).json({ ok: false, reason: 'worker-failed', productId: job.productId, url: job.url })
+    if (job.status === 'failed') return res.status(200).json({ ok: false, reason: job.result?.reason ?? 'worker-failed', redirect: job.result?.redirect ?? null, productId: job.result?.productId ?? job.productId, url: job.url })
     return res.status(200).json({ ok: true, productId: job.productId, url: job.url, ...job.result })
   }
   const url = String(req.query?.url ?? '').slice(0, 1000)

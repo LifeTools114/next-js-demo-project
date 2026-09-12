@@ -46,3 +46,9 @@ test('옵션 — 다른 상품 주소·엉뚱한 주소는 url 을 버리고, �
   assert.equal(out[2].label.length, 80); assert.equal(out[2].url, 'https://www.coupang.com/vp/products/777?itemId=7&vendorItemId=8'); assert.equal(out[2].price, null)
   assert.deepEqual(sanitizeOptions('아무거나'), [])
 })
+
+test('상품 화면이 아니었을 때 찾아온 상품 주소(redirect) — 쇼핑몰 정식 주소로 확인된 것만', () => {
+  const r = sanitizeWorkerResult({ ok: false, redirect: 'https://www.coupang.com/vp/products/7654321?itemId=11&vendorItemId=22&x=1', message: '브랜드관' })
+  assert.deepEqual(r, { ok: false, reason: 'redirect', redirect: 'https://www.coupang.com/vp/products/7654321?itemId=11&vendorItemId=22', productId: '7654321', message: '브랜드관' })
+  assert.deepEqual(sanitizeWorkerResult({ ok: false, redirect: 'https://evil.example.com/vp/products/1' }), { ok: false, message: '' })
+})

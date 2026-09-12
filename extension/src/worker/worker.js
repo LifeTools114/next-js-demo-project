@@ -64,6 +64,7 @@ async function finish(tabId, jobId, result) {
   try { await chrome.tabs.remove(tabId) } catch { /* 이미 닫힘 */ }
   const r = await api(`/api/worker/jobs/${encodeURIComponent(jobId)}`, { method: 'POST', body: JSON.stringify(result) })
   if (result.ok) { counts.done += 1; log(`읽음 ${result.productName?.slice(0, 40) ?? ''} · ${result.productPrice ?? '-'}원 · 옵션 ${result.options?.length ?? 0}개`) }
+  else if (result.redirect) { counts.done += 1; log(`상품 주소 찾음 → ${String(result.redirect).slice(0, 60)}`) }
   else { counts.failed += 1; log(`실패 ${result.message ?? ''} (${jobId})`, true) }
   if (!r.ok) log(`서버에 결과를 못 보냈습니다 (${r.status})`, true)
   render()
@@ -109,7 +110,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
         badges: p.item?.badges ?? [], categoryPath: p.item?.categoryPath ?? '', shippingText: p.item?.shippingText ?? '', blocked: p.blocked ?? null,
         // 고객이 고를 옵션 목록(번호·링크·가격)과 이 화면의 정식 주소 — 고객 화면이 옵션을 바꾸면 그 주소를 다시 읽습니다
         options: Array.isArray(p.item?.options) ? p.item.options : [], productUrl: p.item?.productUrl ?? null }
-    : { ok: false, message: p.message ?? '읽기 실패' })
+    : { ok: false, message: p.message ?? (p.redirect ? '상품 주소를 찾아 다시 읽습니다' : '읽기 실패'), redirect: p.redirect ?? null })
 })
 
 // 열었던 탭을 사람이 닫으면 실패로 마감

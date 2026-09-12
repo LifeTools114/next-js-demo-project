@@ -190,7 +190,7 @@ export default function SendPage({ shop }) {
    * 읽기 기기가 없으면 「링크 확인됨 · 가격만」 — 흐름은 끊기지 않습니다. 이미 적힌 칸은 덮어쓰지 않습니다.
    * force 는 옵션을 바꿔 그 옵션의 화면을 읽을 때 — 이름·가격을 그 옵션 값으로 바꿉니다.
    */
-  const peekRow = async (i, url, { force = false } = {}) => {
+  const peekRow = async (i, url, { force = false, hop = 0 } = {}) => {
     if (!parseProductUrl(url)) return
     setPeek((p) => ({ ...p, [i]: force ? 'option' : 'loading' }))
     try {
@@ -206,6 +206,11 @@ export default function SendPage({ shop }) {
           if (jd.ok || jd.reason !== 'pending') { d = jd; break }
         }
         if (!d.ok && d.reason === 'pending') d = { ok: false, reason: 'worker-timeout', productId: d.productId, url: d.url }
+      }
+      if (!d.ok && d.reason === 'redirect' && d.redirect && hop < 2 && parseProductUrl(d.redirect)?.productId) {
+        // 브랜드관·기획전 링크 — 읽기 기기가 찾아온 진짜 상품 주소로 한 번 더 읽습니다
+        setRows((prev) => prev.map((r, k) => (k !== i ? r : { ...r, productUrl: d.redirect })))
+        return peekRow(i, d.redirect, { force, hop: hop + 1 })
       }
       if (!d.ok) {
         // 번호·정식 주소만 확인된 경우(읽기 기기 없음) — 주소는 정식으로 바꿔 두고 가격만 받습니다
@@ -409,7 +414,7 @@ export default function SendPage({ shop }) {
             )}
             {peek[i] === 'fail' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                {shopWord} 상품 링크로 확인되지 않았습니다. 이름·가격을 적어 주세요.
+                {shopWord} 상품 링크로 확인되지 않았습니다. 상품 상세 화면에서 공유한 링크를 넣거나, 이름·가격을 적어 주세요.
               </p>
             )}
 

@@ -174,3 +174,19 @@ test('봇 검사 페이지(200 이지만 akam 스크립트뿐)는 bot-protected 
   const r = await peekProduct('https://www.coupang.com/vp/products/9122192858', { fetchImpl, log: quiet, readPage: true })
   assert.equal(r.ok, false); assert.equal(r.reason, 'bot-protected'); assert.equal(r.productId, '9122192858')
 })
+
+test('상품 번호가 없는 쇼핑몰 주소(브랜드관) — 읽기 기기가 있으면 맡기고(pending), 없으면 못 풂(unresolved)', async () => {
+  const { take, _resetJobs } = await import('../lib/peek-jobs.js')
+  const { _resetPeekCache } = await import('../lib/product-peek.js')
+  _resetJobs(); _resetPeekCache()
+  const blocked = async () => ({ ok: false, status: 403, headers: new Map(), text: async () => '' })
+  const url = 'https://shop.coupang.com/A00126071/518181?source=brandstore'
+  const off = await peekProduct(url, { fetchImpl: blocked, log: null })
+  assert.equal(off.reason, 'unresolved')
+  _resetPeekCache()
+  take({ now: Date.now() }) // 읽기 기기가 방금 확인함
+  const on = await peekProduct(url, { fetchImpl: blocked, log: null })
+  assert.equal(on.reason, 'pending'); assert.ok(on.jobId); assert.equal(on.productId, null)
+  const jobs = take({ now: Date.now() })
+  assert.equal(jobs[0]?.url, url)
+})

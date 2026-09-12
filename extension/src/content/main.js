@@ -12,7 +12,43 @@
  */
 
 ;(async function main() {
-  if (!location.pathname.includes('/vp/products/') && !location.pathname.includes('/vm/products/')) return
+  const isProductPage = location.pathname.includes('/vp/products/') || location.pathname.includes('/vm/products/')
+  /* kb-operator-only */
+  /**
+   * 대신 읽기 창이 연 탭(#kbjob=)인데 상품 화면이 아니면 — 브랜드관(shop.coupang.com/A00…/…)·기획전 등 —
+   * 화면 속에서 진짜 상품 주소(/vp/products/…)를 찾아 돌려줍니다. 서버는 그 주소로 다시 읽기를 겁니다.
+   * 늦게 그려지는 화면을 위해 0.8초 간격으로 최대 8번 봅니다. 고객 브라우저에서는 해시가 없어 아무 일도 하지 않습니다.
+   */
+  if (!isProductPage && /kbjob=/.test(location.hash)) {
+    const findProductLinkInPage = () => {
+      const pick = (v) => (v && /\/(vp|vm)\/products\/\d+/.test(v) ? v : null)
+      const canon = pick(document.querySelector('link[rel="canonical"]')?.href) ?? pick(document.querySelector('meta[property="og:url"]')?.content)
+      if (canon) return canon
+      const a = document.querySelector('a[href*="/vp/products/"], a[href*="/vm/products/"]')
+      if (a) return a.href
+      for (const sc of document.querySelectorAll('script:not([src])')) {
+        const t = sc.textContent ?? ''
+        const m = t.match(/https?:\\?\/\\?\/(?:www|m)\.coupang\.com\\?\/(?:vp|vm)\\?\/products\\?\/(\d{5,20})[^"'\s]*/) ?? t.match(/"productId"\s*:\s*"?(\d{5,20})/)
+        if (m) return `https://www.coupang.com/vp/products/${m[1]}`
+      }
+      return null
+    }
+    const sendResult = (payload) => {
+      const m = location.hash.match(/kbjob=([^&]+)/)
+      try { chrome.runtime.sendMessage({ type: 'workerResult', jobId: decodeURIComponent(m[1]), payload }) } catch { /* 창이 닫혔으면 무시 */ }
+    }
+    let tries = 0
+    const attempt = () => {
+      const found = findProductLinkInPage()
+      if (found) { sendResult({ ok: false, redirect: found }); return }
+      if (++tries >= 8) { sendResult({ ok: false, message: `상품 화면이 아니라 상품 주소를 찾지 못했습니다 (${location.hostname}${location.pathname.slice(0, 30)})` }); return }
+      setTimeout(attempt, 800)
+    }
+    attempt()
+    return
+  }
+  /* /kb-operator-only */
+  if (!isProductPage) return
   if (!globalThis.KBCalc || !globalThis.KBExtract || !globalThis.KBPanel) return
 
   const K = globalThis.KBCalc
