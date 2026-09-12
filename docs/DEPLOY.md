@@ -79,6 +79,7 @@ nano: 고치고 `Ctrl+O` → `Enter` 저장, `Ctrl+X` 나가기.
 | 언제 | 명령 |
 |---|---|
 | 코드 새 버전 올릴 때 (제가 푸시한 뒤) | `bash /srv/kb/deploy/update.sh` |
+| 대신 읽기를 서버에서 (PC 없이, 한 번만) | `bash /srv/kb/deploy/setup-worker.sh` → `/admin` 「🔄 대신 읽기」 살아 있음 확인 · 기록 `journalctl -u kb-worker -n 50 --no-pager` |
 | 잘 도는지 | `systemctl status kb --no-pager` · `journalctl -u kb -n 100 --no-pager` |
 | 인증서·HTTPS 문제 | `systemctl status caddy --no-pager` · DNS 고친 뒤 `systemctl reload caddy` |
 | 백업 확인 | `ls /srv/kb/backups` (30일치) · 복구는 `tar -xzf` 로 `.data/` 되돌리고 `systemctl restart kb` |

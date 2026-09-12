@@ -633,6 +633,12 @@ env 로도 교체 가능: `COMPANY_NAME`, `COMPANY_PIC`.
     가져가 탭을 열고 → 콘텐츠 스크립트가 `#kbjob=` 을 보고 옵션 목록(`KBExtract.extractOptions`)까지 보고 →
     `POST /api/worker/jobs/:id` (정리 규칙 `lib/peek-result.js`) → 고객 화면(2초마다 30초까지 확인)에 채워짐. 같은 상품(같은
     옵션)은 6시간 캐시. 읽기 기기가 20초 안에 가져간 적이 없으면 서버는 줄에 넣지 않고 바로 「가격만」으로 넘깁니다.
+  - **서버에서 돌리기 (PC 없이, 권장 · 26-09-12)**: root 로 `bash /srv/kb/deploy/setup-worker.sh` 한 번. 서버에 크롬(Playwright
+    Chromium)과 가상 화면(xvfb)을 깔고, 확장을 붙인 크롬을 systemd 서비스 `kb-worker` 로 늘 켜 둡니다. 크롬은 우리 사이트의
+    `/kb-worker-boot` 로 시작하고(설정은 # 뒤라 서버·로그에 남지 않음) 확장의 배경 스크립트가 그 탭을 대신 읽기 창으로 바꿔
+    3초마다 작업을 가져갑니다. 확인은 `/admin` 「🔄 대신 읽기 · 살아 있음」. `deploy/update.sh` 가 이 서비스도 함께 재시작합니다.
+    끄기 `systemctl disable --now kb-worker`, 기록 `journalctl -u kb-worker -n 50 --no-pager`.
+    ⚠️ 쿠팡이 서버 IP 의 크롬까지 막으면 작업이 「시간 초과 (탭: Access Denied)」로 남습니다 — 그때는 아래 PC 방법으로.
   - **켜는 법 (PC, 한 번만)**: 확장 팝업 [운영] 탭에 토큰 저장 → 「🔄 대신 읽기 창 열기」 → 「대신 읽기 시작」. 그 뒤로는
     **크롬을 켤 때마다 이 창이 고정 탭으로 자동으로 열립니다** (`chrome.runtime.onStartup`, 켜 둔 상태일 때). 영업 시간에
     PC 크롬만 켜 두면 됩니다. 창의 「최근 처리」에 읽음·옵션 수·실패가 남습니다.

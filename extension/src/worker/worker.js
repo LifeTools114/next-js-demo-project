@@ -133,4 +133,20 @@ async function setRunning(on) {
 $('toggle').addEventListener('click', async () => { await loadSettings(); setRunning(!running) })
 chrome.storage.onChanged.addListener(async (changes, area) => { if (area === 'local' && (changes.backend || changes.adminToken)) { await loadSettings(); render() } })
 
-loadSettings().then((wasOn) => { render(); if (wasOn) setRunning(true) })
+/**
+ * 서버에서 돌리는 크롬(deploy/setup-worker.sh)은 팝업을 열 사람이 없으므로, 처음 열 때 주소 파라미터로 설정을 받습니다.
+ *   worker.html?backend=https://…&token=…&start=1  → 저장하고 주소창에서는 지웁니다(토큰이 남지 않게).
+ */
+async function bootstrapFromUrl() {
+  const q = new URLSearchParams(location.search)
+  if (!q.has('backend') && !q.has('token') && !q.has('start')) return
+  const patch = {}
+  if (q.get('backend')) patch.backend = String(q.get('backend')).replace(/\/$/, '')
+  if (q.get('token')) patch.adminToken = String(q.get('token'))
+  if (q.get('start') === '1') patch.workerOn = true
+  if (Object.keys(patch).length) await store.set(patch)
+  try { history.replaceState(null, '', location.pathname) } catch { /* 무시 */ }
+  log('주소 파라미터로 설정을 받았습니다')
+}
+
+bootstrapFromUrl().then(loadSettings).then((wasOn) => { render(); if (wasOn) setRunning(true) })

@@ -27,6 +27,28 @@ chrome.runtime.onStartup?.addListener(() => {
     if (s?.workerOn && s?.adminToken) chrome.tabs.create({ url: chrome.runtime.getURL('src/worker/worker.html'), pinned: true, active: false })
   })
 })
+/**
+ * 서버에서 도는 크롬(deploy/setup-worker.sh)은 팝업을 열 사람이 없습니다. 크롬을 우리 사이트의 /kb-worker-boot 주소로
+ * 켜면(설정은 # 뒤 — 서버로 전송되지 않음), 여기서 그 탭을 찾아 설정을 저장하고 탭을 대신 읽기 창으로 바꿉니다.
+ * 확장 페이지 주소를 명령줄에 바로 주면 확장이 뜨기 전에 열려 오류 페이지가 됩니다 (26-09-12 확인).
+ */
+async function bootWorkerFromTab(left = 24) {
+  let tabs = []
+  try { tabs = await chrome.tabs.query({ url: ['*://*/kb-worker-boot*'] }) } catch { return }
+  const tab = tabs.find((t) => t.url)
+  if (!tab) { if (left > 0) setTimeout(() => bootWorkerFromTab(left - 1), 500); return }
+  let hash = ''
+  try { hash = new URL(tab.url).hash.replace(/^#/, '') } catch { return }
+  const q = new URLSearchParams(hash)
+  const patch = {}
+  if (q.get('backend')) patch.backend = String(q.get('backend')).replace(/\/$/, '')
+  if (q.get('token')) patch.adminToken = String(q.get('token'))
+  if (q.get('start') === '1') patch.workerOn = true
+  await new Promise((r) => chrome.storage.local.set(patch, r))
+  try { await chrome.tabs.update(tab.id, { url: chrome.runtime.getURL('src/worker/worker.html'), pinned: true }) } catch { /* 탭이 닫혔으면 무시 */ }
+}
+chrome.runtime.onInstalled?.addListener(() => bootWorkerFromTab())
+chrome.runtime.onStartup?.addListener(() => bootWorkerFromTab())
 /* /kb-operator-only */
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({ configAt: 0 })
