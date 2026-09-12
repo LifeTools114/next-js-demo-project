@@ -17,7 +17,8 @@
     "telegram:webhook": "node scripts/telegram-webhook.mjs",
     "pack:store": "node scripts/pack-store.mjs",
     "pack:phone": "node scripts/pack-phone.mjs",
-    "check:items": "node scripts/check-eligibility.mjs"
+    "check:items": "node scripts/check-eligibility.mjs",
+    "spec:appendix": "node scripts/spec-appendix.mjs"
   },
   "dependencies": {
     "next": "16.3.3",
