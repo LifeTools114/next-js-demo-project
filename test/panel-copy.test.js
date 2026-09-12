@@ -276,7 +276,10 @@ test('배송지 안내의 이름 자리는 "예시"임이 보이고, 내 이름�
    * 생겼습니다. 예시는 누가 봐도 예시(홍길동)여야 하고, 진짜 내 이름은
    * 칠해서 "여기가 당신 이름"임이 보여야 합니다.
    */
-  const send = readFileSync(new URL('../pages/send.js', import.meta.url), 'utf8')
+  // 주소 블록은 components/WarehouseAddress.js — /send(배송만)와 /guide(이용 안내)가 같이 씁니다 (26-09-12)
+  const send = readFileSync(new URL('../components/WarehouseAddress.js', import.meta.url), 'utf8')
+  assert.ok(readFileSync(new URL('../pages/send.js', import.meta.url), 'utf8').includes('<WarehouseAddress '), '/send 가 주소 블록을 씁니다')
+  assert.ok(readFileSync(new URL('../pages/guide.js', import.meta.url), 'utf8').includes('<WarehouseAddress '), '/guide 도 같은 주소 블록을 씁니다')
   assert.ok(send.includes("const SAMPLE_NAME = '홍길동'"), '예시 이름은 홍길동')
   assert.ok(!send.includes('박하노') && !send.includes('박승우'), '사람 이름처럼 보이는 옛 예시가 남으면 안 됩니다')
   assert.ok(send.includes('placeholder={`예) ${SAMPLE_NAME}`}'), '입력칸 안내도 같은 예시로')

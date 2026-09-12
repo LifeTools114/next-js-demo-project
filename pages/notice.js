@@ -9,27 +9,26 @@ import Layout from '../components/Layout'
 import { noticesByCategory, BUSINESS, REQUIRED_CONSENTS } from '../config/legal'
 
 const TONE = {
-  critical: { bg: '#fff0f0', border: '#ffc9c9', color: '#c92a2a', tag: '꼭 확인' },
-  important: { bg: '#fff8e6', border: '#ffe3a3', color: '#a05a12', tag: '중요' },
-  info: { bg: '#f2f6fb', border: '#dbe4f0', color: '#2b5e9e', tag: '안내' },
+  critical: { bg: 'var(--danger-soft)', border: 'var(--danger)', color: 'var(--danger)', tag: '꼭 확인' },
+  important: { bg: 'var(--warn-soft)', border: 'var(--warn)', color: 'var(--warn)', tag: '중요' },
+  info: { bg: 'var(--accent-soft)', border: 'var(--line-2)', color: 'var(--accent)', tag: '안내' },
 }
 
 export default function NoticePage() {
   return (
     <Layout>
-      <Head><title>공지사항 — 배송 전 꼭 확인</title></Head>
+      <Head><title>이용약관 · 공지사항 — 배송 전 꼭 확인</title></Head>
 
       <div className="hero">
-        <h1 className="hero__title">공지사항</h1>
-        <p className="hero__desc" style={{ fontSize: 15 }}>
-          배송을 맡기시기 전에 꼭 알아두셔야 할 내용입니다.
-          <b> 빨간색 항목은 돈이 걸린 내용</b>이라 특히 중요합니다.
+        <h1 className="hero__title">📋 이용약관 · 공지사항</h1>
+        <p className="hero__desc">
+          배송을 맡기시기 전에 꼭 확인하세요. <b>빨간 항목은 돈이 걸린 내용</b>입니다.
         </p>
       </div>
 
       {noticesByCategory().map(({ category, items }) => (
         <section className="section" key={category}>
-          <h2 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 10px' }}>{category}</h2>
+          <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 10px' }}>{category}</h2>
           {items.map((n) => {
             const tone = TONE[n.severity] ?? TONE.info
             return (
@@ -41,8 +40,8 @@ export default function NoticePage() {
                   display: 'inline-block', fontSize: 11.5, fontWeight: 800, color: '#fff',
                   background: tone.color, borderRadius: 999, padding: '2px 9px', marginBottom: 6,
                 }}>{tone.tag}</div>
-                <h3 style={{ fontSize: 16.5, fontWeight: 800, margin: '0 0 6px', color: '#191f28' }}>{n.title}</h3>
-                <ul style={{ margin: 0, paddingLeft: 18, color: '#333d4b', fontSize: 14.5, lineHeight: 1.75 }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 6px', color: 'var(--text)' }}>{n.title}</h3>
+                <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-2)', fontSize: '0.86rem', lineHeight: 1.7 }}>
                   {n.body.map((line, i) => <li key={i}>{line}</li>)}
                 </ul>
               </article>
@@ -52,16 +51,16 @@ export default function NoticePage() {
       ))}
 
       <section className="section">
-        <h2 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 10px' }}>접수 시 동의하시는 항목</h2>
-        <ul style={{ paddingLeft: 18, color: '#333d4b', fontSize: 14.5, lineHeight: 1.9 }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 10px' }}>접수 시 동의하시는 항목</h2>
+        <ul style={{ paddingLeft: 18, color: 'var(--text-2)', fontSize: '0.86rem', lineHeight: 1.9 }}>
           {REQUIRED_CONSENTS.map((c) => <li key={c.id}>{c.label}</li>)}
         </ul>
         {/* 전자상거래법 제10조 표시사항 — 상호·대표자·주소·신고번호 */}
         <div style={{
-          marginTop: 14, padding: '12px 14px', border: '1px solid #e5e8eb',
-          borderRadius: 10, background: '#f9fafb', fontSize: 13.5, lineHeight: 1.9, color: '#333d4b',
+          marginTop: 14, padding: '12px 14px', border: '1px solid var(--line-2)',
+          borderRadius: 10, background: 'var(--bg-2)', fontSize: '0.82rem', lineHeight: 1.9, color: 'var(--text-2)',
         }}>
-          <div style={{ fontWeight: 800, color: '#191f28', marginBottom: 4 }}>사업자 정보</div>
+          <div style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>사업자 정보</div>
           {/* 영문 상호는 없을 수도 있습니다 — 빈 괄호가 남지 않게 합니다 */}
           <div>
             상호 : {BUSINESS.name}{BUSINESS.nameEn ? ` (${BUSINESS.nameEn})` : ''} · 대표자 : {BUSINESS.ceo}

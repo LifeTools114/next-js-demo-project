@@ -69,6 +69,25 @@ test('첫 화면(폰 전용) — 「🔗 상품 링크 붙여넣기」 하나, �
   assert.ok(css.includes('.only-mobile { display: none; }') && css.includes('.only-pc { display: block; }'), '820px 이상에서 폰 블록 숨김')
 })
 
+test('화면 뼈대 — 하단 5탭(신청·요금·내 신청·안내·마이) + 헤더 이용약관 + 배송 지역 바, 다크 테마 토큰 (26-09-12)', () => {
+  const layout = read('components/Layout.js')
+  for (const tab of ["href: '/send'", "href: '/rates'", "href: '/orders'", "href: '/guide'", "href: '/my'"]) assert.ok(layout.includes(tab), `탭 ${tab}`)
+  assert.equal((layout.match(/icon: '/g) ?? []).length, 5, '탭은 다섯')
+  assert.ok(layout.includes('className="tab-bar"') && layout.includes('notice-bar') && layout.includes('📋 이용약관'))
+  assert.ok(layout.includes('theme-color" content="#0b0f19"'), '폰 상태 표시줄 색 = 바탕색')
+  assert.ok(existsSync(new URL('pages/guide.js', root)), '📖 이용 안내 화면')
+  const css = read('styles/globals.css')
+  for (const token of ['--bg: #0b0f19', '--surface: rgba(30, 41, 59, 0.7)', '--accent: #0ea5e9', '--accent-2: #6366f1', '--warn: #f59e0b', '--danger: #f43f5e', '--text: #f8fafc', '--text-2: #cbd5e1', '--text-3: #94a3b8']) {
+    assert.ok(css.includes(token), `토큰 ${token}`)
+  }
+  assert.ok(css.includes('.tab-bar {') && css.includes('.steps {') && css.includes("font-family: var(--font)"), '하단 탭·단계 표시·글꼴')
+  // 화면 코드에는 라이트 테마 hex 가 남지 않습니다 (「YS-ECOM 이름」 칠하기 색만 예외)
+  for (const p of ['pages/index.js', 'pages/send.js', 'pages/checkout.js', 'pages/orders/index.js', 'pages/my.js', 'pages/notice.js', 'pages/guide.js', 'components/Layout.js', 'components/LinkStart.js']) {
+    const hexes = (read(p).replace(/\/\*[\s\S]*?\*\//g, '').match(/#[0-9a-fA-F]{6}\b/g) ?? []).filter((h) => !['#ffe98a', '#f0b429', '#1f2937', '#0b0f19'].includes(h.toLowerCase())) // 칠하기 색·theme-color 만 예외
+    assert.deepEqual(hexes, [], `${p} 에 토큰 대신 색 코드가 있습니다: ${hexes}`)
+  }
+})
+
 test('상호 표기 — 폰 전용 블록만 「쿠팡」을 적고, PC 화면·서버 렌더 문구에는 남의 상호가 없다 (운영자 26-09-12)', () => {
   const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
   assert.ok(strip(read('components/LinkStart.js')).includes('쿠팡 전용'), '폰 첫 화면은 쿠팡 전용임을 밝힙니다')
@@ -78,7 +97,7 @@ test('상호 표기 — 폰 전용 블록만 「쿠팡」을 적고, PC 화면·
   assert.ok(send.includes("const shopWord = isPhone ? '쿠팡' : '쇼핑몰'"))
   assert.ok(strip(read('components/LinkStart.js')).includes('🛍 쿠팡으로 가기') && send.includes('data-shop-link'), '쿠팡으로 가기 버튼 (파트너스 링크는 환경변수로만)')
   // PC 에서도 보이는 화면·확장에는 상호가 없습니다
-  for (const p of ['pages/index.js', 'pages/checkout.js', 'pages/rates.js', 'pages/orders/[id].js', 'components/Layout.js']) {
+  for (const p of ['pages/index.js', 'pages/checkout.js', 'pages/rates.js', 'pages/orders/[id].js', 'components/Layout.js', 'pages/guide.js', 'components/WarehouseAddress.js', 'components/Steps.js']) {
     assert.ok(!strip(read(p)).includes('쿠팡'), `${p} 에 남의 상호가 있습니다 — 데스크탑 쪽에는 쓰지 않습니다`)
   }
 })

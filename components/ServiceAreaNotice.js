@@ -19,16 +19,16 @@ export default function ServiceAreaNotice({ compact = false }) {
     <div role="note" style={{
       padding: compact ? '9px 11px' : '11px 13px',
       borderRadius: 10,
-      background: '#fff3e8',
-      border: '1.5px solid #ff9a1f',
-      color: '#7a3500',
+      background: 'var(--warn-soft)',
+      border: '1px solid var(--warn)',
+      color: 'var(--text-2)',
       fontSize: compact ? 12.5 : 13.5,
       lineHeight: 1.6,
       marginBottom: 12,
     }}>
-      <b style={{ color: '#d94a00' }}>🚚 배송 가능 지역: {cities}</b> ({regionLabel})
+      <b style={{ color: 'var(--warn)' }}>🚚 배송 가능: {cities}</b> ({regionLabel})
       <br />
-      <b>{notServed}는 현재 배송하지 않습니다.</b> 목록에 없는 도시로는 보내드릴 수 없습니다.
+      <b>{notServed}는 보내드릴 수 없습니다.</b>
     </div>
   )
 }

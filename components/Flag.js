@@ -6,7 +6,7 @@ export default function Flag({ code, size = 16, style }) {
   if (!inner) return null
   return (
     <svg viewBox="0 0 30 20" width={size * 1.5} height={size} role="img" aria-label={code === 'kr' ? '한국' : '베트남'}
-      style={{ display: 'inline-block', verticalAlign: '-0.15em', borderRadius: 2, boxShadow: '0 0 0 1px rgba(0,0,0,.15)', flexShrink: 0, ...style }}
+      style={{ display: 'inline-block', verticalAlign: '-0.15em', borderRadius: 2, boxShadow: '0 0 0 1px rgba(255,255,255,.22)', flexShrink: 0, ...style }}
       dangerouslySetInnerHTML={{ __html: inner }} />
   )
 }

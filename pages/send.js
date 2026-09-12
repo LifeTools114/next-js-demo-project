@@ -23,53 +23,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import Layout from '../components/Layout'
-import { WAREHOUSE, detailAddressFor } from '../config/warehouse'
+import Steps from '../components/Steps'
+import WarehouseAddress from '../components/WarehouseAddress'
 import { TRACKS } from '../config/tracks'
 import { krw, vnd } from '../lib/format'
-import { copyText } from '../lib/copy'
 import { fromShare, parseProductUrl } from '../lib/coupang-url'
 import { PARTNERS_NOTICE, SHOP_HOME, shopLink } from '../config/partners'
 
 const RECIPIENT_KEY = 'kbeauty-hanoi:recipient'
-
-/** 눌러서 복사되는 한 줄 — 폰에서 손가락으로 누르기 좋은 크기로. */
-function CopyRow({ label, value, display, hint, disabled, danger }) {
-  const [state, setState] = useState('')
-  const done = state === 'ok'
-  const copy = async () => {
-    if (disabled || !value) return
-    // 복사가 막히는 환경에서도 조용히 실패하지 않습니다 (lib/copy.js 참고)
-    setState((await copyText(value)) ? 'ok' : 'fail')
-    setTimeout(() => setState(''), 1800)
-  }
-
-  return (
-    <button type="button" onClick={copy} disabled={disabled}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-        padding: '12px 14px', marginBottom: 8, borderRadius: 12, cursor: disabled ? 'default' : 'pointer',
-        border: danger ? '2px solid #ff6a00' : '1.5px solid #e5e8eb',
-        background: done ? '#e6f6f0' : danger ? '#fff8f2' : '#fff', font: 'inherit',
-      }}>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 12.5, color: danger ? '#c2410c' : '#8b95a1', fontWeight: 700 }}>{label}</span>
-        <span style={{
-          display: 'block', fontSize: 16.5, fontWeight: 800, color: disabled ? '#b0b8c1' : '#191f28',
-          marginTop: 2, wordBreak: 'break-all', lineHeight: 1.45,
-        }}>
-          {display ?? value ?? ''}
-        </span>
-        {hint ? <span style={{ display: 'block', fontSize: 12.5, color: '#8b95a1', marginTop: 3 }}>{hint}</span> : null}
-      </span>
-      <span style={{
-        flexShrink: 0, fontSize: 14, fontWeight: 800,
-        color: done ? '#17916b' : disabled ? '#b0b8c1' : '#3182f6',
-      }}>
-        {done ? '✓ 복사됨' : state === 'fail' ? '길게 눌러 복사' : '복사'}
-      </span>
-    </button>
-  )
-}
 
 /** 클립보드의 상품 링크 — 못 읽으면 null (권한 거부·미지원 브라우저) */
 async function readClipboardLink() {
@@ -144,22 +105,6 @@ export default function SendPage({ shop }) {
   }, [router.isReady]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isAgent = track === 'agent'
-  const detail = name.trim() ? detailAddressFor(name) : ''
-  /**
-   * 예시 이름은 **누가 봐도 예시**여야 합니다.
-   * 예전에는 이 자리에 브라우저에 저장된 이름이 그대로 떠서, 남의 이름을
-   * 자기 이름인 줄 알고 그대로 넣는 일이 생겼습니다 (운영자 26-09-06).
-   * 그래서 비어 있으면 '홍길동'을 회색 예시로 보여주고, 이름을 넣으면
-   * 그 이름을 노랗게 칠해 "이 부분이 당신 이름"임을 눈에 띄게 합니다.
-   */
-  const SAMPLE_NAME = '홍길동'
-  const markStyle = {
-    background: '#ffe98a', color: '#191f28', padding: '1px 6px', borderRadius: 6,
-    fontWeight: 900, boxShadow: 'inset 0 -2px 0 #f0b429',
-  }
-  const sampleStyle = { ...markStyle, background: '#eef1f5', color: '#8b95a1', boxShadow: 'none' }
-  const fullAddress = `${WAREHOUSE.address1}${WAREHOUSE.address2 ? ` ${WAREHOUSE.address2}` : ''}`
-
   /** 신청서로 넘길 수 있는 줄만 (이름과 가격이 있는 것 — 구매하고 배송까지는 링크도) */
   const items = useMemo(() => rows
     .map((r, i) => {
@@ -345,8 +290,9 @@ export default function SendPage({ shop }) {
         data-track={id}
         style={{
           flex: 1, minHeight: 64, borderRadius: 12, cursor: 'pointer', padding: '8px 6px',
-          border: on ? '2.5px solid #ff6a00' : '2px solid #dbe4f0',
-          background: on ? '#fff4e5' : '#fff', color: on ? '#7a3b00' : '#4e5968', font: 'inherit',
+          border: on ? '2px solid var(--accent)' : '1px solid var(--line-2)',
+          background: on ? 'var(--accent-soft)' : 'var(--bg-2)', color: on ? 'var(--text)' : 'var(--text-2)',
+          boxShadow: on ? '0 0 0 3px var(--accent-soft)' : 'none', font: 'inherit',
         }}>
         <span style={{ display: 'block', fontSize: 16, fontWeight: 900 }}>{tt.emoji} {tt.name}</span>
         <span style={{ display: 'block', fontSize: 12, marginTop: 2 }}>{tt.line}</span>
@@ -361,7 +307,7 @@ export default function SendPage({ shop }) {
   const orderCard = null
 
   const chipStyle = (on) => ({
-    border: on ? '2px solid #1b64da' : '1.5px solid #dbe4f0', background: on ? '#e8f0ff' : '#fff', color: on ? '#0a2e9c' : '#4e5968',
+    border: on ? '2px solid var(--accent)' : '1.5px solid var(--line-2)', background: on ? 'var(--accent-soft)' : 'var(--bg-2)', color: on ? 'var(--accent)' : 'var(--text-2)',
     borderRadius: 999, padding: '7px 12px', fontSize: 13.5, fontWeight: on ? 900 : 700, cursor: 'pointer', maxWidth: '100%',
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   })
@@ -377,7 +323,7 @@ export default function SendPage({ shop }) {
         const showLink = isAgent || !auto || Boolean(r.productUrl)
         return (
           <div key={i} style={{
-            border: '1px solid #e5e8eb', borderRadius: 12, padding: 12, marginBottom: 10, background: '#fbfcfd',
+            border: '1px solid var(--line-2)', borderRadius: 12, padding: 12, marginBottom: 10, background: 'var(--bg-2)',
           }}>
             {/* 1) 링크 — 고객은 이것만 붙여넣습니다 (운영자 26-09-06: "고객이 링크만 붙여넣게 합시다") */}
             {showLink && (
@@ -391,43 +337,43 @@ export default function SendPage({ shop }) {
                     if (parseProductUrl(v)?.productId || /link\.coupang\.com/.test(v)) peekRow(i, v)
                   }}
                   onBlur={(e) => { if (parseProductUrl(e.target.value) && !peek[i]) peekRow(i, e.target.value) }}
-                  style={{ flex: 1, minWidth: 0, fontSize: 15, minHeight: 52, borderColor: r.productUrl && !link ? '#ff6a00' : (auto ? '#17916b' : undefined) }} />
+                  style={{ flex: 1, minWidth: 0, fontSize: 15, minHeight: 52, borderColor: r.productUrl && !link ? 'var(--danger)' : (auto ? 'var(--ok)' : undefined) }} />
                 <button type="button" data-paste-link={i} onClick={() => pasteInto(i)}
-                  style={{ flexShrink: 0, minHeight: 52, padding: '0 14px', borderRadius: 10, border: '2px solid #3182f6', background: '#f5f8ff', color: '#0a2e9c', fontSize: 15, fontWeight: 900, cursor: 'pointer' }}>
+                  style={{ flexShrink: 0, minHeight: 52, padding: '0 14px', borderRadius: 10, border: '2px solid var(--accent)', background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 15, fontWeight: 900, cursor: 'pointer' }}>
                   붙여넣기
                 </button>
               </div>
             )}
             {pasteNote[i] && (
-              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>{pasteNote[i]}</p>
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: 'var(--warn-soft)', color: 'var(--warn)' }}>{pasteNote[i]}</p>
             )}
             {r.productUrl && !link && (
-              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: 'var(--warn-soft)', color: 'var(--warn)' }}>
                 {shopWord} 상품 링크가 아닌 것 같습니다 ({shopWord} 앱에서 공유 → 링크 복사).
               </p>
             )}
             {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중… (몇 초)</p>}
             {peek[i] === 'resolved' && !auto && (
-              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#e6f6f0', color: '#0f6e4f' }}>
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: 'var(--ok-soft)', color: 'var(--ok)' }}>
                 ✓ 링크 확인됨 (상품 번호 {link?.productId}). <b>가격</b>을 적어 주세요.
               </p>
             )}
             {peek[i] === 'fail' && (
-              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                {shopWord} 상품 링크로 확인되지 않았습니다. 상품 상세 화면에서 공유한 링크를 넣거나, 이름·가격을 적어 주세요.
+              <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: 'var(--warn-soft)', color: 'var(--warn)' }}>
+                {shopWord} 상품 링크로 확인되지 않았습니다. 이름·가격을 적어 주세요.
               </p>
             )}
 
             {auto ? (
               /* 2) 읽어온 상품 — 옵션을 고르고 개수만 정합니다 */
-              <div data-auto-item="1" style={{ border: '1px solid #b7e4d2', background: '#f2fbf7', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ fontSize: 12, color: '#17916b', fontWeight: 800 }}>
+              <div data-auto-item="1" style={{ border: '1px solid var(--ok)', background: 'var(--ok-soft)', borderRadius: 10, padding: '10px 12px' }}>
+                <div style={{ fontSize: 12, color: 'var(--ok)', fontWeight: 800 }}>
                   {peek[i] === 'option' ? '⏳ 옵션 가격 읽는 중…' : '✓ 읽어온 상품'}
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#191f28', marginTop: 4, lineHeight: 1.4 }}>{r.productName}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginTop: 4, lineHeight: 1.4 }}>{r.productName}</div>
                 {r.options?.length > 0 && (
                   <div style={{ marginTop: 8 }} data-options="1">
-                    <div style={{ fontSize: 12, color: '#4e5968', fontWeight: 700, marginBottom: 4 }}>옵션</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 700, marginBottom: 4 }}>옵션</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {r.options.map((o, k) => (
                         <button key={k} type="button" data-option-chip={k} aria-pressed={Boolean(o.selected)} onClick={() => pickOption(i, o)} style={chipStyle(Boolean(o.selected))}>
@@ -438,22 +384,22 @@ export default function SendPage({ shop }) {
                   </div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#1b64da' }}>{krw(Number(r.productPrice) || 0)}</span>
-                  {r.spec ? <span style={{ fontSize: 12.5, color: '#4e5968' }}>용량 {r.spec}</span> : null}
+                  <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--accent)' }}>{krw(Number(r.productPrice) || 0)}</span>
+                  {r.spec ? <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>용량 {r.spec}</span> : null}
                   <span style={{ flex: 1 }} />
                   {/* 개수 − n + 는 한 덩어리로 — 좁은 폰에서 줄이 갈라지지 않게 */}
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0, whiteSpace: 'nowrap' }}>
-                    <span style={{ fontSize: 12.5, color: '#4e5968', fontWeight: 700 }}>개수</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-2)', fontWeight: 700 }}>개수</span>
                     <button type="button" aria-label="개수 줄이기" onClick={() => setRow(i, { quantity: Math.max(1, qty - 1) })}
-                      style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>−</button>
+                      style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid var(--line-2)', background: 'var(--bg-2)', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>−</button>
                     <span data-qty="1" style={{ minWidth: 24, textAlign: 'center', fontSize: 18, fontWeight: 900 }}>{qty}</span>
                     <button type="button" aria-label="개수 늘리기" onClick={() => setRow(i, { quantity: Math.min(99, qty + 1) })}
-                      style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid #dbe4f0', background: '#fff', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>+</button>
+                      style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid var(--line-2)', background: 'var(--bg-2)', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>+</button>
                   </span>
                 </div>
                 <div style={{ marginTop: 6, textAlign: 'right' }}>
                   <button type="button" onClick={() => setRow(i, { edit: true })}
-                    style={{ border: 0, background: 'transparent', color: '#8b95a1', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
+                    style={{ border: 0, background: 'transparent', color: 'var(--text-3)', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
                     고치기
                   </button>
                 </div>
@@ -479,7 +425,7 @@ export default function SendPage({ shop }) {
             {rows.length > 1 && (
               <div style={{ textAlign: 'right', marginTop: 6 }}>
                 <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))}
-                  style={{ border: '1px solid #ffd5d5', borderRadius: 8, background: '#fff', color: '#c53030', fontSize: 12.5, fontWeight: 800, padding: '6px 10px', cursor: 'pointer' }}>
+                  style={{ border: '1px solid var(--danger)', borderRadius: 8, background: 'var(--bg-2)', color: 'var(--danger)', fontSize: 12.5, fontWeight: 800, padding: '6px 10px', cursor: 'pointer' }}>
                   이 상품 빼기 ×
                 </button>
               </div>
@@ -491,8 +437,8 @@ export default function SendPage({ shop }) {
       <button type="button"
         onClick={() => setRows([...rows, emptyRow()])}
         style={{
-          width: '100%', minHeight: 48, borderRadius: 10, border: '2px dashed #dbe4f0',
-          background: '#fff', color: '#3182f6', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+          width: '100%', minHeight: 48, borderRadius: 10, border: '2px dashed var(--line-2)',
+          background: 'var(--bg-2)', color: 'var(--accent)', fontSize: 15, fontWeight: 800, cursor: 'pointer',
         }}>+ 상품 하나 더</button>
 
       {error && <p className="note note--danger" style={{ marginTop: 10 }}>{error}</p>}
@@ -500,16 +446,16 @@ export default function SendPage({ shop }) {
       {quote && (
         <div style={{
           marginTop: 12, padding: '14px 16px', borderRadius: 12,
-          border: '2px solid #3182f6', background: '#f2f6fb',
+          border: '1px solid var(--accent)', background: 'var(--accent-soft)', boxShadow: '0 0 0 3px var(--accent-soft)',
         }}>
-          <div style={{ fontSize: 13.5, color: '#4e5968' }}>
+          <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>
             {isAgent ? '상품값 + 수수료 + 베트남까지 배송비 (예상)' : '베트남까지 배송비 (예상)'}
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#3182f6', marginTop: 2 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', marginTop: 2 }}>
             {krw(quote.total)}
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#f04452' }}>≈ {vnd(quote.totalVnd)}</div>
-          <div style={{ fontSize: 12.5, color: '#8b95a1', marginTop: 6 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--danger)' }}>≈ {vnd(quote.totalVnd)}</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 6 }}>
             청구무게 {quote.shipping?.billableKg}kg · 창고 실측 후 확정
           </div>
         </div>
@@ -538,7 +484,8 @@ export default function SendPage({ shop }) {
 
   return (
     <Layout title={t.name}>
-      <div className="section" style={{ paddingBottom: 6 }}>
+      <Steps current={quote ? 1 : 0} />
+      <div className="section" style={{ paddingTop: 8, paddingBottom: 6 }}>
         <h1 className="section__title">{t.emoji} {t.name}</h1>
       </div>
 
@@ -553,42 +500,8 @@ export default function SendPage({ shop }) {
           <section className="panel">
             <div className="panel__head">1. {shopWord} 배송지에 이대로 넣어주세요</div>
             <div className="panel__body">
-              <div className="field" style={{ marginBottom: 14 }}>
-                <label className="field__label" htmlFor="myname">받는 분 성함</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input id="myname" className="input" value={name} placeholder={`예) ${SAMPLE_NAME}`}
-                    onChange={(e) => setName(e.target.value)}
-                    style={{ fontSize: 17, minHeight: 52, flex: 1, minWidth: 0 }} />
-                  {name ? (
-                    /* 지난번 이름이 남아 있으면 한 번에 지웁니다 — 남의 이름으로 보내지 않게 */
-                    <button type="button" onClick={() => setName('')}
-                      style={{
-                        flexShrink: 0, minHeight: 52, padding: '0 14px', borderRadius: 10,
-                        border: '2px solid #e5e8eb', background: '#fff', color: '#8b95a1',
-                        fontSize: 14, fontWeight: 800, cursor: 'pointer',
-                      }}>지우기</button>
-                  ) : null}
-                </div>
-              </div>
-
-              <CopyRow label="받는 사람" value={WAREHOUSE.code} />
-              <CopyRow label="우편번호" value={WAREHOUSE.zip} />
-              <CopyRow label="주소" value={fullAddress} />
-              <CopyRow label="상세주소 — 이름이 빠지면 소포 주인을 못 찾습니다" value={detail}
-                disabled={!detail} danger
-                display={detail ? (
-                  <>
-                    {WAREHOUSE.code} <span style={markStyle}>{name.trim()}</span>
-                  </>
-                ) : (
-                  <>
-                    {WAREHOUSE.code} <span style={sampleStyle}>{SAMPLE_NAME}</span>
-                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: '#ff6a00', marginTop: 6 }}>
-                      ↑ <span style={sampleStyle}>{SAMPLE_NAME}</span> 자리에 <b>본인 이름</b>을 넣어주세요 (위 칸에 적기)
-                    </span>
-                  </>
-                )} />
-              <CopyRow label="전화번호" value={WAREHOUSE.phone} />
+              {/* 이름 칸 + 눌러서 복사 다섯 줄 — components/WarehouseAddress.js (이용 안내와 같은 것) */}
+              <WarehouseAddress name={name} onName={setName} />
             </div>
           </section>
 
@@ -623,8 +536,8 @@ export default function SendPage({ shop }) {
           <section className="panel">
             <div className="panel__head">1. 무엇을 사드릴까요</div>
             <div className="panel__body">
-              <p className="note" style={{ marginBottom: 12, fontSize: 13.5 }}>
-                상품 링크를 붙여넣으면 이름·옵션·가격이 채워집니다. 상품값 + 수수료 + 배송비를 신청서에서 한 번에 결제합니다.
+              <p className="note" style={{ marginBottom: 12 }}>
+                링크만 붙여넣으세요 — 이름·옵션·가격이 채워집니다. 결제는 신청서에서 한 번에.
               </p>
               {productRows}
             </div>

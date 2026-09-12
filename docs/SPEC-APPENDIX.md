@@ -1804,6 +1804,7 @@
   "kakaoId": "vietnam911",
   "kakaoOpenChat": "https://open.kakao.com/o/simlWALi",
   "label": "카카오톡",
+  "hours": "",
   "qrPath": "/kakao-openchat-qr.png"
 }
 ```
@@ -4207,6 +4208,8 @@ export const CONTACT = {
   kakaoId: env('KAKAO_ID', 'vietnam911'),
   kakaoOpenChat: env('KAKAO_OPEN_CHAT', 'https://open.kakao.com/o/simlWALi'),
   label: '카카오톡',
+  /** 운영시간 — 비워 두면 화면에 줄이 생기지 않습니다 (예: 평일 09:00~18:00) */
+  hours: env('CONTACT_HOURS', ''),
   /**
    * 인쇄된 견적서에서는 링크를 누를 수 없는 경우가 있어 QR 이미지를 함께
    * 싣습니다. public/ 에 파일을 넣으면 자동으로 표시됩니다. (없으면 생략)

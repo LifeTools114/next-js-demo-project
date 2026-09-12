@@ -278,7 +278,7 @@ export default function AdminConsole() {
                 <span className="row__label">
                   {new Date(j.createdAt).toLocaleTimeString('ko-KR', { hour12: false })} · 상품 {j.productId}
                   {j.productName ? <> · {j.productName.slice(0, 30)}</> : null}
-                  {j.message ? <> · <span style={{ color: 'var(--danger, #c53030)' }}>{j.message}</span></> : null}
+                  {j.message ? <> · <span style={{ color: 'var(--danger, var(--danger))' }}>{j.message}</span></> : null}
                 </span>
                 <span className="row__value">
                   {j.status === 'done' ? `읽음${j.productPrice ? ` ${j.productPrice.toLocaleString('ko-KR')}원` : ''}${j.options ? ` · 옵션 ${j.options}` : ''}`
@@ -616,9 +616,9 @@ export default function AdminConsole() {
                 (DEBIT NOTE)가 오면 실측 무게만 입력해 최종본을 만듭니다.
                 청구서의 단가·금액은 당사 원가라 입력하지도 저장하지도 않습니다.
               */}
-              <div style={{ marginTop: 12, padding: 10, border: '1px solid #e5e8eb', borderRadius: 8 }}>
+              <div style={{ marginTop: 12, padding: 10, border: '1px solid var(--line-2)', borderRadius: 8 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>📄 견적서</div>
-                <div style={{ fontSize: 11, color: '#8b95a1', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6 }}>
                   청구서 PDF 를 올리면 무게를 자동으로 읽습니다. 못 읽으면 아래에 직접 입력하세요.
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>

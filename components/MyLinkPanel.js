@@ -18,7 +18,7 @@ export default function MyLinkPanel() {
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* 무시 */ }
   }
   return (
-    <section className="panel" style={welcome ? { border: '2px solid #ff9a1f' } : undefined}>
+    <section className="panel" style={welcome ? { border: '2px solid var(--warn)' } : undefined}>
       <div className={`panel__head${welcome ? ' panel__head--accent' : ''}`}>
         <span>📒 내 주문 전체 보기</span>
         {welcome && <span className="hint-strong">링크를 저장하세요</span>}

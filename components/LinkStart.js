@@ -59,8 +59,8 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw, shop }) {
           onChange={(e) => { const v = e.target.value; setVal(v); setNote(''); tryGo(v) }}
           style={{ marginTop: 8, minHeight: 48, fontSize: 15 }} />
         {note
-          ? <p className="note" style={{ marginTop: 8, fontSize: 13, background: '#fff4e5', color: '#9a5b00' }}>{note}</p>
-          : <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5 }}>쿠팡 앱에서 공유 → 링크 복사 → 붙여넣으면 이름·옵션·가격이 채워집니다. <b>지금은 쿠팡 전용</b>입니다.</p>}
+          ? <p className="note" style={{ marginTop: 8, fontSize: 13, background: 'var(--warn-soft)', color: 'var(--warn)' }}>{note}</p>
+          : <p className="note" style={{ marginTop: 8, textAlign: 'center' }}>쿠팡 앱 → 공유 → 링크 복사 → 붙여넣기. 이름·옵션·가격이 채워집니다 (<b>지금은 쿠팡 전용</b>).</p>}
         {/* 쿠팡으로 가기 — 아직 고르지 않은 분. 파트너스 링크가 설정돼 있으면 그 링크 + 고지 (config/partners.js) */}
         <a className="btn btn--ghost" href={shop?.href ?? SHOP_HOME} target="_blank" rel="noreferrer" data-shop-link={shop?.isPartner ? 'partner' : 'plain'}
           style={{ display: 'block', textAlign: 'center', marginTop: 8, minHeight: 48, fontSize: 15, fontWeight: 800, lineHeight: '26px' }}>
@@ -78,7 +78,7 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw, shop }) {
               <strong>📦 배송만</strong> <span style={{ color: 'var(--ink-500)', fontWeight: 700 }}>· ${ratePerKgUsd}/kg</span>
               <br />
               <small style={{ color: 'var(--ink-500)' }}>
-                쿠팡에서 <Link href="/send?track=forwarding"><b>창고 주소</b></Link>로 결제한 뒤 상품 링크
+                <Link href="/send?track=forwarding"><b>창고 주소</b></Link>로 결제한 뒤 상품 링크
               </small>
             </span>
           </div>
@@ -86,7 +86,7 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw, shop }) {
             <span className="row__label">
               <strong>🛒 구매하고 배송까지</strong> <span style={{ color: 'var(--ink-500)', fontWeight: 700 }}>· ${ratePerKgUsd}/kg + 수수료 {krw(agencyBaseKrw)}~</span>
               <br />
-              <small style={{ color: 'var(--ink-500)' }}>상품 링크만 · 옵션·개수를 고르면 금액이 계산됩니다</small>
+              <small style={{ color: 'var(--ink-500)' }}>링크만 · 옵션·개수 고르면 금액 계산</small>
             </span>
           </div>
         </div>

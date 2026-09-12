@@ -7,9 +7,9 @@ import { krw, formatDateTime } from '../../lib/format'
 
 /** 상태별 표시 색 — 눈에 띄어야 하는 상태(미결제·취소)만 강조합니다. */
 const STATE_COLOR = {
-  REQUESTED: '#b7791f',
-  AWAITING_PAYMENT: '#b7791f',
-  CANCELLED: '#c53030',
+  REQUESTED: 'var(--warn)',
+  AWAITING_PAYMENT: 'var(--warn)',
+  CANCELLED: 'var(--danger)',
 }
 
 /** 주문번호로 조회 — 로그인 없이 주문번호만으로 확인합니다. */
@@ -58,8 +58,8 @@ export default function OrderLookup() {
   return (
     <Layout title="주문 조회">
       <div className="hero">
-        <h1 className="hero__title">주문 조회</h1>
-        <p className="hero__desc">주문번호를 입력하면 진행 상황과 결제 내역을 확인할 수 있습니다.</p>
+        <h1 className="hero__title">📦 내 신청 내역</h1>
+        <p className="hero__desc">주문번호로 진행 상황을 봅니다.</p>
       </div>
 
       <div className="section">
@@ -72,9 +72,9 @@ export default function OrderLookup() {
           <button className="btn" type="submit" disabled={!orderNo.trim()}>조회하기</button>
         </form>
         <p className="note" style={{ marginTop: 12 }}>
-          여러 주문을 한 번에 보시려면 <Link href="/my"><b>내 주문 전체 보기</b></Link> — 회원가입 없이 개인 링크로 봅니다.
+          전체 주문은 <Link href="/my"><b>👤 마이</b></Link>에서 개인 링크로 봅니다 (회원가입 없음).
           <br />
-          <small>주문번호만으로는 <b>진행 상태만</b> 보입니다. 이름·주소·상품은 신청하신 브라우저나 개인 링크에서만 열립니다.</small>
+          <small>주문번호만으로는 <b>진행 상태만</b> 보입니다.</small>
         </p>
       </div>
 
@@ -111,7 +111,7 @@ export default function OrderLookup() {
               </Link>
             ))}
             <p className="note" style={{ marginTop: 10, fontSize: 11.5 }}>
-              이 목록은 이 브라우저에만 저장됩니다. 다른 기기에서 접수한 주문은 주문번호로 조회해 주세요.
+              이 기기에서 신청한 것만 보입니다.
             </p>
           </div>
         </section>

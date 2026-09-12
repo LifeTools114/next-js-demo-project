@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import MyLinkPanel from '../../components/MyLinkPanel'
+import Steps from '../../components/Steps'
 import { PROGRESS_ORDER, ORDER_STATES } from '../../lib/order/states'
 import { krw, vnd, weight, formatDateTime } from '../../lib/format'
 import CopyButton from '../../components/CopyButton'
@@ -36,7 +37,7 @@ const LOCATION_BY_STATE = {
  * 눈에 띄어야 하고, 이름이 남의 것으로 남아 있으면 바로 보여야 합니다.
  */
 const NAME_MARK = {
-  background: '#ffe98a', color: '#191f28', padding: '1px 6px', borderRadius: 6,
+  background: '#ffe98a', color: '#1f2937', padding: '1px 6px', borderRadius: 6,
   fontWeight: 900, boxShadow: 'inset 0 -2px 0 #f0b429',
 }
 
@@ -139,6 +140,8 @@ export default function OrderPage() {
 
   return (
     <Layout title={`주문 ${order.orderNo}`}>
+      {/* 신청서에서 막 넘어온 첫 화면 — 단계 표시의 「완료」 */}
+      {router.query?.welcome === '1' && <Steps current={3} />}
       <div className="hero">
         <h1 className="hero__title">{order.stateInfo.label}</h1>
         <p className="hero__desc">
@@ -151,13 +154,13 @@ export default function OrderPage() {
       {limited && (
         <div className="section" style={{ paddingBottom: 0 }}>
           <div className="note" style={{
-            background: '#fff8e6', border: '1px solid #ffe0a3', color: '#7a4b00', fontWeight: 700, lineHeight: 1.6,
+            background: 'var(--warn-soft)', border: '1px solid var(--warn)', color: 'var(--text-2)', fontWeight: 700, lineHeight: 1.6,
           }}>
-            🔒 주문번호만으로 열어서 <b>진행 상태만</b> 보입니다. 이름·주소·상품·취소·견적서는
-            신청하신 브라우저나 <b>「내 주문 링크」</b>에서만 열립니다.
+            🔒 주문번호만으로는 <b>진행 상태만</b> 보입니다. 이름·주소·상품·취소는
+            신청하신 기기나 <b>내 주문 링크</b>에서만 열립니다.
             <br />
             <small style={{ fontWeight: 500 }}>
-              링크를 잃으셨다면 <Link href="/my"><b>내 주문 전체 보기</b></Link>에서 전화번호와 입금이 끝난 주문번호로 다시 받으세요.
+              링크를 잃으셨다면 <Link href="/my"><b>👤 마이</b></Link>에서 다시 받으세요.
             </small>
           </div>
         </div>
@@ -167,11 +170,8 @@ export default function OrderPage() {
       {order.track === 'agent' && !cancelled && (
         <div className="section" style={{ paddingBottom: 0 }}>
           <p className="note" style={{ fontSize: 12.5 }}>
-            🛒 신청서의 상품가 <b>그대로</b> 대리 주문합니다 (와우회원가 기준 ·
-            쿠폰·신규가입 할인 등 <b>개인 혜택은 사용할 수 없고</b>, 기간 한정
-            할인가는 발주 시점에 종료되면 반영되지 않을 수 있습니다).
-            발주 시 가격 인상·품절·마감이 확인되면 임의로 구매하지 않고 연락드리며,
-            취소 시 전액 환불됩니다.
+            🛒 신청서의 상품가 <b>그대로</b> 대리 주문합니다 (개인 쿠폰 불가 · 기간 한정가는 종료되면 미반영).
+            가격 인상·품절이면 사지 않고 연락드리며, 취소 시 전액 환불됩니다.
           </p>
         </div>
       )}
@@ -211,29 +211,29 @@ export default function OrderPage() {
               const others = lines.filter((l) => !/은행|계좌번호|예금주/.test(l))
               return (
                 <div style={{ marginTop: 14 }}>
-                  <div style={{ border: '2px solid #3182f6', borderRadius: 14, overflow: 'hidden' }}>
-                    <div style={{ background: '#3182f6', color: '#fff', padding: '10px 14px', fontWeight: 800, fontSize: 15 }}>
+                  <div style={{ border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' }}>
+                    <div style={{ background: 'var(--accent)', color: '#fff', padding: '10px 14px', fontWeight: 800, fontSize: 15 }}>
                       여기로 보내주세요
                     </div>
                     <div style={{ padding: 14 }}>
-                      <div style={{ fontSize: 15, color: '#4e5968' }}>{bank}</div>
+                      <div style={{ fontSize: 15, color: 'var(--text-2)' }}>{bank}</div>
                       <CopyButton value={account.replace(/[^0-9]/g, '')} label={account}
                         style={{
                           display: 'block', width: '100%', marginTop: 6, padding: '12px 10px',
-                          border: '2px dashed #3182f6', borderRadius: 10, background: '#f2f6fb',
-                          fontSize: 24, fontWeight: 800, color: '#191f28', cursor: 'pointer',
+                          border: '2px dashed var(--accent)', borderRadius: 10, background: 'var(--accent-soft)',
+                          fontSize: 24, fontWeight: 800, color: 'var(--text)', cursor: 'pointer',
                         }} />
-                      <div style={{ fontSize: 15, color: '#4e5968', marginTop: 6 }}>예금주 : <b>{holder}</b></div>
+                      <div style={{ fontSize: 15, color: 'var(--text-2)', marginTop: 6 }}>예금주 : <b>{holder}</b></div>
                       <div style={{
                         marginTop: 12, padding: '10px 12px', borderRadius: 10,
-                        background: '#fff0f0', color: '#c92a2a', fontSize: 15, fontWeight: 700, lineHeight: 1.6,
+                        background: 'var(--danger-soft)', color: 'var(--danger)', fontSize: 15, fontWeight: 700, lineHeight: 1.6,
                       }}>
                         보낼 때 메모(내용)에 이 번호를 꼭 적어주세요.
                         <CopyButton value={order.orderNo}
                           style={{
                             display: 'block', width: '100%', marginTop: 8, padding: '10px',
-                            border: '2px dashed #c92a2a', borderRadius: 10, background: '#fff',
-                            fontSize: 20, fontWeight: 800, color: '#c92a2a', cursor: 'pointer',
+                            border: '2px dashed var(--danger)', borderRadius: 10, background: 'var(--bg-2)',
+                            fontSize: 20, fontWeight: 800, color: 'var(--danger)', cursor: 'pointer',
                           }} />
                         <span style={{ display: 'block', marginTop: 8, fontWeight: 500, fontSize: 13.5 }}>
                           적지 않으면 누가 보내셨는지 확인이 늦어집니다.
@@ -544,7 +544,7 @@ export default function OrderPage() {
         <div className="section" style={{ paddingBottom: 0 }}>
           {cancelError && <p className="note note--danger">{cancelError}</p>}
           <button type="button" className="btn btn--ghost" disabled={cancelling} onClick={cancelNow}
-            style={{ color: '#c92a2a', borderColor: '#ffc9c9', width: '100%' }}>
+            style={{ color: 'var(--danger)', borderColor: 'var(--danger)', width: '100%' }}>
             {cancelling ? '취소 중…' : '이 신청 취소하기'}
           </button>
           <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-500)', marginTop: 6 }}>
@@ -558,7 +558,7 @@ export default function OrderPage() {
         <div className="section" style={{ paddingBottom: 0 }}>
           <p className="note" style={{ fontSize: 12 }}>
             취소가 필요하시면 <b>빠르게 연락 주세요</b> — 쇼핑몰 매입 시작 전에는 취소할 수 있습니다.
-            품절·가격 인상 등 당사 사유는 <b style={{ color: '#17916b' }}>전액 환불</b>, 단순 변심은{' '}
+            품절·가격 인상 등 당사 사유는 <b style={{ color: 'var(--ok)' }}>전액 환불</b>, 단순 변심은{' '}
             {order.track === 'agent' ? '대행수수료 제외' : `처리 수수료 $${RETURN_POLICY.forwardingRefundFeeUsd} 차감`} 후
             환불되며, 지급은 영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일입니다.
           </p>
@@ -586,20 +586,20 @@ export default function OrderPage() {
               (당사 사유 취소는 전액 환불)
               <br />
               ↩️ 베트남 도착 후 교환·반품 시{' '}
-              <b style={{ color: '#c92a2a' }}>반송비(베트남→한국)·쇼핑몰 반품비 전액 구매자 부담</b>
+              <b style={{ color: 'var(--danger)' }}>반송비(베트남→한국)·쇼핑몰 반품비 전액 구매자 부담</b>
               {freightKrw > 0 && (
                 <>
                   <br />
                   ↔️ 이 주문 기준: 보낼 때 약 <b>{krw(backKrw)}</b>
                   {RETURN_SHIPPING.assumed ? '(예상)' : ''} + 다시 받을 때 <b>{krw(freightKrw + agencyKrw)}</b> =
-                  교환 왕복 약 <b style={{ color: '#d9480f' }}>{krw(roundTripKrw)}</b>
+                  교환 왕복 약 <b style={{ color: 'var(--warn)' }}>{krw(roundTripKrw)}</b>
                   {goodsKrw > 0 && roundTripKrw >= goodsKrw && (
-                    <b style={{ color: '#c92a2a' }}> — 상품가({krw(goodsKrw)})보다 커서 실익이 없습니다</b>
+                    <b style={{ color: 'var(--danger)' }}> — 상품가({krw(goodsKrw)})보다 커서 실익이 없습니다</b>
                   )}
                 </>
               )}
               <br />
-              <small style={{ color: '#c92a2a', fontWeight: 700 }}>
+              <small style={{ color: 'var(--danger)', fontWeight: 700 }}>
                 ⚠️ {RETURN_SHIPPING.blockedNote} — 해당 품목은 교환·반품 불가.
               </small>{' '}
               <small>{RETURN_SHIPPING.customsNote}.</small>
@@ -610,10 +610,8 @@ export default function OrderPage() {
 
       <div className="section" style={{ display: 'grid', gap: 10 }}>
         {/* 쇼핑은 쿠팡에서 — 확장 패널이 다시 견적을 띄워줍니다 */}
-        <a href="https://www.coupang.com" className="btn" target="_blank" rel="noreferrer">
-          쇼핑몰에서 계속 쇼핑하기 ↗
-        </a>
-        <Link href="/orders" className="btn btn--ghost">내 주문 목록</Link>
+        <Link href="/send" className="btn">🛒 하나 더 신청하기</Link>
+        <Link href="/orders" className="btn btn--ghost">📦 내 신청 목록</Link>
       </div>
     </Layout>
   )

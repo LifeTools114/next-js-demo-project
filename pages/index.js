@@ -1,58 +1,48 @@
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import ServiceAreaNotice from '../components/ServiceAreaNotice'
 import Flag from '../components/Flag'
 import LinkStart from '../components/LinkStart'
 import { SHIPPING, CONSOLIDATION, ITEM_SURCHARGES } from '../config/shipping'
 import { FEES } from '../config/fees'
 import { TAXES } from '../config/taxes'
 import { DESTINATION, LISTED_BLOCK_RULES, LISTED_CONSULT_RULES } from '../config/eligibility'
-import { krw, usd } from '../lib/format'
-import { usdToKrw, roundingRuleText } from '../lib/pricing/shipping'
+import { krw } from '../lib/format'
+import { roundingRuleText } from '../lib/pricing/shipping'
 import { shopLink } from '../config/partners'
 
+/**
+ * 첫 화면 — 글은 최소로 (운영자 26-09-12: "글 좀 줄이고").
+ * 폰: 링크 붙여넣기 하나(LinkStart). PC: 링크로 신청 버튼 + 설명 패널 셋(only-pc).
+ * 배송 가능 지역은 헤더의 공지 바에, 요금·주문 이동은 하단 탭에 있으므로 여기서는 되풀이하지 않습니다.
+ */
 export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, roundingRule, shop }) {
   return (
-    <Layout badge="베트남 북부">
+    <Layout>
       <div className="hero">
-        <h1 className="hero__title">쇼핑몰에서 산 물건, 베트남까지 <Flag code="kr" size={20} /> → <Flag code="vn" size={20} /></h1>
+        <h1 className="hero__title">한국 쇼핑몰 <Flag code="kr" size={18} /> → 베트남 문 앞 <Flag code="vn" size={18} /></h1>
         <p className="hero__desc">
-          쇼핑몰에서 직접 사시면 저희가 베트남까지 보내드립니다.
-          한국 카드가 없으셔도 <strong>대신 사드릴 수</strong> 있습니다.
+          직접 사신 물건은 <strong>배송만</strong>, 한국 카드가 없으면 <strong>구매까지</strong> 대신해 드립니다.
         </p>
       </div>
 
-      <div className="section" style={{ paddingTop: 12, paddingBottom: 0 }}>
-        <ServiceAreaNotice />
-      </div>
-
-      {/* 폰 전용 시작점 — 「🔗 상품 링크 붙여넣기」 하나 + 두 가지 방법 두 줄 (PC 화면은 아래 그대로, 폰에서는 숨김) */}
+      {/* 폰 전용 시작점 — 「🔗 상품 링크 붙여넣기」 하나 + 두 가지 방법 두 줄 (PC 는 아래, 폰에서는 숨김) */}
       <LinkStart ratePerKgUsd={ratePerKgUsd} agencyBaseKrw={agencyBaseKrw} shop={shop} />
 
-      {/*
-        PC 로 오신 분 — 확장이 상품 화면을 읽어 주므로 이 버튼은 확장 없이 링크만으로 신청하는 길입니다.
-        (폰 너비에서는 위 링크 블록이 대신 보입니다)
-      */}
+      {/* PC — 확장이 상품 화면을 읽어 주므로 이 버튼은 확장 없이 링크만으로 신청하는 길입니다 */}
       <div className="section only-pc" style={{ paddingTop: 0 }}>
-        <Link href="/send" className="btn" style={{
-          display: 'block', textAlign: 'center', minHeight: 62, fontSize: 19,
-          fontWeight: 800, lineHeight: '38px',
-        }}>
+        <Link href="/send" className="btn" style={{ minHeight: 58, fontSize: 18 }}>
           🔗 상품 링크로 신청하기
         </Link>
-        <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5 }}>
-          <b>배송만</b>은 쇼핑몰에 넣을 한국 창고 주소와 배송비를, <b>구매하고 배송까지</b>는 상품 링크만 주시면 전부 계산해 드립니다.
-        </p>
       </div>
 
       <section className="panel only-pc">
-        <div className="panel__head">이용 방식 두 가지</div>
+        <div className="panel__head">두 가지 방법</div>
         <div className="panel__body">
           <div className="row">
             <span className="row__label">
               <strong>📦 배송만</strong>
               <br />
-              <small style={{ color: 'var(--ink-500)' }}>쇼핑몰에서 직접 사고, 베트남까지 배송만 맡기기</small>
+              <small>쇼핑몰 결제는 직접, 베트남까지만 맡기기</small>
             </span>
             <span className="row__value">${ratePerKgUsd}/kg</span>
           </div>
@@ -60,16 +50,12 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
             <span className="row__label">
               <strong>🛒 구매하고 배송까지</strong>
               <br />
-              <small style={{ color: 'var(--ink-500)' }}>한국 카드가 없어도 저희가 대신 사서 보내드리기</small>
+              <small>한국 카드가 없어도 저희가 대신 사서 보내기</small>
             </span>
-            <span className="row__value">
-              ${ratePerKgUsd}/kg + 수수료 {krw(agencyBaseKrw)}~
-            </span>
+            <span className="row__value">+ 수수료 {krw(agencyBaseKrw)}~</span>
           </div>
           <p className="note" style={{ marginTop: 12 }}>
-            국제배송비는 실무게와 부피무게 중 큰 값에 1kg당 ${ratePerKgUsd}
-            ({krw(usdToKrw(ratePerKgUsd))})를 적용합니다. 청구무게는 {roundingRule} 로 올리며,
-            최소 청구무게는 {SHIPPING.minBillableKg}kg 입니다.
+            배송비 = 청구무게 × ${ratePerKgUsd}/kg · 청구무게는 {roundingRule} · 최소 {SHIPPING.minBillableKg}kg
           </p>
         </div>
       </section>
@@ -79,24 +65,20 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         <div className="panel__body">
           <div className="row">
             <span className="row__label">⚖️ 무게 자동 산정</span>
-            <span className="row__value">상품명·고시정보 분석</span>
+            <span className="row__value">상품명·고시정보</span>
           </div>
           <div className="row">
             <span className="row__label">🧾 도착 가격 계산</span>
-            <span className="row__value">무게 기반 국제배송비</span>
+            <span className="row__value">무게 기반 배송비</span>
           </div>
           <div className="row">
-            <span className="row__label">🚫 통관 불가 사전 경고</span>
+            <span className="row__label">🚫 {DESTINATION.label} 통관 불가 사전 경고</span>
             <span className="row__value">{blockedCategories}개 유형</span>
           </div>
           <div className="row">
-            <span className="row__label">📦 합배송 절감 안내</span>
+            <span className="row__label">📦 합배송 절감</span>
             <span className="row__value">무료 보관 {CONSOLIDATION.freeStorageDays}일</span>
           </div>
-          <p className="note" style={{ marginTop: 12 }}>
-            결제한 뒤 창고에서 반송되면 왕복 배송비가 발생합니다. 주류·담배·냉장냉동 식품·생고기·생선·계란처럼
-            {DESTINATION.label}으로 보낼 수 없는 품목은 <strong>주문 전에</strong> 차단해 드립니다.
-          </p>
         </div>
       </section>
 
@@ -104,25 +86,21 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
         <div className="panel__head">추가 비용이 붙는 품목</div>
         <div className="panel__body">
           <div className="row">
-            <span className="row__label">📱 전자·가전 기기 <small style={{ color: 'var(--ink-500)' }}>휴대폰·노트북·모니터·청소기·드라이기 등</small></span>
+            <span className="row__label">📱 전자·가전 <small>휴대폰·노트북·모니터·청소기 등</small></span>
             <span className="row__value">${ITEM_SURCHARGES.device.usd}/대</span>
           </div>
           <div className="row">
-            <span className="row__label">🍷 파손주의 <small style={{ color: 'var(--ink-500)' }}>유리·도자기 식기 등</small></span>
+            <span className="row__label">🍷 파손주의 <small>유리·도자기 식기 등</small></span>
             <span className="row__value">${ITEM_SURCHARGES.fragile.usd}/개</span>
           </div>
           <div className="row">
-            <span className="row__label">📦 대형 화물 <small style={{ color: 'var(--ink-500)' }}>청구무게 {ITEM_SURCHARGES.bulky.thresholdKg}kg 이상</small></span>
+            <span className="row__label">📦 대형 화물 <small>{ITEM_SURCHARGES.bulky.thresholdKg}kg 이상</small></span>
             <span className="row__value">${ITEM_SURCHARGES.bulky.usd}/건</span>
           </div>
           <div className="row">
-            <span className="row__label">🏌️ 장척·특수 <small style={{ color: 'var(--ink-500)' }}>골프채·스키·낚싯대·캐리어 등</small></span>
+            <span className="row__label">🏌️ 장척·특수 <small>골프채·스키·캐리어 등</small></span>
             <span className="row__value">견적 문의</span>
           </div>
-          <p className="note" style={{ marginTop: 12 }}>
-            할증은 견적과 신청서 내역에 자동으로 표시됩니다. 전자기기는 한국 기기 특성상
-            베트남 A/S 가 어렵습니다. 골프채 등 장척 화물은 접수 후 정확한 요금을 안내드립니다.
-          </p>
         </div>
       </section>
 
@@ -133,21 +111,11 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
           <div className="panel__body">
             <p className="note note--warn">
               ⚠️ {DESTINATION.label}은 2025년 2월 18일부터 소액 면세가 폐지되어{' '}
-              <strong>금액과 관계없이 모든 수입 건에 관세와 VAT가 부과</strong>됩니다. 관세는 품목군마다
-              다르며(신발 30%, 가방 25%, 의류·화장품 20% 등), VAT는 {Math.round(TAXES.vatRate * 100)}%입니다.
+              <strong>금액과 관계없이 모든 수입 건에 관세와 VAT가 부과</strong>됩니다. VAT는 {Math.round(TAXES.vatRate * 100)}%입니다.
             </p>
           </div>
         </section>
       )}
-
-      <div className="section" style={{ display: 'grid', gap: 10 }}>
-        <Link href="/rates" className="btn">
-          배송비 계산기 열기
-        </Link>
-        <Link href="/orders" className="btn btn--ghost">
-          주문 조회
-        </Link>
-      </div>
     </Layout>
   )
 }

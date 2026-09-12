@@ -47,8 +47,8 @@ export default function CostBreakdown({ quote }) {
                     <button type="button" title={info} aria-label="비용 안내"
                       onClick={() => setInfoKey(infoKey === row.key ? null : row.key)}
                       style={{
-                        border: 0, background: infoKey === row.key ? '#3182f6' : '#eef4fb',
-                        color: infoKey === row.key ? '#fff' : '#3182f6',
+                        border: 0, background: infoKey === row.key ? 'var(--accent)' : 'var(--accent-soft)',
+                        color: infoKey === row.key ? '#fff' : 'var(--accent)',
                         borderRadius: '50%', width: 17, height: 17, fontSize: 11,
                         lineHeight: 1, cursor: 'pointer', padding: 0, marginLeft: 5, verticalAlign: 1,
                       }}>ⓘ</button>

@@ -12,7 +12,7 @@ import { krw, formatDateTime } from '../lib/format'
  * 링크를 잃으면 「전화번호 + 입금까지 끝난 주문번호」로 다시 받습니다.
  * 원하면 PIN(숫자 4~6자리)을 걸어, 링크가 새어도 PIN 없이는 못 보게 합니다.
  */
-const STATE_COLOR = { REQUESTED: '#b7791f', AWAITING_PAYMENT: '#b7791f', CANCELLED: '#c53030' }
+const STATE_COLOR = { REQUESTED: 'var(--warn)', AWAITING_PAYMENT: 'var(--warn)', CANCELLED: 'var(--danger)' }
 const UNLOCK_KEY = 'kbeauty-hanoi:my-unlock'
 const readUnlock = () => { try { return window.sessionStorage.getItem(UNLOCK_KEY) || '' } catch { return '' } }
 const saveUnlock = (u) => { try { window.sessionStorage.setItem(UNLOCK_KEY, u) } catch { /* 무시 */ } }
@@ -106,8 +106,8 @@ export default function MyOrders() {
   return (
     <Layout title="내 주문">
       <div className="hero">
-        <h1 className="hero__title">내 주문</h1>
-        <p className="hero__desc">회원가입 없이, 개인 링크로 이 전화번호의 주문을 모두 봅니다.</p>
+        <h1 className="hero__title">👤 마이페이지</h1>
+        <p className="hero__desc">회원가입 없이 개인 링크로 내 주문 전부를 봅니다.</p>
       </div>
 
       {loading && <div className="section"><p className="note">불러오는 중…</p></div>}
@@ -203,7 +203,7 @@ export default function MyOrders() {
             <div className="panel__body">
               <p className="note" style={{ marginBottom: 10 }}>
                 이 링크 하나로 폰·PC 어디서든 내 주문을 봅니다. <b>카카오톡 「나에게 보내기」</b>에 넣어 두세요.
-                <br /><b style={{ color: '#c92a2a' }}>남에게 보내지 마세요</b> — 링크를 아는 사람은 주문 내역을 볼 수 있습니다.
+                <br /><b style={{ color: 'var(--danger)' }}>남에게 보내지 마세요</b> — 링크를 아는 사람은 주문 내역을 볼 수 있습니다.
                 {data.customer.pin ? ' (PIN 을 걸어 두셔서 PIN 없이는 열리지 않습니다)' : ''}
               </p>
               <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} style={{ fontSize: 12.5 }} />

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../components/Layout'
+import Steps from '../components/Steps'
 import ServiceAreaNotice from '../components/ServiceAreaNotice'
 import Flag from '../components/Flag'
 import CostBreakdown from '../components/CostBreakdown'
@@ -27,19 +28,19 @@ import { rememberMyOrder, readMyKey, saveMyKey } from '../lib/my-orders'
  * 곳곳에 남긴다." 그래서 **핵심 한두 줄은 항상 보이고**, 나머지는 눌러서 펼칩니다.
  * 접어서 숨기는 것이 아니라, 벽을 요약으로 바꾸는 것입니다.
  */
-function Fold({ title, summary, children, bg = '#f9fafb', border = '#e5e8eb' }) {
+function Fold({ title, summary, children, bg = 'var(--bg-2)', border = 'var(--line-2)' }) {
   const [open, setOpen] = useState(false)
   return (
     <div style={{
       border: `1px solid ${border}`, borderRadius: 12, background: bg,
       padding: '12px 14px', marginBottom: 10,
     }}>
-      <div style={{ fontSize: 14.5, fontWeight: 800, color: '#191f28', marginBottom: 4 }}>{title}</div>
-      <div style={{ fontSize: 13.5, lineHeight: 1.7, color: '#333d4b' }}>{summary}</div>
+      <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 13.5, lineHeight: 1.7, color: 'var(--text-2)' }}>{summary}</div>
       <button type="button" onClick={() => setOpen(!open)}
         style={{
           marginTop: 8, width: '100%', minHeight: 40, borderRadius: 9,
-          border: '1px solid #dbe4f0', background: '#fff', color: '#3182f6',
+          border: '1px solid var(--line-2)', background: 'var(--bg-2)', color: 'var(--accent)',
           fontSize: 14, fontWeight: 800, cursor: 'pointer',
         }}>
         {open ? '접기 ▴' : '자세히 보기 ▾'}
@@ -266,11 +267,10 @@ export default function Checkout() {
           <div className="empty__icon">🧾</div>
           주문할 상품이 없습니다.
           <br />
-          <small>배송만은 쇼핑몰 결제가 끝난 주문완료 화면에서 저절로 열리고,
-            구매하고 배송까지는 확장프로그램 견적함의 &quot;주문 요청하기&quot;로 열립니다.</small>
+          <small>상품을 먼저 담아 주세요 — 🛒 신청 탭에서 링크를 붙여넣으면 됩니다.</small>
           {error && <p className="note note--danger" style={{ marginTop: 16 }}>{error}</p>}
           <div style={{ marginTop: 20 }}>
-            <Link href="/" className="btn">홈으로</Link>
+            <Link href="/send" className="btn">🛒 신청하러 가기</Link>
           </div>
         </div>
       </Layout>
@@ -283,13 +283,12 @@ export default function Checkout() {
 
   return (
     <Layout title={track === 'forwarding' ? '배송 신청서' : '주문서'}>
-      <div className="section" style={{ paddingBottom: 6 }}>
+      <Steps current={2} />
+      <div className="section" style={{ paddingTop: 8, paddingBottom: 6 }}>
         {/* 상품 화면·팝업·주문완료 카드가 "배송 신청서" 라고 부르므로 여기서도 같은 이름 */}
         <h1 className="section__title">{track === 'forwarding' ? '배송 신청서' : '주문서'}</h1>
         <p className="section__sub">
-          {track === 'agent'
-            ? '당사가 고객님을 대신해 쇼핑몰에서 구매한 뒤 베트남으로 배송합니다.'
-            : '고객님이 쇼핑몰에서 직접 결제하신 상품을 베트남으로 배송해 드립니다.'}
+          {track === 'agent' ? '저희가 대신 사서 베트남으로 보냅니다.' : '직접 결제하신 상품을 베트남으로 보냅니다.'}
         </p>
       </div>
 
@@ -297,27 +296,27 @@ export default function Checkout() {
         <div className="section" style={{ paddingTop: 0 }}>
           <Fold
             title="🛒 대신 사드릴 때 알아두실 것"
-            bg="#f2f6fb" border="#dbe4f0"
+            bg="var(--accent-soft)" border="var(--line-2)"
             summary={<>
               화면에 보이는 <b>와우회원가 그대로</b> 사드리고, 수수료는 <b>기본 {krw(FEES.agencyBaseKrw)}</b>입니다.
-              <b style={{ color: '#c92a2a' }}> 쿠폰·신규가입 할인은 쓸 수 없습니다.</b>
+              <b style={{ color: 'var(--danger)' }}> 쿠폰·신규가입 할인은 쓸 수 없습니다.</b>
             </>}>
           <p className="note" style={{ fontSize: 12.5, lineHeight: 1.75 }}>
-            🛒 <b style={{ color: '#3182f6' }}>와우회원가 기준, 화면에 표시된 가격 그대로</b> 대리
+            🛒 <b style={{ color: 'var(--accent)' }}>와우회원가 기준, 화면에 표시된 가격 그대로</b> 대리
             주문합니다 (일부 상품은 와우가 미적용 가능).
             <br />
-            💰 수수료 <b style={{ color: '#3182f6' }}>기본 {krw(FEES.agencyBaseKrw)}</b> — 대리 주문·검수·발주 처리
+            💰 수수료 <b style={{ color: 'var(--accent)' }}>기본 {krw(FEES.agencyBaseKrw)}</b> — 대리 주문·검수·발주 처리
             실비입니다. 상품가 <b>10만원·5종류까지는 {krw(FEES.agencyBaseKrw)} 고정</b>, 넘는 경우에만 10만원
             초과분의 5%와 5종 초과 종류당 1,000원이 더해집니다.
             <br />
-            <b style={{ color: '#c92a2a' }}>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>,
+            <b style={{ color: 'var(--danger)' }}>쿠폰·신규가입 할인 등 개인 혜택은 사용할 수 없고</b>,
             타임세일·마감임박 등{' '}
-            <b style={{ color: '#c92a2a' }}>기간 한정 할인가는 발주 시점에 종료되면 반영되지 않을 수
+            <b style={{ color: 'var(--danger)' }}>기간 한정 할인가는 발주 시점에 종료되면 반영되지 않을 수
             있습니다.</b>
             <br />
             가격 인상·품절·마감이 확인되면 임의로 구매하지 않고 연락드리며, 취소 시{' '}
-            <b style={{ color: '#17916b' }}>전액 환불</b>됩니다. 1회 접수 한도{' '}
-            <b style={{ color: '#d9480f' }}>{krw(quote?.agentLimit?.maxGoodsKrw ?? 1_000_000)}</b>.
+            <b style={{ color: 'var(--ok)' }}>전액 환불</b>됩니다. 1회 접수 한도{' '}
+            <b style={{ color: 'var(--warn)' }}>{krw(quote?.agentLimit?.maxGoodsKrw ?? 1_000_000)}</b>.
           </p>
           </Fold>
         </div>
@@ -370,19 +369,19 @@ export default function Checkout() {
             */}
             {recipientRestored ? (
               <p className="note" style={{
-                marginBottom: 12, fontSize: 12.5, fontWeight: 700, color: '#17916b',
-                background: '#e6f6f0', border: '1px solid #b7e4d2', borderRadius: 9, padding: '9px 11px',
+                marginBottom: 12, fontSize: 12.5, fontWeight: 700, color: 'var(--ok)',
+                background: 'var(--ok-soft)', border: '1px solid var(--ok)', borderRadius: 9, padding: '9px 11px',
               }}>
                 ✓ 지난번에 이 브라우저에서 넣으신 정보를 채웠습니다 — <b>이 주소가 맞는지 확인해 주세요.</b>
                 {/* 채워진 값을 기본값으로 오해했습니다 (운영자 26-09-06) — 지우는 길을 바로 옆에 둡니다 */}
                 <button type="button" onClick={clearRecipient} style={{
-                  marginLeft: 8, border: '1px solid #b7e4d2', background: '#fff', color: '#0f6e4f',
+                  marginLeft: 8, border: '1px solid var(--ok)', background: 'var(--bg-2)', color: 'var(--ok)',
                   borderRadius: 7, padding: '3px 9px', fontSize: 12, fontWeight: 800, cursor: 'pointer',
                 }}>다른 분이면 비우기</button>
               </p>
             ) : (
               <p className="note" style={{ marginBottom: 12, fontSize: 12 }}>
-                한 번만 적어주시면 이 브라우저에 저장돼, 다음부터는 확인만 하시면 됩니다.
+                한 번 적으면 이 기기에 저장돼 다음엔 확인만 하면 됩니다.
               </p>
             )}
             {[
@@ -453,17 +452,17 @@ export default function Checkout() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12, width: '100%',
                         padding: '16px 14px', borderRadius: 14, cursor: 'pointer', textAlign: 'left',
-                        border: on ? '3px solid #3182f6' : '2px solid #e5e8eb',
-                        background: on ? '#eef4fb' : '#fff',
+                        border: on ? '3px solid var(--accent)' : '2px solid var(--line-2)',
+                        background: on ? 'var(--accent-soft)' : 'var(--bg-2)',
                       }}>
                       <Flag code={m.currency === 'KRW' ? 'kr' : 'vn'} size={26} />
                       <span style={{ flex: 1 }}>
-                        <span style={{ display: 'block', fontSize: 17, fontWeight: 800, color: '#191f28' }}>
+                        <span style={{ display: 'block', fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
                           {m.currency === 'KRW' ? '한국 계좌로 원화 보내기' : '베트남 계좌로 동화 보내기'}
                         </span>
-                        <span style={{ display: 'block', fontSize: 13.5, color: '#4e5968' }}>{m.label}</span>
+                        <span style={{ display: 'block', fontSize: 13.5, color: 'var(--text-2)' }}>{m.label}</span>
                       </span>
-                      <span style={{ fontSize: 24, color: on ? '#3182f6' : '#c9d0d8' }}>{on ? '✓' : '○'}</span>
+                      <span style={{ fontSize: 24, color: on ? 'var(--accent)' : 'var(--text-4)' }}>{on ? '✓' : '○'}</span>
                     </button>
                   )
                 })}
@@ -475,17 +474,17 @@ export default function Checkout() {
               if (!chosen?.currency) return null
               const amount = chosen.currency === 'KRW' ? krw(quote.total) : vnd(quote.totalVnd)
               return (
-                <div style={{ marginTop: 14, border: '2px solid #3182f6', borderRadius: 14, overflow: 'hidden' }}>
-                  <div style={{ background: '#3182f6', color: '#fff', padding: '10px 14px', fontWeight: 800, fontSize: 15 }}>
+                <div style={{ marginTop: 14, border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--accent)', color: '#fff', padding: '10px 14px', fontWeight: 800, fontSize: 15 }}>
                     이렇게 하시면 됩니다
                   </div>
-                  <ol style={{ margin: 0, padding: '14px 14px 14px 34px', fontSize: 15.5, lineHeight: 2, color: '#191f28' }}>
-                    <li>아래 <b>주문하기</b>를 누릅니다.</li>
-                    <li>다음 화면에 나오는 <b>계좌번호</b>로 <b style={{ color: '#f04452', fontSize: 18 }}>{amount}</b> 을 보냅니다.</li>
-                    <li>보낼 때 메모에 <b>주문번호</b>를 적습니다. (자동으로 확인됩니다)</li>
+                  <ol style={{ margin: 0, padding: '14px 14px 14px 34px', fontSize: 15.5, lineHeight: 2, color: 'var(--text)' }}>
+                    <li>아래 <b>신청하기</b>를 누릅니다.</li>
+                    <li>다음 화면의 <b>계좌번호</b>로 <b style={{ color: 'var(--warn)', fontSize: 18 }}>{amount}</b> 을 보냅니다.</li>
+                    <li>메모에 <b>주문번호</b>를 적습니다 — 자동으로 확인됩니다.</li>
                   </ol>
-                  <p style={{ margin: 0, padding: '0 14px 14px', fontSize: 13.5, color: '#4e5968' }}>
-                    계좌번호는 다음 화면에서 <b>누르면 복사</b>됩니다. 카드로 내고 싶으시면 카카오톡으로 말씀해 주세요.
+                  <p style={{ margin: 0, padding: '0 14px 14px', fontSize: 13.5, color: 'var(--text-2)' }}>
+                    계좌번호는 <b>누르면 복사</b>됩니다. 카드 결제는 카카오톡으로 문의해 주세요.
                   </p>
                 </div>
               )
@@ -518,48 +517,48 @@ export default function Checkout() {
             */}
             <Fold
               title="↩️ 취소·반품·교환하면 얼마가 드나요"
-              bg="#fff8f0" border="#ffe0c0"
+              bg="var(--warn-soft)" border="var(--warn)"
               summary={<>
                 환불은 <b>영업일 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 안에 돌려드립니다.
-                변심으로 반품하시면 <b style={{ color: '#c92a2a' }}>반송비는 본인 부담</b>이고,
+                변심으로 반품하시면 <b style={{ color: 'var(--danger)' }}>반송비는 본인 부담</b>이고,
                 {quote && freightKrw > 0
-                  ? <> 이 주문 기준 교환 왕복은 약 <b style={{ color: '#d9480f' }}>{krw(roundTripKrw)}</b> 듭니다.</>
+                  ? <> 이 주문 기준 교환 왕복은 약 <b style={{ color: 'var(--warn)' }}>{krw(roundTripKrw)}</b> 듭니다.</>
                   : <> 품절 등 저희 사유면 전액 돌려드립니다.</>}
               </>}>
             <p className="note" style={{ fontSize: 12.5, lineHeight: 1.8 }}>
-              💳 환불은 <b style={{ color: '#3182f6' }}>영업일 기준 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내
+              💳 환불은 <b style={{ color: 'var(--accent)' }}>영업일 기준 {REFUND_DAYS.min}~{REFUND_DAYS.max}일</b> 내
               돌려드립니다 (계좌로 보내드리거나 카드결제 취소, 같습니다).
               <br />
               ⛔ 반품·변심 취소 환불: <b>대신 사드린 건은 수수료를 뺀 나머지</b>를 돌려드리고,{' '}
               <b>배송만 맡기신 건은 처리비 {'$' + RETURN_POLICY.forwardingRefundFeeUsd}를 뺀</b> 나머지를 돌려드립니다.
-              품절·가격 인상 등 당사 사유 취소는 <b style={{ color: '#17916b' }}>전액 환불</b>.
+              품절·가격 인상 등 당사 사유 취소는 <b style={{ color: 'var(--ok)' }}>전액 환불</b>.
               <br />
               ↩️ 베트남 도착 후 교환·반품 시{' '}
-              <b style={{ color: '#c92a2a' }}>반송비(베트남→한국)와 쇼핑몰 반품비는 전액 구매자 부담</b>입니다.
+              <b style={{ color: 'var(--danger)' }}>반송비(베트남→한국)와 쇼핑몰 반품비는 전액 구매자 부담</b>입니다.
             </p>
             {quote && freightKrw > 0 && (
-              <div className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.8, marginTop: 8 }}>
+              <div className="note" style={{ fontSize: 12.5, background: 'var(--warn-soft)', lineHeight: 1.8, marginTop: 8 }}>
                 <b>↔️ 이 주문 기준 교환·반품 비용 미리보기</b>{' '}
                 <small>({billableKg}kg 기준{RETURN_SHIPPING.assumed ? ' · 반송비는 요율 확정 전 예상' : ''})</small>
                 <br />
-                보낼 때(베트남→한국) 약 <b style={{ color: '#c92a2a' }}>{krw(backKrw)}</b>
+                보낼 때(베트남→한국) 약 <b style={{ color: 'var(--danger)' }}>{krw(backKrw)}</b>
                 {handlingKrw > 0 ? ' (처리 기본료 포함)' : ''}
-                {' '}· 다시 받을 때(한국→베트남) <b style={{ color: '#c92a2a' }}>{krw(resendKrw)}</b>
+                {' '}· 다시 받을 때(한국→베트남) <b style={{ color: 'var(--danger)' }}>{krw(resendKrw)}</b>
                 {agencyKrw > 0 ? ' (배송비+수수료)' : ' (배송비)'}
                 <br />
                 🔁 교환 왕복 합계 약{' '}
-                <b style={{ color: '#d9480f', fontSize: 13.5 }}>{krw(roundTripKrw)}</b>
+                <b style={{ color: 'var(--warn)', fontSize: 13.5 }}>{krw(roundTripKrw)}</b>
                 {goodsKrw > 0 && roundTripKrw >= goodsKrw && (
                   <>
                     <br />
-                    <b style={{ color: '#c92a2a' }}>
+                    <b style={{ color: 'var(--danger)' }}>
                       ⚠️ 상품가 합계({krw(goodsKrw)})보다 큽니다 — 교환·반품 실익이 없으니 저렴한 상품은
                       그대로 받으시길 권합니다.
                     </b>
                   </>
                 )}
                 <br />
-                <small style={{ color: '#c92a2a', fontWeight: 700 }}>
+                <small style={{ color: 'var(--danger)', fontWeight: 700 }}>
                   ⚠️ {RETURN_SHIPPING.blockedNote} — 해당 품목은 교환·반품이 불가합니다.
                 </small>{' '}
                 <small>{RETURN_SHIPPING.customsNote}.</small>
@@ -575,17 +574,17 @@ export default function Checkout() {
           <div className="section" style={{ paddingTop: 0 }}>
             <Fold
               title="📦 언제 받아보시나요"
-              bg="#fff8e6" border="#ffe3a3"
+              bg="var(--warn-soft)" border="var(--warn)"
               summary={<>
-                베트남 도착까지 <b style={{ color: '#d9480f', fontSize: 15 }}>
+                베트남 도착까지 <b style={{ color: 'var(--warn)', fontSize: 15 }}>
                   {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
                 </b> (주말·공휴일 제외)
                 {quote.sourcing.hasOverseas
-                  ? <b style={{ color: '#c92a2a' }}> · 해외직구 상품이 있어 2~3일 더 걸립니다</b> : null}
+                  ? <b style={{ color: 'var(--danger)' }}> · 해외직구 상품이 있어 2~3일 더 걸립니다</b> : null}
               </>}>
-            <p className="note" style={{ fontSize: 12.5, background: '#fff8e6', lineHeight: 1.75 }}>
+            <p className="note" style={{ fontSize: 12.5, background: 'var(--warn-soft)', lineHeight: 1.75 }}>
               📦 베트남 도착 예상{' '}
-              <b style={{ color: '#d9480f', fontSize: 14 }}>
+              <b style={{ color: 'var(--warn)', fontSize: 14 }}>
                 {quote.sourcing.schedule.totalDays.min}~{quote.sourcing.schedule.totalDays.max}영업일
               </b>
               <br />
@@ -599,11 +598,11 @@ export default function Checkout() {
                 {quote.sourcing.schedule.toHanoiDays.min}~{quote.sourcing.schedule.toHanoiDays.max}영업일
               </b>
               <br />
-              <b style={{ color: '#d9480f' }}>모두 영업일 기준(주말·공휴일 제외)</b>
+              <b style={{ color: 'var(--warn)' }}>모두 영업일 기준(주말·공휴일 제외)</b>
               {quote.sourcing.hasOverseas && (
                 <>
                   <br />
-                  <b style={{ color: '#c92a2a' }}>
+                  <b style={{ color: 'var(--danger)' }}>
                     🌏 해외직구 상품 포함 — 한국창고 도착까지 +2~3영업일 더 걸립니다
                   </b>
                 </>
@@ -624,9 +623,9 @@ export default function Checkout() {
               }}
               style={{
                 width: '100%', padding: '14px', borderRadius: 12, cursor: 'pointer',
-                border: allAgreed ? '3px solid #17916b' : '2px solid #e5e8eb',
-                background: allAgreed ? '#e6f6f0' : '#fff',
-                fontSize: 16.5, fontWeight: 800, color: allAgreed ? '#17916b' : '#191f28',
+                border: allAgreed ? '3px solid var(--ok)' : '2px solid var(--line-2)',
+                background: allAgreed ? 'var(--ok-soft)' : 'var(--bg-2)',
+                fontSize: 16.5, fontWeight: 800, color: allAgreed ? 'var(--ok)' : 'var(--text)',
               }}>
               {allAgreed ? '✓ 모두 확인했습니다' : '아래 내용을 모두 확인했습니다'}
             </button>
@@ -635,28 +634,28 @@ export default function Checkout() {
               {REQUIRED_CONSENTS.map((c) => (
                 <label key={c.id} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
-                  border: '1px solid #e5e8eb', borderRadius: 10, cursor: 'pointer',
-                  background: consents[c.id] ? '#f7fbf9' : '#fff',
+                  border: '1px solid var(--line-2)', borderRadius: 10, cursor: 'pointer',
+                  background: consents[c.id] ? 'var(--ok-soft)' : 'var(--bg-2)',
                 }}>
                   <input type="checkbox" checked={Boolean(consents[c.id])}
                     onChange={(e) => setConsents({ ...consents, [c.id]: e.target.checked })}
                     style={{ width: 22, height: 22, marginTop: 1, flexShrink: 0 }} />
-                  <span style={{ fontSize: 14.5, lineHeight: 1.6, color: '#333d4b' }}>{c.label}</span>
+                  <span style={{ fontSize: 14.5, lineHeight: 1.6, color: 'var(--text-2)' }}>{c.label}</span>
                 </label>
               ))}
             </div>
-            <p className="note" style={{ marginTop: 10, fontSize: 13.5 }}>
-              자세한 내용은 <a href="/notice" target="_blank" rel="noreferrer"><b>공지사항</b></a> 에서 확인하실 수 있습니다.
+            <p className="note" style={{ marginTop: 10 }}>
+              전문은 <a href="/notice" target="_blank" rel="noreferrer"><b>📋 이용약관</b></a>에 있습니다.
             </p>
             {/* 선택 동의 — 필수 묶음(위)과 떨어뜨려, 안 해도 된다는 것이 보이게 */}
             {OPTIONAL_CONSENTS.map((c) => (
               <label key={c.id} style={{
                 display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', marginTop: 10,
-                border: '1px dashed #c9d3e0', borderRadius: 10, cursor: 'pointer', background: marketing ? '#eef3ff' : '#fff',
+                border: '1px dashed var(--line-2)', borderRadius: 10, cursor: 'pointer', background: marketing ? 'var(--accent-soft)' : 'var(--bg-2)',
               }}>
                 <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)}
                   style={{ width: 22, height: 22, marginTop: 1, flexShrink: 0 }} />
-                <span style={{ fontSize: 13.5, lineHeight: 1.6, color: '#3a4664' }}><b>선택</b> · {c.label}</span>
+                <span style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-2)' }}><b>선택</b> · {c.label}</span>
               </label>
             ))}
           </div>
@@ -668,17 +667,17 @@ export default function Checkout() {
           const openNos = duplicate.openOrderNos?.length ? duplicate.openOrderNos : [duplicate.orderNo]
           return (
           <div className="section" style={{ paddingTop: 0 }}>
-            <div style={{ border: '2px solid #f59f00', background: '#fff8e6', borderRadius: 12, padding: 14 }}>
-              <p style={{ margin: 0, fontWeight: 800, color: '#d9480f' }}>
+            <div style={{ border: '2px solid var(--warn)', background: 'var(--warn-soft)', borderRadius: 12, padding: 14 }}>
+              <p style={{ margin: 0, fontWeight: 800, color: 'var(--warn)' }}>
                 ⚠️ 같은 주문이 {openNos.length > 1 ? `${openNos.length}건 ` : ''}이미 접수되어 있어요
               </p>
-              <p className="note" style={{ margin: '8px 0 10px', background: '#fff', fontSize: 12.5 }}>
+              <p className="note" style={{ margin: '8px 0 10px', background: 'var(--bg-2)', fontSize: 12.5 }}>
                 <b>{duplicate.orderNo}</b> · {duplicate.stateLabel} · {duplicate.minutesAgo}분 전 접수
                 {duplicate.totalKrw ? <> · <b>{krw(duplicate.totalKrw)}</b></> : null}
                 {openNos.length > 1 && (
                   <>
                     <br />
-                    <b style={{ color: '#d9480f' }}>미결제 {openNos.length}건 전부</b>: {openNos.join(' · ')}
+                    <b style={{ color: 'var(--warn)' }}>미결제 {openNos.length}건 전부</b>: {openNos.join(' · ')}
                     <br />
                     <small>한 건만 취소하면 남은 건이 다시 중복으로 잡힙니다 — 아래 버튼이 모두 정리합니다.</small>
                   </>
