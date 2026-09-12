@@ -6,14 +6,17 @@
  * 거기서 사장님 기기의 「대신 읽기」가 그 상품 화면을 열어 이름·옵션·가격을 채웁니다 (lib/peek-jobs.js).
  * 클립보드를 못 읽는 브라우저는 아래 칸에 길게 눌러 붙여넣습니다 — 링크가 들어오는 순간 넘어갑니다.
  * PC 화면은 그대로 두고, 이 블록은 폰 너비에서만 보입니다 (.only-mobile).
+ * 폰 화면에서는 「쿠팡」을 밝혀 적습니다 (운영자 26-09-12: "핸드폰에서는 쿠팡 전용 표기 가능, 데스크탑 모델은 안 됨") —
+ * PC 화면·확장에는 남의 상호를 쓰지 않습니다 (test/pwa.test.js 가 지킵니다).
  */
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { krw } from '../lib/format'
 import { parseProductUrl } from '../lib/coupang-url'
+import { PARTNERS_NOTICE, SHOP_HOME } from '../config/partners'
 
-export default function LinkStart({ ratePerKgUsd, agencyBaseKrw }) {
+export default function LinkStart({ ratePerKgUsd, agencyBaseKrw, shop }) {
   const router = useRouter()
   const [val, setVal] = useState('')
   const [note, setNote] = useState('')
@@ -40,8 +43,8 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw }) {
     if (tryGo(text)) return
     setVal(String(text ?? '').slice(0, 500))
     setNote(String(text ?? '').trim()
-      ? '쇼핑몰 상품 링크가 아닙니다. 앱에서 상품 → 공유 → 링크 복사 뒤 다시 눌러 주세요.'
-      : '복사한 링크가 없습니다. 앱에서 상품 → 공유 → 링크 복사 뒤 다시 눌러 주세요.')
+      ? '쿠팡 상품 링크가 아닙니다. 쿠팡 앱에서 상품 → 공유 → 링크 복사 뒤 다시 눌러 주세요.'
+      : '복사한 링크가 없습니다. 쿠팡 앱에서 상품 → 공유 → 링크 복사 뒤 다시 눌러 주세요.')
   }
 
   return (
@@ -49,7 +52,7 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw }) {
       <div className="section" style={{ paddingTop: 0 }}>
         <button type="button" className="btn" onClick={paste} disabled={busy}
           style={{ display: 'block', width: '100%', minHeight: 64, fontSize: 19, fontWeight: 900 }}>
-          {busy ? '여는 중…' : '🔗 상품 링크 붙여넣기'}
+          {busy ? '여는 중…' : '🔗 쿠팡 상품 링크 붙여넣기'}
         </button>
         <input id="home-link" className="input" type="url" inputMode="url" value={val} data-home-link="1"
           placeholder="또는 여기에 링크를 직접 붙여넣기"
@@ -57,7 +60,13 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw }) {
           style={{ marginTop: 8, minHeight: 48, fontSize: 15 }} />
         {note
           ? <p className="note" style={{ marginTop: 8, fontSize: 13, background: '#fff4e5', color: '#9a5b00' }}>{note}</p>
-          : <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5 }}>쇼핑몰 앱에서 공유 → 링크 복사 → 붙여넣으면 이름·옵션·가격이 채워집니다.</p>}
+          : <p className="note" style={{ marginTop: 8, textAlign: 'center', fontSize: 13.5 }}>쿠팡 앱에서 공유 → 링크 복사 → 붙여넣으면 이름·옵션·가격이 채워집니다. <b>지금은 쿠팡 전용</b>입니다.</p>}
+        {/* 쿠팡으로 가기 — 아직 고르지 않은 분. 파트너스 링크가 설정돼 있으면 그 링크 + 고지 (config/partners.js) */}
+        <a className="btn btn--ghost" href={shop?.href ?? SHOP_HOME} target="_blank" rel="noreferrer" data-shop-link={shop?.isPartner ? 'partner' : 'plain'}
+          style={{ display: 'block', textAlign: 'center', marginTop: 8, minHeight: 48, fontSize: 15, fontWeight: 800, lineHeight: '26px' }}>
+          🛍 쿠팡으로 가기 →
+        </a>
+        {shop?.isPartner ? <p style={{ margin: '6px 0 0', textAlign: 'center', fontSize: 11.5, color: 'var(--ink-500)' }}>{PARTNERS_NOTICE}</p> : null}
       </div>
 
       <section className="panel">
@@ -69,7 +78,7 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw }) {
               <strong>📦 배송만</strong> <span style={{ color: 'var(--ink-500)', fontWeight: 700 }}>· ${ratePerKgUsd}/kg</span>
               <br />
               <small style={{ color: 'var(--ink-500)' }}>
-                <Link href="/send?track=forwarding"><b>창고 주소</b></Link>로 결제한 뒤 주문번호와 상품 링크
+                쿠팡에서 <Link href="/send?track=forwarding"><b>창고 주소</b></Link>로 결제한 뒤 주문번호와 상품 링크
               </small>
             </span>
           </div>

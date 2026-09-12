@@ -17,6 +17,7 @@
  * 그래서 이름을 먼저 받아 상세주소를 만들어 드리고, 이름이 없으면 그 칸은 복사조차 되지 않게 막아 둡니다.
  *
  * 설명 글은 최소로 — 버튼 이름이 곧 설명입니다 (운영자 26-09-07: "필요없는 말이 너무 많다").
+ * 상호: 폰 너비에서만 「쿠팡」을 밝혀 적고(운영자 26-09-12), PC 너비와 서버 렌더는 「쇼핑몰」 — 데스크탑 쪽에는 남의 상호를 쓰지 않습니다.
  * 캡처(사진) 길은 운영자 지시(26-09-12)로 뺐습니다. 결제 완료 알림 문자를 공유하는 길(글자만)은 남아 있습니다.
  */
 import { useEffect, useMemo, useState } from 'react'
@@ -27,6 +28,7 @@ import { TRACKS } from '../config/tracks'
 import { krw, vnd } from '../lib/format'
 import { copyText } from '../lib/copy'
 import { fromShare, parseProductUrl } from '../lib/coupang-url'
+import { PARTNERS_NOTICE, SHOP_HOME, shopLink } from '../config/partners'
 
 const RECIPIENT_KEY = 'kbeauty-hanoi:recipient'
 
@@ -79,7 +81,7 @@ async function readClipboardLink() {
   }
 }
 
-export default function SendPage() {
+export default function SendPage({ shop }) {
   const router = useRouter()
   const [track, setTrack] = useState('forwarding')
   const [name, setName] = useState('')
@@ -94,6 +96,19 @@ export default function SendPage() {
   const [pasteNote, setPasteNote] = useState({})
   /** 결제 완료 알림 문자(공유)에서 읽은 쇼핑몰 주문 — { orderNo, itemCount, warehouse, moreItems } */
   const [shopOrder, setShopOrder] = useState(null)
+  /** 폰 너비인가 — 폰에서만 「쿠팡」을 밝혀 적습니다 (마운트 뒤에 정하므로 서버 렌더와 어긋나지 않습니다) */
+  const [isPhone, setIsPhone] = useState(false)
+  useEffect(() => {
+    try {
+      const mq = window.matchMedia('(max-width: 819px)')
+      const apply = () => setIsPhone(mq.matches)
+      apply(); mq.addEventListener?.('change', apply)
+      return () => mq.removeEventListener?.('change', apply)
+    } catch { /* 지원하지 않으면 「쇼핑몰」 */ }
+  }, [])
+  const shopWord = isPhone ? '쿠팡' : '쇼핑몰'
+  // 「열기」 버튼 — 폰 너비에서 파트너스 링크가 있으면 그 링크(고지와 함께), 아니면 보통 주소
+  const shopHref = isPhone && shop?.isPartner ? shop.href : SHOP_HOME
 
   // 신청서에서 쓰던 이름이 있으면 그대로 씁니다 — 두 번 적지 않게.
   useEffect(() => {
@@ -251,7 +266,7 @@ export default function SendPage() {
       return
     }
     if (!got.link) {
-      setPasteNote((p) => ({ ...p, [i]: String(got.text ?? '').trim() ? '쇼핑몰 상품 링크가 아닙니다 (앱에서 공유 → 링크 복사).' : '복사한 링크가 없습니다 (앱에서 공유 → 링크 복사).' }))
+      setPasteNote((p) => ({ ...p, [i]: String(got.text ?? '').trim() ? `${shopWord} 상품 링크가 아닙니다 (${shopWord} 앱에서 공유 → 링크 복사).` : `복사한 링크가 없습니다 (${shopWord} 앱에서 공유 → 링크 복사).` }))
       return
     }
     setPasteNote((p) => ({ ...p, [i]: '' }))
@@ -348,7 +363,7 @@ export default function SendPage() {
           ⚠ 배송지에 창고 코드({WAREHOUSE.code})가 보이지 않습니다. 배송지가 창고 주소인지 확인해 주세요.
         </p>
       )}
-      <label className="field__label" htmlFor="shop-order-no" style={{ fontSize: 12.5 }}>쇼핑몰 주문번호 <span style={{ color: '#8b95a1', fontWeight: 500 }}>(주문내역에 있는 숫자)</span></label>
+      <label className="field__label" htmlFor="shop-order-no" style={{ fontSize: 12.5 }}>{shopWord} 주문번호 <span style={{ color: '#8b95a1', fontWeight: 500 }}>(주문내역에 있는 숫자)</span></label>
       <input id="shop-order-no" className="input" inputMode="numeric" placeholder="예) 3102787036952" value={shopOrder?.orderNo ?? ''}
         style={{ marginTop: 4, minHeight: 46 }}
         onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 20); setShopOrder((o) => ({ ...(o ?? { itemCount: 0, warehouse: null, moreItems: 0 }), orderNo: v || null })) }} />
@@ -378,7 +393,7 @@ export default function SendPage() {
             {showLink && (
               <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                 <input id={`link-${i}`} className="input" type="url" inputMode="url" value={r.productUrl}
-                  placeholder="상품 링크"
+                  placeholder={`${shopWord} 상품 링크`}
                   onChange={(e) => {
                     const v = e.target.value
                     setRow(i, { productUrl: v, edit: false })
@@ -398,7 +413,7 @@ export default function SendPage() {
             )}
             {r.productUrl && !link && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                상품 링크가 아닌 것 같습니다 (앱에서 공유 → 링크 복사).
+                {shopWord} 상품 링크가 아닌 것 같습니다 ({shopWord} 앱에서 공유 → 링크 복사).
               </p>
             )}
             {peek[i] === 'loading' && <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5 }}>⏳ 상품 정보를 읽는 중… (몇 초)</p>}
@@ -409,7 +424,7 @@ export default function SendPage() {
             )}
             {peek[i] === 'fail' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: '#fff4e5', color: '#9a5b00' }}>
-                쇼핑몰 상품 링크로 확인되지 않았습니다. 이름·가격을 적어 주세요.
+                {shopWord} 상품 링크로 확인되지 않았습니다. 이름·가격을 적어 주세요.
               </p>
             )}
 
@@ -546,7 +561,7 @@ export default function SendPage() {
         <>
           {/* ── 1. 쿠팡에 넣을 주소 ─────────────────────────────── */}
           <section className="panel">
-            <div className="panel__head">1. 쇼핑몰 배송지에 이대로 넣어주세요</div>
+            <div className="panel__head">1. {shopWord} 배송지에 이대로 넣어주세요</div>
             <div className="panel__body">
               <div className="field" style={{ marginBottom: 14 }}>
                 <label className="field__label" htmlFor="myname">받는 분 성함</label>
@@ -589,15 +604,16 @@ export default function SendPage() {
 
           {/* ── 2. 쿠팡으로 ─────────────────────────────────────── */}
           <section className="panel">
-            <div className="panel__head">2. 쇼핑몰에서 결제하고 오세요</div>
+            <div className="panel__head">2. {shopWord}에서 결제하고 오세요</div>
             <div className="panel__body">
-              <a className="btn" href="https://m.coupang.com/" target="_blank" rel="noreferrer"
+              <a className="btn" href={shopHref} target="_blank" rel="noreferrer" data-shop-link={isPhone && shop?.isPartner ? 'partner' : 'plain'}
                 style={{ display: 'block', textAlign: 'center', minHeight: 56, fontSize: 17, lineHeight: '32px' }}>
-                쇼핑몰 열기 →
+                {shopWord} 열기 →
               </a>
               <p className="note" style={{ marginTop: 10, fontSize: 13.5 }}>
                 배송지를 위 주소로 바꿔 결제한 뒤 돌아오세요.
               </p>
+              {isPhone && shop?.isPartner ? <p style={{ margin: '6px 0 0', fontSize: 11.5, color: 'var(--ink-500)' }}>{PARTNERS_NOTICE}</p> : null}
             </div>
           </section>
 
@@ -628,4 +644,9 @@ export default function SendPage() {
 
     </Layout>
   )
+}
+
+/** 「열기」 버튼 주소 — 서버 환경변수의 파트너스 링크 (config/partners.js). 빌드 때 읽으므로 바꾸면 deploy/update.sh 로 다시 빌드 */
+export async function getStaticProps() {
+  return { props: { shop: shopLink() } }
 }

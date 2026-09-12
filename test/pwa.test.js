@@ -68,3 +68,17 @@ test('첫 화면(폰 전용) — 「🔗 상품 링크 붙여넣기」 하나, �
   const css = read('styles/globals.css')
   assert.ok(css.includes('.only-mobile { display: none; }') && css.includes('.only-pc { display: block; }'), '820px 이상에서 폰 블록 숨김')
 })
+
+test('상호 표기 — 폰 전용 블록만 「쿠팡」을 적고, PC 화면·서버 렌더 문구에는 남의 상호가 없다 (운영자 26-09-12)', () => {
+  const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  assert.ok(strip(read('components/LinkStart.js')).includes('쿠팡 전용'), '폰 첫 화면은 쿠팡 전용임을 밝힙니다')
+  // /send 는 폰 너비에서만 쿠팡 — 코드에 상호 리터럴은 isPhone 분기 한 곳뿐
+  const send = strip(read('pages/send.js'))
+  assert.equal((send.match(/쿠팡/g) ?? []).length, 1, '/send 의 상호는 isPhone ? 쿠팡 : 쇼핑몰 한 곳에만')
+  assert.ok(send.includes("const shopWord = isPhone ? '쿠팡' : '쇼핑몰'"))
+  assert.ok(strip(read('components/LinkStart.js')).includes('🛍 쿠팡으로 가기') && send.includes('data-shop-link'), '쿠팡으로 가기 버튼 (파트너스 링크는 환경변수로만)')
+  // PC 에서도 보이는 화면·확장에는 상호가 없습니다
+  for (const p of ['pages/index.js', 'pages/checkout.js', 'pages/rates.js', 'pages/orders/[id].js', 'components/Layout.js']) {
+    assert.ok(!strip(read(p)).includes('쿠팡'), `${p} 에 남의 상호가 있습니다 — 데스크탑 쪽에는 쓰지 않습니다`)
+  }
+})

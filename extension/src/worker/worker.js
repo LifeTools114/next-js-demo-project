@@ -75,7 +75,12 @@ async function openJob(job) {
   const url = `${job.url}${job.url.includes('#') ? '&' : '#'}kbjob=${encodeURIComponent(job.id)}`
   let tab
   try { tab = await chrome.tabs.create({ url, active: false }) } catch (e) { log(`탭을 열지 못했습니다: ${e.message}`, true); return }
-  const timeout = setTimeout(() => finish(tab.id, job.id, { ok: false, message: '시간 초과 — 상품 화면을 읽지 못했습니다' }), JOB_TIMEOUT_MS)
+  const timeout = setTimeout(async () => {
+    // 무엇이 떠 있었는지 남깁니다 — 차단·로그인·점검 페이지면 제목으로 드러납니다
+    let title = ''
+    try { title = (await chrome.tabs.get(tab.id))?.title ?? '' } catch { /* 이미 닫힘 */ }
+    finish(tab.id, job.id, { ok: false, message: `시간 초과 — 상품 화면을 읽지 못했습니다${title ? ` (탭: ${title.slice(0, 40)})` : ''}` })
+  }, JOB_TIMEOUT_MS)
   active.set(tab.id, { jobId: job.id, url: job.url, startedAt: Date.now(), timeout })
   log(`여는 중 ${job.url.slice(0, 60)}`)
 }

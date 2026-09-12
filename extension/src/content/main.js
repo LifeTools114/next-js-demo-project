@@ -156,16 +156,19 @@
      * 직구 주문 스위치가 꺼져 있으면 아무것도 하지 않습니다 (운영자 26-09-06).
      * 쿠팡 일반 주문으로 쓰시는 중이니 견적도 안내도 방해가 됩니다.
      */
+    // 대신 읽기 창이 연 탭(#kbjob=)은 스위치가 꺼져 있어도, 점검 시간이어도 읽습니다 — 안 읽으면 고객 폰이 30초를 헛기다립니다
+    let workerJob = false
+    /* kb-operator-only */ workerJob = /kbjob=/.test(location.hash) /* /kb-operator-only */
     try {
       // 켜기 전에는 패널을 아예 띄우지 않습니다 — 시작 배너만 보입니다.
-      if (!(await chrome.storage.local.get('kbOn'))?.kbOn) {
+      if (!workerJob && !(await chrome.storage.local.get('kbOn'))?.kbOn) {
         KBPanel.hide()
         return
       }
     } catch { /* 저장소를 못 읽으면 평소대로 */ }
 
     const gate = K.checkMaintenanceAction('readProductPage', { country })
-    if (!gate.allowed) {
+    if (!gate.allowed && !workerJob) {
       KBPanel.setState({ view: 'maintenance', maintenance: K.maintenanceStatus(new Date(), country) })
       return
     }
@@ -229,6 +232,8 @@
         reason: eligibility.reason,
         notice: eligibility.notice,
       })
+      // 상담 품목도 이름·가격은 고객 폰에 채워 줍니다 (상담 여부는 서버 견적이 판정)
+      /* kb-operator-only */ reportWorker({ ok: true, item: { productName: extracted.productName, productPrice: extracted.price, specOverride: extracted.specOverride, categoryPath: extracted.categoryPath, badges: extracted.badges } }) /* /kb-operator-only */
       return
     }
 

@@ -68,6 +68,7 @@ export default function AdminConsole() {
   const [maint, setMaint] = useState(null)
   // 쿠팡 화면 자가진단 — 확장이 "문구를 못 찾았다"고 보고한 내역
   const [health, setHealth] = useState(null)
+  const [worker, setWorker] = useState(null) // 「대신 읽기」 기기 상태 — 폰 고객의 자동 입력이 되는지 한눈에
   // 고객 풀 — 전화번호별 묶음 (검색·개인 링크 발급·CSV)
   const [customers, setCustomers] = useState([])
   const [q, setQ] = useState('')
@@ -106,6 +107,10 @@ export default function AdminConsole() {
       fetch('/api/extension/health', { headers: { 'x-admin-token': token } })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (seq === reqRef.current && d) setHealth(d) })
+        .catch(() => {})
+      fetch('/api/worker/status', { headers: { 'x-admin-token': token } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (seq === reqRef.current && d) setWorker(d) })
         .catch(() => {})
     } catch (e) {
       if (seq !== reqRef.current) return
@@ -250,6 +255,40 @@ export default function AdminConsole() {
       )}
 
       {error && <div className="section" style={{ paddingTop: 0 }}><p className="note note--danger">{error}</p></div>}
+
+      {/* 대신 읽기 — 폰 고객이 붙여넣은 링크를 사장님 PC 크롬이 읽어 주는지 (꺼져 있으면 고객은 가격을 직접 적습니다) */}
+      {worker && (
+        <section className="panel">
+          <div className="panel__head">
+            <span>🔄 대신 읽기 (폰 고객 링크 자동 입력)</span>
+            <span className={worker.online ? 'tag tag--ok' : 'tag tag--danger'}>
+              {worker.online ? '살아 있음' : '없음'}
+            </span>
+          </div>
+          <div className="panel__body">
+            <p className="note" style={{ marginBottom: 8 }}>
+              {worker.online
+                ? <>PC 크롬의 「대신 읽기」 창이 {Math.max(0, Math.round((worker.now - worker.lastPollAt) / 1000))}초 전에 확인했습니다. 대기 {worker.pending}건.</>
+                : worker.lastPollAt
+                  ? <>마지막 확인이 {Math.round((worker.now - worker.lastPollAt) / 60000)}분 전입니다 — PC 크롬의 「대신 읽기」 창이 닫혔거나 크롬이 꺼져 있습니다. 그동안 폰 고객은 가격을 직접 적습니다.</>
+                  : <>서버가 켜진 뒤 한 번도 확인이 없습니다 — 확장 팝업 [운영] → 「🔄 대신 읽기 창 열기」 → 「대신 읽기 시작」. 그동안 폰 고객은 가격을 직접 적습니다.</>}
+            </p>
+            {worker.recent?.length > 0 && worker.recent.map((j) => (
+              <div className="row" key={j.id}>
+                <span className="row__label">
+                  {new Date(j.createdAt).toLocaleTimeString('ko-KR', { hour12: false })} · 상품 {j.productId}
+                  {j.productName ? <> · {j.productName.slice(0, 30)}</> : null}
+                  {j.message ? <> · <span style={{ color: 'var(--danger, #c53030)' }}>{j.message}</span></> : null}
+                </span>
+                <span className="row__value">
+                  {j.status === 'done' ? `읽음${j.productPrice ? ` ${j.productPrice.toLocaleString('ko-KR')}원` : ''}${j.options ? ` · 옵션 ${j.options}` : ''}`
+                    : j.status === 'failed' ? '실패' : j.takenAt ? '읽는 중' : '대기'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 쿠팡 화면 점검 — 확장이 스스로 보고한 "문구를 못 찾음" */}
       {health?.total > 0 && (

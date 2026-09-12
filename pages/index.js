@@ -9,8 +9,9 @@ import { TAXES } from '../config/taxes'
 import { DESTINATION, LISTED_BLOCK_RULES, LISTED_CONSULT_RULES } from '../config/eligibility'
 import { krw, usd } from '../lib/format'
 import { usdToKrw, roundingRuleText } from '../lib/pricing/shipping'
+import { shopLink } from '../config/partners'
 
-export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, roundingRule }) {
+export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, roundingRule, shop }) {
   return (
     <Layout badge="베트남 북부">
       <div className="hero">
@@ -26,7 +27,7 @@ export default function Home({ ratePerKgUsd, agencyBaseKrw, blockedCategories, r
       </div>
 
       {/* 폰 전용 시작점 — 「🔗 상품 링크 붙여넣기」 하나 + 두 가지 방법 두 줄 (PC 화면은 아래 그대로, 폰에서는 숨김) */}
-      <LinkStart ratePerKgUsd={ratePerKgUsd} agencyBaseKrw={agencyBaseKrw} />
+      <LinkStart ratePerKgUsd={ratePerKgUsd} agencyBaseKrw={agencyBaseKrw} shop={shop} />
 
       {/*
         PC 로 오신 분 — 확장이 상품 화면을 읽어 주므로 이 버튼은 폰 없이 PC 로만 할 때의 길입니다.
@@ -158,6 +159,8 @@ export async function getStaticProps() {
       agencyBaseKrw: FEES.agencyBaseKrw,
       blockedCategories: LISTED_BLOCK_RULES.length + LISTED_CONSULT_RULES.length + 1, // +1 = 해외직구 상품 (요금 페이지 목록의 첫 줄)
       roundingRule: roundingRuleText(),
+      // 폰 화면의 「쿠팡으로 가기」 — 서버 환경변수의 파트너스 링크가 있으면 그것 (config/partners.js)
+      shop: shopLink(),
     },
   }
 }

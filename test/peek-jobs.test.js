@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { enqueue, take, complete, getJob, stats, workerOnline, _resetJobs } from '../lib/peek-jobs.js'
+import { enqueue, take, complete, getJob, stats, workerOnline, recentJobs, _resetJobs } from '../lib/peek-jobs.js'
 import { peekProduct, peekCached, _resetPeekCache } from '../lib/product-peek.js'
 import peekHandler from '../pages/api/product-peek.js'
 import jobsHandler from '../pages/api/worker/jobs/index.js'
@@ -70,4 +70,18 @@ test('읽기 기기가 실패를 올리면 worker-failed — 고객 화면은 �
   const r = await call(peekHandler, { query: { job: pend.jobId } })
   assert.equal(r.body.reason, 'worker-failed'); assert.equal(r.body.productId, '3003')
   assert.equal((await call(peekHandler, { query: { job: 'pj_none' } })).body.reason, 'unknown-job')
+})
+
+test('최근 작업 목록 — 운영자 상태 화면용, 최신순, 결과 요약만', () => {
+  _resetJobs()
+  const a = enqueue({ key: 'a', url: 'https://www.coupang.com/vp/products/1', productId: '1' })
+  const b = enqueue({ key: 'b', url: 'https://www.coupang.com/vp/products/2', productId: '2' })
+  take({ now: Date.now() })
+  complete(a.id, { ok: true, productName: '분유 800g', productPrice: 21720, options: [{ label: 'x' }, { label: 'y' }] })
+  complete(b.id, { ok: false, message: '시간 초과 (탭: Access Denied)' })
+  const r = recentJobs(10)
+  assert.equal(r.length, 2)
+  assert.equal(r[0].productId, '2'); assert.equal(r[0].status, 'failed'); assert.equal(r[0].message, '시간 초과 (탭: Access Denied)')
+  assert.equal(r[1].status, 'done'); assert.equal(r[1].productPrice, 21720); assert.equal(r[1].options, 2)
+  assert.ok(!('result' in r[0]) && !('url' in r[0]), '요약 필드만 — 결과 원본·주소는 넣지 않습니다')
 })
