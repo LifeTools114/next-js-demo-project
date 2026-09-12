@@ -30,20 +30,11 @@
   ],
   "share_target": {
     "action": "/send",
-    "method": "POST",
-    "enctype": "multipart/form-data",
+    "method": "GET",
     "params": {
       "title": "title",
       "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "shots",
-          "accept": [
-            "image/*"
-          ]
-        }
-      ]
+      "url": "url"
     }
   },
   "shortcuts": [

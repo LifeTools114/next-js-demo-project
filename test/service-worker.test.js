@@ -27,6 +27,7 @@ function boot({ serverUp = true, storage = {} } = {}) {
   const chrome = {
     runtime: {
       onInstalled: { addListener() {} },
+      onStartup: { addListener() {} },
       onMessage: { addListener(fn) { listener = fn } },
       getManifest: () => ({ version: 't' }),
     },

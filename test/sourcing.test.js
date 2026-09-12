@@ -120,11 +120,12 @@ test('고객 뷰에는 재점검 사실만 보이고 내부 금액은 안 보인
   const o = advanceToWarehouse(overseasOrder())
   recordWeighing(o.id, {
     actualWeightG: 300, by: 'admin-kim',
-    recheck: { confirmed: true, productMatches: true, extraCostKrw: 12000, note: '내부 메모' },
+    // 금액은 주문번호(HN+연월일+순번, 예: HN2609120001)에 우연히 들어갈 수 없는 값으로 — 12일에 '12000' 이 잡혔습니다 (26-09-12)
+    recheck: { confirmed: true, productMatches: true, extraCostKrw: 987650, note: '내부 메모' },
   })
   const json = JSON.stringify(customerView(o))
   assert.ok(json.includes('recheck'), '재점검 사실은 보여야 합니다')
-  for (const secret of ['12000', 'admin-kim', '내부 메모', 'extraCostKrw']) {
+  for (const secret of ['987650', 'admin-kim', '내부 메모', 'extraCostKrw']) {
     assert.ok(!json.includes(secret), `고객 뷰에 '${secret}' 이 노출되면 안 됩니다`)
   }
 })

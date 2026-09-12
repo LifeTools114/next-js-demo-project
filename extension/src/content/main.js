@@ -132,6 +132,16 @@
     if (!m) return
     try { chrome.runtime.sendMessage({ type: 'workerResult', jobId: decodeURIComponent(m[1]), payload }) } catch { /* 창이 닫혔으면 무시 */ }
   }
+  /**
+   * 읽은 상품에 옵션 목록을 붙여 보고합니다. 옵션 영역은 화면보다 늦게 그려질 때가 있어, 처음에 비어 있으면
+   * 0.8초 간격으로 두 번 더 봅니다 (대신 읽기 창은 첫 보고를 받는 즉시 탭을 닫으므로 그 전에 모아야 합니다).
+   */
+  function reportWorkerWithOptions(item, left = 2) {
+    if (!/kbjob=/.test(location.hash)) return
+    const options = globalThis.KBExtract.extractOptions()
+    if (options.length || left <= 0) { reportWorker({ ok: true, item: { ...item, options } }); return }
+    setTimeout(() => reportWorkerWithOptions(item, left - 1), 800)
+  }
   /* /kb-operator-only */
 
   async function compute() {
@@ -250,7 +260,7 @@
       })(),
     }
     lastItem = item
-    /* kb-operator-only */ reportWorker({ ok: true, item }) /* /kb-operator-only */
+    /* kb-operator-only */ reportWorkerWithOptions(item) /* /kb-operator-only */
 
     // 두 트랙을 모두 계산합니다 — 첫 화면이 "배송대행 얼마 / 구매대행 얼마"
     // 두 줄을 항상 같이 보여주기 때문입니다. (같은 상품이라 무게는 동일)

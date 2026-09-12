@@ -63,7 +63,7 @@ async function finish(tabId, jobId, result) {
   if (job) { clearTimeout(job.timeout); active.delete(tabId) }
   try { await chrome.tabs.remove(tabId) } catch { /* 이미 닫힘 */ }
   const r = await api(`/api/worker/jobs/${encodeURIComponent(jobId)}`, { method: 'POST', body: JSON.stringify(result) })
-  if (result.ok) { counts.done += 1; log(`읽음 ${result.productName?.slice(0, 40) ?? ''} · ${result.productPrice ?? '-'}원`) }
+  if (result.ok) { counts.done += 1; log(`읽음 ${result.productName?.slice(0, 40) ?? ''} · ${result.productPrice ?? '-'}원 · 옵션 ${result.options?.length ?? 0}개`) }
   else { counts.failed += 1; log(`실패 ${result.message ?? ''} (${jobId})`, true) }
   if (!r.ok) log(`서버에 결과를 못 보냈습니다 (${r.status})`, true)
   render()
@@ -101,7 +101,9 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   const p = msg.payload ?? {}
   finish(sender.tab.id, job.jobId, p.ok
     ? { ok: true, productName: p.item?.productName, productPrice: p.item?.productPrice, spec: p.item?.specOverride ?? null,
-        badges: p.item?.badges ?? [], categoryPath: p.item?.categoryPath ?? '', shippingText: p.item?.shippingText ?? '', blocked: p.blocked ?? null }
+        badges: p.item?.badges ?? [], categoryPath: p.item?.categoryPath ?? '', shippingText: p.item?.shippingText ?? '', blocked: p.blocked ?? null,
+        // 고객이 고를 옵션 목록(번호·링크·가격)과 이 화면의 정식 주소 — 고객 화면이 옵션을 바꾸면 그 주소를 다시 읽습니다
+        options: Array.isArray(p.item?.options) ? p.item.options : [], productUrl: p.item?.productUrl ?? null }
     : { ok: false, message: p.message ?? '읽기 실패' })
 })
 

@@ -52,6 +52,11 @@ const KBExtract = (() => {
     /** 배송 안내 문구 — '해외배송', '통관번호 필요' 등이 여기 있습니다 */
     shippingInfo: ['.prod-shipping', '.prod-shipping-fee', '.delivery-info', '[class*="shippingInfo"]'],
     soldOut: ['.prod-out-of-stock', '.oos-label', '[class*="soldOut"]'],
+    /**
+     * 옵션 목록(색상·용량·수량 묶음)이 있는 영역 — 대신 읽기가 이 안에서 고객이 고를 옵션을 찾습니다.
+     * 여기 없으면 문서 전체를 봅니다. 쿠팡이 마크업을 바꾸면 서버 설정(config/coupang-patterns.js selectors)으로 더합니다.
+     */
+    optionScope: ['.prod-option', '#prod-option', '[class*="prod-option"]', '[class*="ProductOption"]', '[class*="optionList" i]', '.prod-atf', '.prod-buy'],
   }
 
   let selectors = { ...DEFAULT_SELECTORS }
@@ -751,6 +756,98 @@ const KBExtract = (() => {
   }
 
   /** 목록/검색 페이지의 상품 카드들 */
+  /**
+   * 옵션 후보(평범한 객체)에서 고객이 고를 수 있는 옵션 목록을 만듭니다 — 화면(DOM) 없이도 시험할 수 있는 순수 함수.
+   *
+   *   후보: { text, href, itemId, vendorItemId, value, selected, price }
+   *   결과: { label, itemId, vendorItemId, url, price, selected } — 같은 옵션(같은 번호)은 하나로, 최대 60개.
+   *
+   * 링크(itemId·vendorItemId)가 있는 옵션만 url 이 생깁니다 — 그 화면을 다시 열어 그 옵션의 가격을 읽을 수 있습니다
+   * (대신 읽기). 번호가 없으면 url:null 로 이름표만 남깁니다. 라벨은 80자 이내 한 줄 — 옵션 목록 전체를 감싼
+   * 요소(긴 글)는 버립니다. 옵션이 하나뿐이면 고를 것이 없으므로 빈 목록입니다.
+   */
+  function pickOptions(records, { productId = null, currentItemId = null, currentVendorItemId = null } = {}) {
+    const digits = (v) => { const d = String(v ?? '').replace(/\D/g, ''); return d ? d.slice(0, 20) : null }
+    const curItem = digits(currentItemId)
+    const curVendor = digits(currentVendorItemId)
+    const out = []
+    const seen = new Set()
+    for (const r of records ?? []) {
+      if (!r || typeof r !== 'object') continue
+      let itemId = digits(r.itemId)
+      let vendorItemId = digits(r.vendorItemId)
+      if (r.href) {
+        try {
+          const u = new URL(String(r.href), 'https://www.coupang.com')
+          itemId = itemId ?? digits(u.searchParams.get('itemId'))
+          vendorItemId = vendorItemId ?? digits(u.searchParams.get('vendorItemId'))
+        } catch { /* 링크가 아니면 번호 없이 진행 */ }
+      }
+      const raw = String(r.value ?? r.text ?? '').replace(/\s+/g, ' ').trim()
+      if (!raw || raw.length > 160) continue
+      const priceMatch = raw.match(/([\d,]{4,})\s*원/)
+      const fromText = priceMatch ? Number(priceMatch[1].replace(/,/g, '')) : null
+      const price = Number(r.price) > 0 ? Number(r.price) : fromText
+      const label = raw.replace(/([\d,]{4,})\s*원.*$/, '').replace(/\(?\s*품절\s*\)?/g, '').replace(/\s+/g, ' ').trim().slice(0, 80)
+      if (!label) continue
+      const key = itemId || vendorItemId ? `${itemId ?? ''}:${vendorItemId ?? ''}` : `l:${label}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const params = [itemId ? `itemId=${itemId}` : '', vendorItemId ? `vendorItemId=${vendorItemId}` : ''].filter(Boolean).join('&')
+      const url = productId && params ? `https://www.coupang.com/vp/products/${digits(productId)}?${params}` : null
+      const selected = Boolean(r.selected)
+        || (Boolean(vendorItemId) && vendorItemId === curVendor)
+        || (Boolean(itemId) && !vendorItemId && itemId === curItem)
+      out.push({ label, itemId, vendorItemId, url, price: Number.isFinite(price) && price > 0 ? price : null, selected })
+      if (out.length >= 60) break
+    }
+    return out.length >= 2 ? out : []
+  }
+
+  /**
+   * 화면의 옵션 목록을 읽습니다 (대신 읽기용). 옵션 영역 안에서 번호(data-item-id 등)·링크(itemId=)·옵션 줄을 모아
+   * pickOptions 로 넘깁니다. 못 찾으면 빈 목록 — 고객 화면은 옵션 없이 이름·가격만 보여줍니다.
+   */
+  function extractOptions() {
+    const roots = []
+    for (const sel of selectors.optionScope ?? []) {
+      try { document.querySelectorAll(sel).forEach((el) => roots.push(el)) } catch { /* 잘못된 셀렉터는 건너뜁니다 */ }
+    }
+    if (roots.length === 0 && document.body) roots.push(document.body)
+    const CANDIDATES = '[data-item-id], [data-vendor-item-id], [data-itemid], [data-vendoritemid], a[href*="itemId="], a[href*="vendorItemId="], li[class*="option" i], [role="option"], [class*="option" i] li'
+    const records = []
+    const seen = new Set()
+    for (const root of roots) {
+      let nodes
+      try { nodes = root.querySelectorAll(CANDIDATES) } catch { continue }
+      for (const el of nodes) {
+        if (seen.has(el)) continue
+        seen.add(el)
+        const ds = el.dataset ?? {}
+        const cls = String(el.className ?? '')
+        const lines = String(el.innerText ?? el.textContent ?? '').split('\n').map((t) => t.trim()).filter(Boolean)
+        records.push({
+          text: lines.slice(0, 2).join(' '),
+          href: el.getAttribute('href') ?? el.closest('a[href]')?.getAttribute('href') ?? null,
+          itemId: ds.itemId ?? ds.itemid ?? null,
+          vendorItemId: ds.vendorItemId ?? ds.vendoritemid ?? null,
+          value: ds.value ?? ds.optionValue ?? el.getAttribute('title') ?? el.getAttribute('aria-label') ?? null,
+          selected: /(^|[\s_-])(selected|active|checked|on)([\s_-]|$)/i.test(cls)
+            || el.getAttribute('aria-selected') === 'true' || el.getAttribute('aria-checked') === 'true',
+          price: null,
+        })
+      }
+    }
+    let currentItemId = null
+    let currentVendorItemId = null
+    try {
+      const u = new URL(location.href)
+      currentItemId = u.searchParams.get('itemId')
+      currentVendorItemId = u.searchParams.get('vendorItemId')
+    } catch { /* 주소를 못 읽으면 선택 표시 없이 */ }
+    return pickOptions(records, { productId: extractProductId(), currentItemId, currentVendorItemId })
+  }
+
   function extractListItems() {
     const cards = document.querySelectorAll('li.search-product, li[class*="ProductUnit"], ul.products li')
     const items = []
@@ -763,7 +860,7 @@ const KBExtract = (() => {
     return items
   }
 
-  return { extractProduct, extractListItems, extractNoticeSpec, extractOptionSpec, extractBadges, setSelectors, canonicalUrl, safeQuantity, readQuantity, DEFAULT_SELECTORS }
+  return { extractProduct, extractListItems, extractNoticeSpec, extractOptionSpec, extractOptions, pickOptions, extractBadges, setSelectors, canonicalUrl, safeQuantity, readQuantity, DEFAULT_SELECTORS }
 })()
 
 globalThis.KBExtract = KBExtract

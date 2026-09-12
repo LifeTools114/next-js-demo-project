@@ -20,6 +20,14 @@ const storage = {
 
 // 확장을 새로고침(🔄)·업데이트하면 설정 캐시(6시간)를 비웁니다 —
 // 서버에서 바꾼 정책(요율·최소주문 등)이 기다림 없이 바로 반영되도록.
+/* kb-operator-only */
+// 「대신 읽기」를 켜 둔 운영자 크롬은 다시 켤 때 그 창을 고정 탭으로 자동으로 엽니다 — 매번 팝업에서 열지 않아도 되게 (26-09-12)
+chrome.runtime.onStartup?.addListener(() => {
+  chrome.storage.local.get(['workerOn', 'adminToken'], (s) => {
+    if (s?.workerOn && s?.adminToken) chrome.tabs.create({ url: chrome.runtime.getURL('src/worker/worker.html'), pinned: true, active: false })
+  })
+})
+/* /kb-operator-only */
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({ configAt: 0 })
 })
