@@ -70,6 +70,7 @@ bash setup.sh
 | `SESSION_SECRET` | 권장 | PIN 해제 표시 서명. 자동 생성 |
 | `TELEGRAM_BOT_TOKEN` `TELEGRAM_OPERATOR_CHAT_ID` `TELEGRAM_PARTNER_CHAT_ID` | 권장 | 주문·상태 알림, 물류사 연동 — 나중에 `nano /srv/kb/.env.local` 로 채우고 `systemctl restart kb` |
 | `PAYMENT_WEBHOOK_TOKEN` | 선택 | 입금 자동 확인 웹훅을 쓸 때 |
+| `KB_WORKER_PROXY` | 선택 | 쇼핑몰이 서버 IP 의 크롬을 막을 때(`/admin` 「차단됨」) — 한국 주거용 프록시 `http://호스트:포트`. 서버 IP 허용 방식으로 계약(크롬은 프록시 비밀번호를 못 받음). 적은 뒤 `systemctl restart kb-worker`. 자세히 `deploy/run-worker.sh` |
 | 창고·계좌·사업자·환율 | 선택 | 코드 기본값과 다를 때만 (`.env.production.example` 참고) |
 
 nano: 고치고 `Ctrl+O` → `Enter` 저장, `Ctrl+X` 나가기.

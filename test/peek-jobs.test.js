@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { enqueue, take, complete, getJob, stats, workerOnline, recentJobs, _resetJobs } from '../lib/peek-jobs.js'
+import { enqueue, take, complete, getJob, stats, workerOnline, workersOnline, recentJobs, _resetJobs } from '../lib/peek-jobs.js'
 import { peekProduct, peekCached, _resetPeekCache } from '../lib/product-peek.js'
 import peekHandler from '../pages/api/product-peek.js'
 import jobsHandler from '../pages/api/worker/jobs/index.js'
@@ -70,6 +70,53 @@ test('읽기 기기가 실패를 올리면 worker-failed — 고객 화면은 �
   const r = await call(peekHandler, { query: { job: pend.jobId } })
   assert.equal(r.body.reason, 'worker-failed'); assert.equal(r.body.productId, '3003')
   assert.equal((await call(peekHandler, { query: { job: 'pj_none' } })).body.reason, 'unknown-job')
+})
+
+test('교대 — 한 기기가 실패(차단)하면 살아 있는 다른 기기에 한 번 넘기고, 그 기기가 읽으면 성공 (운영자 26-09-13)', async () => {
+  _resetJobs()
+  const t = 100_000
+  take({ now: t, workerId: 'server' }); take({ now: t, workerId: 'pc' })
+  assert.deepEqual(workersOnline(t).map((w) => w.id).sort(), ['pc', 'server'])
+  assert.equal(stats(t).workers.length, 2)
+  const j = enqueue({ key: 'k', url: 'https://www.coupang.com/vp/products/5005', productId: '5005' })
+  assert.deepEqual(take({ now: t + 1, workerId: 'server' }).map((x) => x.id), [j.id])
+  const r1 = complete(j.id, { ok: false, reason: 'blocked', message: '차단됨 (Access Denied)' }, { now: t + 2 })
+  assert.equal(r1.requeued, true); assert.equal(getJob(j.id).status, 'pending', '넘긴 작업은 아직 기다리는 중')
+  assert.deepEqual(take({ now: t + 3, workerId: 'server' }), [], '실패한 기기에는 다시 주지 않습니다')
+  assert.deepEqual(take({ now: t + 4, workerId: 'pc' }).map((x) => x.id), [j.id], '다른 기기가 가져갑니다')
+  const r2 = complete(j.id, { ok: true, productName: '분유', productPrice: 21720 }, { now: t + 5 })
+  assert.equal(r2.status, 'done')
+  const rec = recentJobs(1)[0]
+  assert.equal(rec.attempts, 1); assert.equal(rec.worker, 'pc'); assert.equal(rec.lastError, '차단됨 (Access Denied)')
+  // 두 번째 실패는 넘기지 않습니다 (한 번만)
+  const j2 = enqueue({ key: 'k2', url: 'https://www.coupang.com/vp/products/5006', productId: '5006' })
+  take({ now: t + 6, workerId: 'server' })
+  assert.equal(complete(j2.id, { ok: false, message: 'x' }, { now: t + 7 }).requeued, true)
+  take({ now: t + 8, workerId: 'pc' })
+  assert.equal(complete(j2.id, { ok: false, message: 'y' }, { now: t + 9 }).status, 'failed')
+  // 다른 기기가 없으면 바로 실패, redirect 는 넘기지 않음
+  _resetJobs()
+  const j3 = enqueue({ key: 'k3', url: 'https://www.coupang.com/vp/products/5007', productId: '5007' })
+  take({ now: t, workerId: 'server' })
+  assert.equal(complete(j3.id, { ok: false, message: '시간 초과' }, { now: t + 1 }).status, 'failed')
+  take({ now: t + 2, workerId: 'pc' })
+  const j4 = enqueue({ key: 'k4', url: 'https://shop.coupang.com/A1/2', productId: null })
+  take({ now: t + 3, workerId: 'server' })
+  assert.equal(complete(j4.id, { ok: false, reason: 'redirect', redirect: 'https://www.coupang.com/vp/products/1' }, { now: t + 4 }).status, 'failed')
+  // API 도 헤더의 기기 번호를 씁니다 — 차단 사유는 고객 조회에 그대로
+  _resetJobs()
+  await call(jobsHandler, { headers: { 'x-admin-token': 'tok-worker', 'x-worker-id': 'srv-1' } })
+  await call(jobsHandler, { headers: { 'x-admin-token': 'tok-worker', 'x-worker-id': 'pc-1' } })
+  const pend = await peekProduct('https://www.coupang.com/vp/products/5008', { fetchImpl: noFetch, log: quiet })
+  const got = await call(jobsHandler, { headers: { 'x-admin-token': 'tok-worker', 'x-worker-id': 'srv-1' } })
+  assert.equal(got.body.jobs.length, 1); assert.equal(got.body.workers.length, 2)
+  const posted = await call(jobHandler, { method: 'POST', query: { id: pend.jobId }, headers: { 'x-admin-token': 'tok-worker', 'x-worker-id': 'srv-1' }, body: { ok: false, reason: 'blocked', message: '차단됨' } })
+  assert.equal(posted.body.requeued, true); assert.equal(posted.body.status, 'pending')
+  assert.equal((await call(peekHandler, { query: { job: pend.jobId } })).body.reason, 'pending', '고객 화면은 계속 기다립니다')
+  assert.equal((await call(jobsHandler, { headers: { 'x-admin-token': 'tok-worker', 'x-worker-id': 'srv-1' } })).body.jobs.length, 0)
+  assert.equal((await call(jobsHandler, { headers: { 'x-admin-token': 'tok-worker', 'x-worker-id': 'pc-1' } })).body.jobs.length, 1)
+  await call(jobHandler, { method: 'POST', query: { id: pend.jobId }, headers: { 'x-admin-token': 'tok-worker', 'x-worker-id': 'pc-1' }, body: { ok: false, reason: 'blocked', message: '차단됨' } })
+  assert.equal((await call(peekHandler, { query: { job: pend.jobId } })).body.reason, 'blocked', '둘 다 막히면 사유가 그대로 고객 조회에')
 })
 
 test('최근 작업 목록 — 운영자 상태 화면용, 최신순, 결과 요약만', () => {

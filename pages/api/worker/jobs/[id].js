@@ -25,5 +25,6 @@ export default function handler(req, res) {
   const done = complete(id, result)
   if (!done) return res.status(409).json({ ok: false, error: '이미 끝난 작업입니다.' })
   if (result.ok) rememberPeek({ productId: job.productId, itemId: job.itemId, vendorItemId: job.vendorItemId, url: job.url }, result)
-  return res.status(200).json({ ok: true, status: done.status })
+  // requeued: 이 기기는 실패했지만 다른 기기가 살아 있어 넘겼습니다 (status 는 그대로 pending)
+  return res.status(200).json({ ok: true, status: done.status, requeued: Boolean(done.requeued) })
 }

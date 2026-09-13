@@ -1,6 +1,6 @@
 # 베트남 직구 — 규정 부록 (설정 원본 전체)
 
-> `npm run spec:appendix` 로 만든 자동 문서 (2026-09-12). 요약은 docs/SPEC.md, 운영 절차는 docs/OPERATIONS.md.
+> `npm run spec:appendix` 로 만든 자동 문서 (2026-09-13). 요약은 docs/SPEC.md, 운영 절차는 docs/OPERATIONS.md.
 > 1부는 실제 계산에 쓰이는 값(JSON), 2부는 설정 파일 원문(주석·키워드·고지 문장 전부)입니다. 원가 파일이 포함되므로 저장소 밖으로 내보내지 마세요.
 
 
@@ -3753,7 +3753,12 @@ export const WAREHOUSE = {
   address2: env('KR_WAREHOUSE_ADDR2'),
   /** 세부주소 코드의 접두사 — "YS-ECOM 이름" 의 YS-ECOM 부분 */
   code: env('KR_WAREHOUSE_CODE') || 'YS-ECOM',
-  /** 배송지 연락처 — 고객이 쇼핑몰 배송지의 휴대폰 칸에 넣는 번호 (운영자 확정 26-09-06) */
+  /**
+   * 배송지 연락처 — 고객이 쇼핑몰 배송지의 휴대폰 칸에 넣는 번호 (운영자 확정 26-09-06, 26-09-13 「고정」).
+   * 서울 사무실 번호입니다. 입고 매칭은 이 번호가 아니라 상세주소의 「YS-ECOM 이름」·쿠팡 주문번호·운송장으로
+   * 하므로(lib/order/store.js findByInbound), 배송만 고객이 본인 번호를 넣어도 매칭은 되지만 택배 문제 연락을
+   * 사무실로 받기 위해 이 번호를 안내합니다. 구매대행은 우리가 주문하므로 자동으로 이 번호가 들어갑니다.
+   */
   phone: env('KR_WAREHOUSE_PHONE') || '010-4803-6031',
   configured: Boolean(address1),
 }
@@ -6748,7 +6753,9 @@ export const OWNER_ONLY_MESSAGE =
  *
  * 메모리 안에서만 삽니다(서버 한 대). 작업은 3분이면 지웁니다. 상품 정보 외에 고객 정보는 담지 않습니다.
  */
-const state = globalThis.__kbPeekJobs ?? (globalThis.__kbPeekJobs = { jobs: new Map(), lastPollAt: 0, seq: 0 })
+const state = globalThis.__kbPeekJobs ?? (globalThis.__kbPeekJobs = { jobs: new Map(), lastPollAt: 0, seq: 0, pollers: new Map() })
+// 옛 프로세스 상태(pollers 없이 만든 것)도 그대로 씁니다
+if (!state.pollers) state.pollers = new Map()
 
 const ONLINE_MS = 20_000      // 이 안에 가져간 적이 있으면 「읽기 기기 살아 있음」
 const TAKE_TTL_MS = 30_000    // 가져간 뒤 이만큼 결과가 없으면 다른 기기가 다시 가져갈 수 있음
@@ -6761,6 +6768,11 @@ const gc = () => {
 
 export const workerOnline = (now = Date.now()) => now - state.lastPollAt < ONLINE_MS
 
+/** 살아 있는 읽기 기기들 — 서버 크롬·PC 크롬이 각자 X-Worker-Id 로 확인합니다 */
+export const workersOnline = (now = Date.now()) =>
+  [...state.pollers].filter(([, at]) => now - at < ONLINE_MS).map(([id, at]) => ({ id, lastPollAt: at }))
+const otherWorkerOnline = (exclude, now) => workersOnline(now).some((w) => w.id !== exclude)
+
 /** 같은 상품(캐시 키)의 진행 중 작업이 있으면 그것을 돌려줍니다 */
 export function enqueue({ key, url, productId, itemId = null, vendorItemId = null }) {
   gc()
@@ -6770,32 +6782,52 @@ export function enqueue({ key, url, productId, itemId = null, vendorItemId = nul
     id: `pj_${Date.now().toString(36)}_${state.seq.toString(36)}`,
     key, url, productId, itemId, vendorItemId,
     status: 'pending', createdAt: Date.now(), takenAt: 0, result: null,
+    attempts: 0, takenBy: null, avoid: null, lastError: null,
   }
   state.jobs.set(job.id, job)
   return job
 }
 
-/** 읽기 기기가 가져갑니다 — 아직 아무도 안 가져갔거나, 가져간 지 오래된 것만 */
-export function take({ limit = 3, now = Date.now() } = {}) {
+/**
+ * 읽기 기기가 가져갑니다 — 아직 아무도 안 가져갔거나, 가져간 지 오래된 것만.
+ * 한 기기가 실패해 다른 기기에 넘긴 작업(avoid)은 그 기기에는 다시 주지 않습니다.
+ */
+export function take({ limit = 3, now = Date.now(), workerId = 'w' } = {}) {
   gc()
   state.lastPollAt = now
+  state.pollers.set(workerId, now)
   const out = []
   for (const j of state.jobs.values()) {
     if (j.status !== 'pending') continue
     if (j.takenAt && now - j.takenAt < TAKE_TTL_MS) continue
+    if (j.avoid && j.avoid === workerId) continue
     j.takenAt = now
+    j.takenBy = workerId
     out.push({ id: j.id, url: j.url, productId: j.productId })
     if (out.length >= limit) break
   }
   return out
 }
 
-export function complete(id, result) {
+/**
+ * 결과 접수. 실패(차단·시간 초과)인데 **다른 읽기 기기가 살아 있으면** 한 번은 그 기기에 넘깁니다 —
+ * 서버 크롬이 쇼핑몰에 막혀도 PC 크롬이 이어받게 (운영자 26-09-13: "안 되면 될 수 있는 방법"). 상품 주소를 찾아
+ * 돌려준 것(redirect)은 실패가 아니라 넘기지 않습니다. 넘긴 작업은 pending 그대로라 고객 화면은 계속 기다립니다.
+ */
+export function complete(id, result, { now = Date.now() } = {}) {
   const j = state.jobs.get(id)
   if (!j || j.status !== 'pending') return null
-  j.status = result?.ok ? 'done' : 'failed'
+  const failed = !result?.ok
+  if (failed && result?.reason !== 'redirect' && j.takenBy && (j.attempts ?? 0) < 1 && otherWorkerOnline(j.takenBy, now)) {
+    j.attempts = (j.attempts ?? 0) + 1
+    j.avoid = j.takenBy
+    j.takenAt = 0
+    j.lastError = result?.message ?? null
+    return { ...j, requeued: true }
+  }
+  j.status = failed ? 'failed' : 'done'
   j.result = result ?? { ok: false }
-  j.doneAt = Date.now()
+  j.doneAt = now
   return j
 }
 
@@ -6805,7 +6837,7 @@ export function stats(now = Date.now()) {
   gc()
   let pending = 0
   for (const j of state.jobs.values()) if (j.status === 'pending') pending += 1
-  return { online: workerOnline(now), lastPollAt: state.lastPollAt, pending }
+  return { online: workerOnline(now), lastPollAt: state.lastPollAt, pending, workers: workersOnline(now) }
 }
 
 /** 최근 작업 — 운영자 상태 화면용 (상품 번호·결과만, 고객 정보 없음). 최신순 */
@@ -6818,10 +6850,11 @@ export function recentJobs(limit = 10) {
       id: j.id, productId: j.productId, status: j.status, createdAt: j.createdAt, takenAt: j.takenAt || null, doneAt: j.doneAt ?? null,
       productName: j.result?.productName ?? null, productPrice: j.result?.productPrice ?? null,
       options: Array.isArray(j.result?.options) ? j.result.options.length : 0, message: j.result?.message ?? null,
+      attempts: j.attempts ?? 0, worker: j.takenBy ?? null, lastError: j.lastError ?? null,
     }))
 }
 
-export function _resetJobs() { state.jobs.clear(); state.lastPollAt = 0; state.seq = 0 }
+export function _resetJobs() { state.jobs.clear(); state.lastPollAt = 0; state.seq = 0; state.pollers.clear() }
 
 ```
 
@@ -6839,6 +6872,21 @@ import { parseProductUrl } from './coupang-url.js'
 const str = (v, n) => String(v ?? '').slice(0, n)
 const digits = (v) => { const d = String(v ?? '').replace(/\D/g, ''); return d ? d.slice(0, 20) : null }
 export const MAX_OPTIONS = 60
+
+/**
+ * 대표 사진 주소 — 쇼핑몰 그림 서버(*.coupangcdn.com)의 https 주소만 통과시킵니다.
+ * 고객 화면이 <img> 로 그대로 보여주므로(우리 서버에 저장하지 않음) 아무 주소나 받으면 안 됩니다.
+ * 운영자 26-09-13: "메인 이미지도 가지고 와서 실제로 제품 사진도 보여줬으면".
+ */
+export function sanitizeImageUrl(v) {
+  const s = String(v ?? '').trim().slice(0, 500)
+  if (!/^https:\/\//i.test(s)) return null
+  try {
+    const u = new URL(s)
+    if (!/(^|\.)coupangcdn\.com$/i.test(u.hostname)) return null
+    return u.href
+  } catch { return null }
+}
 
 /** 옵션 목록 정리 — 라벨 80자, 같은 번호는 하나로, url 은 같은 상품의 정식 주소일 때만 */
 export function sanitizeOptions(list, { productId = null } = {}) {
@@ -6878,6 +6926,8 @@ export function sanitizeWorkerResult(body, { productId = null } = {}) {
     // 상품 화면이 아니었지만(브랜드관 등) 화면 속에서 상품 주소를 찾은 경우 — 고객 화면이 그 주소로 다시 읽습니다
     const r = b.redirect ? parseProductUrl(String(b.redirect)) : null
     if (r?.productId) return { ok: false, reason: 'redirect', redirect: r.url, productId: r.productId, message: str(b.message, 200) }
+    // blocked: 쇼핑몰이 이 크롬의 IP 를 막음(Access Denied) — 운영자 화면에 그대로 보이고, 다른 기기에 넘기는 근거가 됩니다
+    if (b.reason === 'blocked') return { ok: false, reason: 'blocked', message: str(b.message, 200) }
     return { ok: false, message: str(b.message, 200) }
   }
   const productUrl = b.productUrl ? (parseProductUrl(String(b.productUrl))?.url ?? null) : null
@@ -6891,6 +6941,7 @@ export function sanitizeWorkerResult(body, { productId = null } = {}) {
     shippingText: str(b.shippingText, 300),
     blocked: b.blocked ? str(b.blocked, 80) : null,
     productUrl,
+    image: sanitizeImageUrl(b.image),
     options: sanitizeOptions(b.options, { productId }),
     via: 'worker',
   }

@@ -5,8 +5,9 @@
 # systemd 서비스(kb-worker)로 늘 켜 둡니다. 크롬은 시작하자마자 확장의 「대신 읽기」 창을 열어 서버 주소·운영자 토큰을
 # 받고(주소 파라미터) 3초마다 작업을 가져갑니다 → 폰 고객의 링크가 사장님 PC 없이도 이름·옵션·가격으로 채워집니다.
 #
-# ⚠️ 쿠팡이 이 서버 IP 의 크롬까지 막으면(봇 차단) 작업은 「시간 초과 (탭: Access Denied)」로 남습니다 — 그때는 PC·폰 크롬이
-#    대신 읽어야 하고, 이 서비스는 systemctl disable --now kb-worker 로 끄면 됩니다. 다시 실행해도 안전합니다(멱등).
+# ⚠️ 쿠팡이 이 서버 IP 의 크롬까지 막으면(봇 차단) 작업은 「차단됨 (Access Denied)」로 남고, PC 크롬이 살아 있으면 서버가
+#    같은 작업을 PC 크롬에 자동으로 넘깁니다. 계속 막히면 .env.local 에 KB_WORKER_PROXY=(한국 주거용 프록시) 를 적고
+#    systemctl restart kb-worker (deploy/run-worker.sh 참고). 끄기: systemctl disable --now kb-worker. 다시 실행해도 안전합니다(멱등).
 set -euo pipefail
 APP_DIR=/srv/kb
 EXT_DIR=$APP_DIR/extension
@@ -32,10 +33,7 @@ CHROME=$(ls -d "$BROWSERS"/chromium-*/chrome-linux*/chrome 2>/dev/null | sort | 
 chown -R kb:kb "$BROWSERS"
 mkdir -p "$PROFILE" && chown -R kb:kb "$PROFILE"
 
-# 시작 주소는 우리 사이트의 부팅 페이지 — 설정은 # 뒤라 서버·로그에 남지 않고, 확장이 이 탭을 대신 읽기 창으로 바꿉니다
-WORKER_URL="$BASE_URL/kb-worker-boot#backend=$BASE_URL&token=\${ADMIN_TOKEN}&start=1"
-
-echo "3) systemd 서비스 kb-worker 작성"
+echo "3) systemd 서비스 kb-worker 작성 (크롬 실행은 deploy/run-worker.sh — 프록시·그림 설정은 그 파일의 머리말)"
 cat > "$UNIT" <<UNIT
 [Unit]
 Description=베트남 직구 — 대신 읽기 (서버 크롬 + 확장)
@@ -45,13 +43,10 @@ Wants=network-online.target
 [Service]
 User=kb
 Environment=HOME=$APP_DIR
+Environment=KB_CHROME=$CHROME
+Environment=APP_DIR=$APP_DIR
 EnvironmentFile=$ENV_FILE
-ExecStart=/usr/bin/xvfb-run -a -s "-screen 0 1280x900x24" $CHROME \\
-  --no-first-run --no-default-browser-check --no-sandbox --disable-gpu --disable-dev-shm-usage \\
-  --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows \\
-  --disable-session-crashed-bubble --disable-features=TranslateUI --lang=ko-KR --window-size=1280,900 \\
-  --user-data-dir=$PROFILE --disable-extensions-except=$EXT_DIR --load-extension=$EXT_DIR \\
-  "$WORKER_URL"
+ExecStart=/bin/bash $APP_DIR/deploy/run-worker.sh
 Restart=always
 RestartSec=10
 KillMode=mixed

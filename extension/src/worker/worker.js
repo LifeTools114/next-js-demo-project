@@ -16,6 +16,8 @@ let backend = ''
 let token = ''
 const active = new Map()   // tabId → { jobId, url, startedAt, timeout }
 const counts = { done: 0, failed: 0 }
+// 이 창의 기기 번호 — 서버가 서버 크롬·PC 크롬을 구분해, 한쪽이 실패한 작업을 다른 쪽에 넘깁니다
+const workerId = (globalThis.crypto?.randomUUID?.() ?? String(Math.random()).slice(2)).replace(/-/g, '').slice(0, 10)
 
 const store = {
   get: (keys) => new Promise((r) => chrome.storage.local.get(keys, r)),
@@ -52,7 +54,7 @@ async function loadSettings() {
 async function api(path, init = {}) {
   const res = await fetch(`${backend}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token, 'X-Admin-User': 'worker', ...(init.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token, 'X-Admin-User': 'worker', 'X-Worker-Id': workerId, ...(init.headers ?? {}) },
   })
   const data = await res.json().catch(() => null)
   return { ok: res.ok, status: res.status, data }
@@ -110,7 +112,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
         badges: p.item?.badges ?? [], categoryPath: p.item?.categoryPath ?? '', shippingText: p.item?.shippingText ?? '', blocked: p.blocked ?? null,
         // 고객이 고를 옵션 목록(번호·링크·가격)과 이 화면의 정식 주소 — 고객 화면이 옵션을 바꾸면 그 주소를 다시 읽습니다
         options: Array.isArray(p.item?.options) ? p.item.options : [], productUrl: p.item?.productUrl ?? null }
-    : { ok: false, message: p.message ?? (p.redirect ? '상품 주소를 찾아 다시 읽습니다' : '읽기 실패'), redirect: p.redirect ?? null })
+    : { ok: false, message: p.message ?? (p.redirect ? '상품 주소를 찾아 다시 읽습니다' : '읽기 실패'), redirect: p.redirect ?? null, reason: p.reason ?? null })
 })
 
 // 열었던 탭을 사람이 닫으면 실패로 마감

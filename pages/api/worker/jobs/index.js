@@ -15,6 +15,8 @@ export default function handler(req, res) {
     throw e
   }
   res.setHeader('Cache-Control', 'no-store')
-  const jobs = take({ limit: Math.max(1, Math.min(Number(req.query?.limit) || 3, 10)) })
+  // 기기 번호 — 서버 크롬·PC 크롬을 구분해, 한쪽이 실패한 작업을 다른 쪽에 넘깁니다 (lib/peek-jobs.js)
+  const workerId = String(req.headers?.['x-worker-id'] ?? '').replace(/[^\w.-]/g, '').slice(0, 40) || 'unknown'
+  const jobs = take({ limit: Math.max(1, Math.min(Number(req.query?.limit) || 3, 10)), workerId })
   return res.status(200).json({ ok: true, jobs, ...stats() })
 }

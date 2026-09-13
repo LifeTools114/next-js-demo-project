@@ -268,7 +268,7 @@ export default function AdminConsole() {
           <div className="panel__body">
             <p className="note" style={{ marginBottom: 8 }}>
               {worker.online
-                ? <>PC 크롬의 「대신 읽기」 창이 {Math.max(0, Math.round((worker.now - worker.lastPollAt) / 1000))}초 전에 확인했습니다. 대기 {worker.pending}건.</>
+                ? <>읽기 크롬 <b>{worker.workers?.length || 1}대</b>(서버·PC)가 {Math.max(0, Math.round((worker.now - worker.lastPollAt) / 1000))}초 전에 확인했습니다. 대기 {worker.pending}건. 한 대가 차단되면 다른 대에 자동으로 넘깁니다.</>
                 : worker.lastPollAt
                   ? <>마지막 확인이 {Math.round((worker.now - worker.lastPollAt) / 60000)}분 전입니다 — PC 크롬의 「대신 읽기」 창이 닫혔거나 크롬이 꺼져 있습니다. 그동안 폰 고객은 가격을 직접 적습니다.</>
                   : <>서버가 켜진 뒤 한 번도 확인이 없습니다 — 확장 팝업 [운영] → 「🔄 대신 읽기 창 열기」 → 「대신 읽기 시작」. 그동안 폰 고객은 가격을 직접 적습니다.</>}
@@ -278,7 +278,8 @@ export default function AdminConsole() {
                 <span className="row__label">
                   {new Date(j.createdAt).toLocaleTimeString('ko-KR', { hour12: false })} · 상품 {j.productId}
                   {j.productName ? <> · {j.productName.slice(0, 30)}</> : null}
-                  {j.message ? <> · <span style={{ color: 'var(--danger, var(--danger))' }}>{j.message}</span></> : null}
+                  {j.message ? <> · <span style={{ color: 'var(--danger)' }}>{j.message}</span></> : null}
+                  {j.attempts ? <> · <span style={{ color: 'var(--warn)' }}>다른 기기로 넘김{j.lastError ? ` (${String(j.lastError).slice(0, 40)})` : ''}</span></> : null}
                 </span>
                 <span className="row__value">
                   {j.status === 'done' ? `읽음${j.productPrice ? ` ${j.productPrice.toLocaleString('ko-KR')}원` : ''}${j.options ? ` · 옵션 ${j.options}` : ''}`

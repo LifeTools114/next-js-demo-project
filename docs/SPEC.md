@@ -246,7 +246,12 @@
 | 옵션 바꾸기 | 그 옵션 화면을 한 번 더 읽어 이름·가격·링크(itemId·vendorItemId) 갱신 |
 | 상품 화면이 아닌 링크 | 브랜드관 등: 화면 속 상품 주소(canonical·og:url·링크·스크립트)를 찾아 `redirect` 로 돌려주고 고객 화면이 다시 읽음 |
 | 시간 | 탭당 25초, 고객 화면은 2초마다 30초 확인. 시간 초과 기록에 탭 제목 |
-| 어디서 | 사장님 PC 크롬(확장 [운영] → 대신 읽기 창, 크롬 켤 때 자동 열림) 또는 **서버 크롬 서비스 kb-worker**(`deploy/setup-worker.sh`) |
+| 어디서 | 사장님 PC 크롬(확장 [운영] → 대신 읽기 창, 크롬 켤 때 자동 열림) 또는 **서버 크롬 서비스 kb-worker**(`deploy/setup-worker.sh` → `deploy/run-worker.sh`). 여러 대 동시 가능 — 기기 번호 `X-Worker-Id` |
+| 교대 (26-09-13) | 한 기기가 실패(차단·시간 초과)하면 살아 있는 다른 기기에 **한 번** 넘김(같은 기기에는 다시 주지 않음). redirect 는 실패 아님. 넘긴 작업은 pending 그대로 |
+| 차단 감지 | 대신 읽기 탭의 제목·첫 줄이 `Access Denied` 이거나 Akamai `Reference #…` 이면 즉시 `reason:'blocked'` (25초 기다리지 않음). 상품 설명의 "자외선 차단" 같은 말에는 걸리지 않음 |
+| 우회 | `.env.local` `KB_WORKER_PROXY`(한국 주거용 프록시, 서버 IP 허용 방식) → 서버 크롬이 쇼핑몰만 그 회선으로 열고 그림은 내려받지 않음(`KB_WORKER_IMAGES=1` 로 켬). 우리 사이트·localhost 는 직접 |
+| 대표 사진 | 상품 화면의 og:image → `sanitizeImageUrl`(https + *.coupangcdn.com 만) → 신청 카드·신청서·주문 화면 `<img referrerPolicy="no-referrer">`. 저장하지 않음 |
+| 옵션 선택 | 링크에 itemId/vendorItemId 가 없으면 아무 옵션도 미리 고르지 않음(「옵션을 골라 주세요」). 구매하고 배송까지는 고르기 전엔 견적 잠금. 고르면 그 옵션 화면을 다시 읽어 가격·링크 갱신 |
 | 상태 | `/admin` 「🔄 대신 읽기」 — 살아 있음·대기·최근 처리(읽음·실패 사유) |
 | 한계 | 쿠팡 약관상 자동 접근 논란 가능(소량), 기기 IP·계정 차단 가능, 토큰이 기기에 있음, 스토어 배포본에는 없음 |
 

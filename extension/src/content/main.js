@@ -15,6 +15,20 @@
   const isProductPage = location.pathname.includes('/vp/products/') || location.pathname.includes('/vm/products/')
   /* kb-operator-only */
   /**
+   * 대신 읽기 창이 연 탭(#kbjob=)이 차단 화면(Access Denied — 봇 차단이 이 크롬의 IP 를 막음)이면 25초 시간 초과를
+   * 기다리지 않고 바로 알립니다. 서버는 다른 읽기 기기(PC 크롬)가 살아 있으면 같은 작업을 그쪽에 넘깁니다.
+   * 상품 설명의 "자외선 차단" 같은 말에 걸리지 않도록 제목·첫 줄이 Access Denied 로 시작하거나 Akamai 참조 번호가 있을 때만.
+   */
+  if (/kbjob=/.test(location.hash)) {
+    const title = String(document.title ?? '').trim()
+    const head = String(document.body?.innerText ?? '').trim().slice(0, 160)
+    if (/^access denied/i.test(title) || /^access denied/i.test(head) || /reference #\d+\.[0-9a-f]+\.\d+/i.test(head)) {
+      const m = location.hash.match(/kbjob=([^&]+)/)
+      try { chrome.runtime.sendMessage({ type: 'workerResult', jobId: decodeURIComponent(m[1]), payload: { ok: false, reason: 'blocked', message: `차단됨 (Access Denied) — 이 크롬의 IP 를 쇼핑몰이 막았습니다 (${location.hostname})` } }) } catch { /* 창이 닫혔으면 무시 */ }
+      return
+    }
+  }
+  /**
    * 대신 읽기 창이 연 탭(#kbjob=)인데 상품 화면이 아니면 — 브랜드관(shop.coupang.com/A00…/…)·기획전 등 —
    * 화면 속에서 진짜 상품 주소(/vp/products/…)를 찾아 돌려줍니다. 서버는 그 주소로 다시 읽기를 겁니다.
    * 늦게 그려지는 화면을 위해 0.8초 간격으로 최대 8번 봅니다. 고객 브라우저에서는 해시가 없어 아무 일도 하지 않습니다.
