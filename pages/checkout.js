@@ -425,8 +425,12 @@ export default function Checkout() {
           <div className="panel__head">2. 보내드릴 상품 ({items.length}종)</div>
           <div className="panel__body">
             {items.map((it, i) => (
-              <div className="row" key={i}>
-                <span className="row__label">{it.productName} × {it.quantity}</span>
+              <div className="row" key={i} style={{ alignItems: 'center' }}>
+                <span className="row__label" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {it.image ? <img src={it.image} alt="" referrerPolicy="no-referrer" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, flexShrink: 0, background: 'var(--bg-2)', border: '1px solid var(--line)' }} /> : null}
+                  <span>{it.productName} × {it.quantity}</span>
+                </span>
                 <span className="row__value">{krw(it.productPrice * it.quantity)}</span>
               </div>
             ))}

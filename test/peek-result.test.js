@@ -30,6 +30,22 @@ test('성공 결과 — 숫자 검증, 길이 상한, 정식 주소, 옵션 포�
   assert.equal(r.via, 'worker')
 })
 
+test('대표 사진 — 쇼핑몰 그림 서버의 https 주소만 통과, 주문 상품에도 실린다 (운영자 26-09-13)', async () => {
+  const { sanitizeImageUrl } = await import('../lib/peek-result.js')
+  const { normalizeOrderItem } = await import('../lib/order/normalize-items.js')
+  const good = 'https://thumbnail6.coupangcdn.com/thumbnails/remote/492x492ex/image/retail/images/1.jpg'
+  assert.equal(sanitizeImageUrl(good), good)
+  assert.equal(sanitizeImageUrl(' ' + good + ' '), good, '앞뒤 공백은 정리')
+  for (const bad of ['http://thumbnail6.coupangcdn.com/a.jpg', 'https://evil.com/coupangcdn.com/a.jpg', 'https://coupangcdn.com.evil.com/a.jpg', 'javascript:alert(1)', '', null, 'https://www.coupang.com/a.jpg']) {
+    assert.equal(sanitizeImageUrl(bad), null, `${bad} 는 버립니다`)
+  }
+  const r = sanitizeWorkerResult({ ok: true, productName: '세럼', productPrice: 1000, image: good }, { productId: '1' })
+  assert.equal(r.image, good)
+  assert.equal(sanitizeWorkerResult({ ok: true, productName: '세럼', productPrice: 1000, image: 'https://evil.com/x.png' }, { productId: '1' }).image, null)
+  assert.equal(normalizeOrderItem({ productName: '세럼', productPrice: 1000, quantity: 1, image: good }).image, good)
+  assert.equal(normalizeOrderItem({ productName: '세럼', productPrice: 1000, quantity: 1, image: 'https://evil.com/x.png' }).image, null)
+})
+
 test('옵션 — 다른 상품 주소·엉뚱한 주소는 url 을 버리고, 같은 번호는 하나로, 최대 60개', () => {
   const list = [
     { label: '블랙', itemId: 1, vendorItemId: 2, url: 'https://www.coupang.com/vp/products/999?itemId=1&vendorItemId=2' },

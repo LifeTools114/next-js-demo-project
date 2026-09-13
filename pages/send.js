@@ -47,7 +47,7 @@ export default function SendPage({ shop }) {
   const router = useRouter()
   const [track, setTrack] = useState('forwarding')
   const [name, setName] = useState('')
-  const emptyRow = () => ({ productName: '', productPrice: '', quantity: 1, productUrl: '', spec: '', edit: false, options: [], optionLabel: '' })
+  const emptyRow = () => ({ productName: '', productPrice: '', quantity: 1, productUrl: '', spec: '', image: '', edit: false, options: [], optionLabel: '' })
   const [rows, setRows] = useState([emptyRow()])
   const [quote, setQuote] = useState(null)
   const [quoting, setQuoting] = useState(false)
@@ -123,6 +123,7 @@ export default function SendPage({ shop }) {
         productPrice: Math.max(0, Math.round(Number(r.productPrice) || 0)),
         quantity: Math.max(1, Math.min(Number(r.quantity) || 1, 99)),
         productUrl: link?.url ?? String(r.productUrl ?? '').trim().slice(0, 500),
+        image: r.image || null,
         specOverride: r.spec || null,
         track,
       }
@@ -171,6 +172,7 @@ export default function SendPage({ shop }) {
         productName: force || !r.productName?.trim() ? (d.productName || r.productName) : r.productName,
         productPrice: force || !r.productPrice ? (d.productPrice ?? r.productPrice) : r.productPrice,
         spec: d.spec ?? r.spec ?? '',
+        image: d.image ?? r.image ?? '',
         // 옵션 목록은 새로 읽힌 것이 있으면 그것으로, 없으면 지난 목록 유지 (선택 표시는 이 줄의 주소 기준)
         options: markSelected(d.options?.length ? d.options : r.options, d.url ?? r.productUrl),
         edit: false,
@@ -181,19 +183,26 @@ export default function SendPage({ shop }) {
     }
   }
 
-  /** 옵션 목록에서 이 줄의 주소(옵션 번호)와 같은 것에 선택 표시 */
+  /**
+   * 옵션 목록에서 이 줄의 주소(옵션 번호)와 같은 것에 선택 표시.
+   * 링크에 옵션 번호가 없으면(상품만 가리키는 링크) 아무 옵션도 미리 고르지 않습니다 — 화면이 보여주던 기본 옵션을
+   * 고객이 고른 것처럼 넘기지 않기 위해서입니다. 고객이 우리 화면에서 고르면 그 옵션 가격이 들어갑니다 (운영자 26-09-13).
+   */
   const markSelected = (options, url) => {
     const link = parseProductUrl(url)
     const list = Array.isArray(options) ? options : []
     if (!link) return list
+    const linkHasOption = Boolean(link.itemId || link.vendorItemId)
     const byUrl = list.some((o) => (o.vendorItemId && o.vendorItemId === link.vendorItemId) || (o.itemId && !o.vendorItemId && o.itemId === link.itemId))
     return list.map((o) => ({
       ...o,
       selected: byUrl
         ? (o.vendorItemId && o.vendorItemId === link.vendorItemId) || (o.itemId && !o.vendorItemId && o.itemId === link.itemId)
-        : Boolean(o.selected),
+        : linkHasOption ? Boolean(o.selected) : false,
     }))
   }
+  /** 구매하고 배송까지 — 옵션이 있는 상품인데 아직 고르지 않은 줄이 있으면 견적으로 못 넘어갑니다 (엉뚱한 옵션을 사지 않게) */
+  const needsOption = isAgent && rows.some((r) => (r.options?.length ?? 0) >= 2 && !r.options.some((o) => o.selected))
 
   /** 옵션 칩을 누르면 — 링크가 있는 옵션은 그 화면을 읽어 가격을 맞추고, 없는 옵션은 이름표만 붙입니다 */
   const pickOption = (i, opt) => {
@@ -256,7 +265,7 @@ export default function SendPage({ shop }) {
   }
 
   const getQuote = async () => {
-    if (items.length === 0) return
+    if (items.length === 0 || needsOption) return
     setQuoting(true)
     setError(null)
     try {
@@ -368,13 +377,30 @@ export default function SendPage({ shop }) {
             {auto ? (
               /* 2) 읽어온 상품 — 옵션을 고르고 개수만 정합니다 */
               <div data-auto-item="1" style={{ border: '1px solid var(--ok)', background: 'var(--ok-soft)', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ fontSize: 12, color: 'var(--ok)', fontWeight: 800 }}>
-                  {peek[i] === 'option' ? '⏳ 옵션 가격 읽는 중…' : '✓ 읽어온 상품'}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  {/* 대표 사진 — 쇼핑몰 그림 서버 주소를 그대로 보여줍니다 (저장하지 않음). 못 받으면 조용히 숨깁니다 */}
+                  {r.image ? (
+                    <img src={r.image} alt="" referrerPolicy="no-referrer" loading="lazy" data-row-image="1"
+                      onError={(e) => { e.currentTarget.style.display = 'none' }}
+                      style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10, flexShrink: 0, background: 'var(--bg-2)', border: '1px solid var(--line)' }} />
+                  ) : null}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: 'var(--ok)', fontWeight: 800 }}>
+                      {peek[i] === 'option' ? '⏳ 옵션 가격 읽는 중…' : '✓ 읽어온 상품'}
+                    </div>
+                    <div data-row-name="1" style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginTop: 4, lineHeight: 1.4 }}>{r.productName}</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginTop: 4, lineHeight: 1.4 }}>{r.productName}</div>
                 {r.options?.length > 0 && (
                   <div style={{ marginTop: 8 }} data-options="1">
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 700, marginBottom: 4 }}>옵션</div>
+                    {(() => {
+                      const sel = r.options.find((o) => o.selected)
+                      return (
+                        <div data-option-state={sel ? 'selected' : 'none'} style={{ fontSize: 12, color: sel ? 'var(--text-2)' : 'var(--warn)', fontWeight: 700, marginBottom: 4 }}>
+                          {sel ? <>선택한 옵션 · <b style={{ color: 'var(--text)' }}>{sel.label}</b></> : '옵션을 골라 주세요 — 고르면 그 옵션 가격이 들어갑니다'}
+                        </div>
+                      )
+                    })()}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {r.options.map((o, k) => (
                         <button key={k} type="button" data-option-chip={k} aria-pressed={Boolean(o.selected)} onClick={() => pickOption(i, o)} style={chipStyle(Boolean(o.selected))}>
@@ -476,9 +502,10 @@ export default function SendPage({ shop }) {
           </button>
         ) : (
           <button type="button" className="btn" onClick={getQuote}
-            disabled={items.length === 0 || quoting}
+            disabled={items.length === 0 || quoting || needsOption}
             style={{ width: '100%', minHeight: 58, fontSize: 18, fontWeight: 800 }}>
             {quoting ? '계산 중…'
+              : needsOption ? '옵션을 골라 주세요'
               : items.length === 0
                 ? (rows.some((r) => parseProductUrl(r.productUrl)?.productId) ? '가격을 넣어주세요' : '상품 링크를 붙여넣어 주세요')
               : isAgent ? '얼마인지 보기' : '배송비 얼마인지 보기'}
