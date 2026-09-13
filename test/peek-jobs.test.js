@@ -28,7 +28,7 @@ test('읽기 기기가 없으면 page-off, 방금 가져간 기기가 있으면 
   _resetPeekCache()
   const pend = await peekProduct('https://www.coupang.com/vp/products/1002?itemId=3', { fetchImpl: noFetch, log: quiet })
   assert.equal(pend.reason, 'pending'); assert.ok(pend.jobId); assert.equal(pend.productId, '1002')
-  assert.equal(stats().pending, 1)
+  assert.equal(stats().pending, 2, '1001(다시 맡김) + 1002')
   // 같은 상품을 또 물으면 같은 작업
   const again = await peekProduct('https://www.coupang.com/vp/products/1002?itemId=3', { fetchImpl: noFetch, log: quiet })
   assert.equal(again.jobId, pend.jobId)
