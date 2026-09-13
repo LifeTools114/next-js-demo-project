@@ -5,6 +5,7 @@
  * 선택하고 금액을 자동으로"). 쇼핑몰 앱의 「공유 → 링크 복사」 → 이 화면의 「붙여넣기」 → 서버가 링크를 풀고,
  * 사장님 기기의 「대신 읽기」(lib/peek-jobs.js)가 그 상품 화면을 열어 이름·가격·용량·**옵션 목록**을 돌려줍니다.
  * 고객이 옵션을 바꾸면 그 옵션의 화면을 한 번 더 읽어 가격을 맞춥니다. 읽기 기기가 없으면 가격만 직접 적습니다.
+ * 상품 이름을 적는 칸은 없습니다 (운영자 26-09-13: "상품이름 넣는 곳은 빼주세요") — 이름은 읽기 결과나 상품 번호로만.
  *
  * 구매하고 배송까지(구매대행)는 창고 주소가 필요 없습니다 — 링크·개수만으로 신청서에서 상품값+수수료+배송비를
  * 한 번에 결제합니다. 폰 웹앱(홈 화면에 추가)의 「공유」는 ?url=·?text=·?title= 로 들어와 첫 줄에 채워집니다.
@@ -317,7 +318,7 @@ export default function SendPage({ shop }) {
       {orderCard}
       {rows.map((r, i) => {
         const link = parseProductUrl(r.productUrl)
-        const auto = !r.edit && (peek[i] === 'ok' || peek[i] === 'option') && Boolean(String(r.productName ?? '').trim()) && Number(r.productPrice) > 0
+        const auto = (peek[i] === 'ok' || peek[i] === 'option') && Boolean(String(r.productName ?? '').trim())
         const qty = Math.max(1, Math.min(Number(r.quantity) || 1, 99))
         // 배송만에서 알림 문자로 읽힌 줄은 링크 칸을 접습니다 — 이미 산 물건이라 링크는 필요 없습니다 (구매하고 배송까지는 링크가 필수)
         const showLink = isAgent || !auto || Boolean(r.productUrl)
@@ -360,7 +361,7 @@ export default function SendPage({ shop }) {
             )}
             {peek[i] === 'fail' && (
               <p className="note" style={{ margin: '0 0 8px', fontSize: 12.5, background: 'var(--warn-soft)', color: 'var(--warn)' }}>
-                {shopWord} 상품 링크로 확인되지 않았습니다. 이름·가격을 적어 주세요.
+                {shopWord} 상품 링크로 확인되지 않았습니다. {link?.productId ? '가격을 적어 주세요.' : '상품 화면에서 공유한 링크를 다시 넣어 주세요.'}
               </p>
             )}
 
@@ -383,10 +384,16 @@ export default function SendPage({ shop }) {
                     </div>
                   </div>
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--accent)' }}>{krw(Number(r.productPrice) || 0)}</span>
-                  {r.spec ? <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>용량 {r.spec}</span> : null}
-                  <span style={{ flex: 1 }} />
+                {r.spec ? <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 4 }}>용량 {r.spec}</div> : null}
+                {/* 가격·개수는 확인용으로 늘 보이고 고칠 수 있습니다 (운영자 26-09-13: "수량과 금액은 확인을 위해 넣어주세요") */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 150px', minWidth: 0 }}>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-2)', fontWeight: 700, flexShrink: 0 }}>가격</span>
+                    <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice} data-row-price="1"
+                      placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
+                      style={{ minHeight: 44, fontWeight: 800, color: 'var(--accent)', fontSize: 17 }} />
+                    <span style={{ fontSize: 12.5, color: 'var(--text-3)', flexShrink: 0 }}>원</span>
+                  </label>
                   {/* 개수 − n + 는 한 덩어리로 — 좁은 폰에서 줄이 갈라지지 않게 */}
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0, whiteSpace: 'nowrap' }}>
                     <span style={{ fontSize: 12.5, color: 'var(--text-2)', fontWeight: 700 }}>개수</span>
@@ -397,19 +404,13 @@ export default function SendPage({ shop }) {
                       style={{ width: 40, height: 40, borderRadius: 10, border: '1.5px solid var(--line-2)', background: 'var(--bg-2)', fontSize: 20, fontWeight: 800, cursor: 'pointer' }}>+</button>
                   </span>
                 </div>
-                <div style={{ marginTop: 6, textAlign: 'right' }}>
-                  <button type="button" onClick={() => setRow(i, { edit: true })}
-                    style={{ border: 0, background: 'transparent', color: 'var(--text-3)', fontSize: 12, textDecoration: 'underline', cursor: 'pointer' }}>
-                    고치기
-                  </button>
-                </div>
               </div>
             ) : (
-              /* 3) 직접 적기 — 링크를 못 읽었거나 링크가 없을 때 */
+              /* 3) 가격·개수만 직접 — 링크를 못 읽었거나 아직 안 읽힌 줄. 이름 칸은 없습니다 (읽힌 이름은 글자로만) */
               <>
-                <input className="input" value={r.productName} placeholder="상품 이름"
-                  onChange={(e) => setRow(i, { productName: e.target.value })}
-                  style={{ fontSize: 16, minHeight: 50, marginBottom: 8 }} />
+                {String(r.productName ?? '').trim() ? (
+                  <div data-row-name="1" style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: '0 0 8px', lineHeight: 1.4 }}>{r.productName}</div>
+                ) : null}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input className="input" type="number" inputMode="numeric" min="0" value={r.productPrice}
                     placeholder="가격 (원)" onChange={(e) => setRow(i, { productPrice: e.target.value })}
@@ -458,6 +459,12 @@ export default function SendPage({ shop }) {
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 6 }}>
             청구무게 {quote.shipping?.billableKg}kg · 창고 실측 후 확정
           </div>
+          {/* 링크만 있고 이름을 못 읽은 줄은 무게를 모릅니다 — 최소 1kg 기준임을 밝혀 둡니다 (실측 후 정산) */}
+          {items.some((it) => /^상품 \d+/.test(it.productName)) && (
+            <div className="note note--warn" style={{ marginTop: 8, fontSize: 12 }}>
+              상품 정보를 읽지 못한 줄은 무게를 알 수 없어 <b>최소 1kg 기준</b>입니다. 창고에서 잰 무게로 정산됩니다.
+            </div>
+          )}
         </div>
       )}
 
@@ -473,8 +480,7 @@ export default function SendPage({ shop }) {
             style={{ width: '100%', minHeight: 58, fontSize: 18, fontWeight: 800 }}>
             {quoting ? '계산 중…'
               : items.length === 0
-                ? (rows.some((r) => parseProductUrl(r.productUrl)?.productId) ? '가격을 넣어주세요'
-                  : isAgent ? '상품 링크를 붙여넣어 주세요' : '상품 링크 또는 이름·가격을 넣어주세요')
+                ? (rows.some((r) => parseProductUrl(r.productUrl)?.productId) ? '가격을 넣어주세요' : '상품 링크를 붙여넣어 주세요')
               : isAgent ? '얼마인지 보기' : '배송비 얼마인지 보기'}
           </button>
         )}
