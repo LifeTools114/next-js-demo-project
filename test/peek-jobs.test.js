@@ -22,6 +22,9 @@ test('읽기 기기가 없으면 page-off, 방금 가져간 기기가 있으면 
   assert.equal(off.reason, 'page-off')
   take() // 기기가 한 번 가져감 → 살아 있음
   assert.equal(workerOnline(), true)
+  // 기기가 없을 때 본 상품도 기기가 켜지면 바로 다시 맡깁니다 — 「가격만」 결과는 10초만 기억 (26-09-13 서버 시험의 원인)
+  const retry = await peekProduct('https://www.coupang.com/vp/products/1001', { fetchImpl: noFetch, log: quiet })
+  assert.equal(retry.reason, 'pending', '캐시를 비우지 않아도 다시 읽기 기기에 맡깁니다')
   _resetPeekCache()
   const pend = await peekProduct('https://www.coupang.com/vp/products/1002?itemId=3', { fetchImpl: noFetch, log: quiet })
   assert.equal(pend.reason, 'pending'); assert.ok(pend.jobId); assert.equal(pend.productId, '1002')
