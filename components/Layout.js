@@ -71,7 +71,7 @@ export default function Layout({ children, title, badge }) {
           <div style={{ marginBottom: 8, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text)' }}>
             {CONTACT.kakaoOpenChat ? (
               <a href={CONTACT.kakaoOpenChat} target="_blank" rel="noreferrer" className="btn btn--sm"
-                style={{ display: 'inline-flex', minHeight: 40, fontSize: '0.9rem' }}>
+                style={{ display: 'inline-flex', minHeight: 44, fontSize: '0.9rem' }}>
                 💬 {CONTACT.label} 오픈채팅
               </a>
             ) : <span>{CONTACT.label}</span>}

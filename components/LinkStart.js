@@ -57,7 +57,7 @@ export default function LinkStart({ ratePerKgUsd, agencyBaseKrw, shop }) {
         <input id="home-link" className="input" type="url" inputMode="url" value={val} data-home-link="1"
           placeholder="또는 여기에 링크를 직접 붙여넣기"
           onChange={(e) => { const v = e.target.value; setVal(v); setNote(''); tryGo(v) }}
-          style={{ marginTop: 8, minHeight: 48, fontSize: 15 }} />
+          style={{ marginTop: 8, minHeight: 48 }} />
         {note
           ? <p className="note" style={{ marginTop: 8, fontSize: 13, background: 'var(--warn-soft)', color: 'var(--warn)' }}>{note}</p>
           : <p className="note" style={{ marginTop: 8, textAlign: 'center' }}>쿠팡 앱 → 공유 → 링크 복사 → 붙여넣기. 이름·옵션·가격이 채워집니다 (<b>지금은 쿠팡 전용</b>).</p>}

@@ -311,7 +311,8 @@ input[type='checkbox'] { accent-color: var(--accent); }
   box-shadow: none; font-weight: 700;
 }
 .btn--ghost:active { background: var(--surface-2); }
-.btn--sm { min-height: 40px; font-size: 0.86rem; width: auto; padding: 0 14px; border-radius: 12px; }
+/* 작은 버튼도 손가락 크기(44px) 는 지킵니다 */
+.btn--sm { min-height: 44px; font-size: 0.86rem; width: auto; padding: 0 14px; border-radius: 12px; }
 .btn:disabled { opacity: .45; cursor: default; }
 
 /* ---------- 장바구니 ---------- */

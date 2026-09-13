@@ -206,7 +206,7 @@ export default function MyOrders() {
                 <br /><b style={{ color: 'var(--danger)' }}>남에게 보내지 마세요</b> — 링크를 아는 사람은 주문 내역을 볼 수 있습니다.
                 {data.customer.pin ? ' (PIN 을 걸어 두셔서 PIN 없이는 열리지 않습니다)' : ''}
               </p>
-              <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} style={{ fontSize: 12.5 }} />
+              <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} />
               <button className="btn" type="button" onClick={copy} style={{ marginTop: 8 }}>{copied ? '✓ 복사됨' : '링크 복사'}</button>
               <button type="button" className="btn btn--ghost" style={{ marginTop: 8 }}
                 onClick={() => { clearMyKey(); setKey(''); setData(null) }}>이 기기에서 링크 지우기</button>
