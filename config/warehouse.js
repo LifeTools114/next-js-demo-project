@@ -26,7 +26,12 @@ export const WAREHOUSE = {
   address2: env('KR_WAREHOUSE_ADDR2'),
   /** 세부주소 코드의 접두사 — "YS-ECOM 이름" 의 YS-ECOM 부분 */
   code: env('KR_WAREHOUSE_CODE') || 'YS-ECOM',
-  /** 배송지 연락처 — 고객이 쇼핑몰 배송지의 휴대폰 칸에 넣는 번호 (운영자 확정 26-09-06) */
+  /**
+   * 배송지 연락처 — 고객이 쇼핑몰 배송지의 휴대폰 칸에 넣는 번호 (운영자 확정 26-09-06, 26-09-13 「고정」).
+   * 서울 사무실 번호입니다. 입고 매칭은 이 번호가 아니라 상세주소의 「YS-ECOM 이름」·쿠팡 주문번호·운송장으로
+   * 하므로(lib/order/store.js findByInbound), 배송만 고객이 본인 번호를 넣어도 매칭은 되지만 택배 문제 연락을
+   * 사무실로 받기 위해 이 번호를 안내합니다. 구매대행은 우리가 주문하므로 자동으로 이 번호가 들어갑니다.
+   */
   phone: env('KR_WAREHOUSE_PHONE') || '010-4803-6031',
   configured: Boolean(address1),
 }
